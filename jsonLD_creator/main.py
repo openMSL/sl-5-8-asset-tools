@@ -571,6 +571,7 @@ def main():
     del claim_data['shacl_type']
 
     ontology_path = args.ontology + '/'
+    ontology_path = ontology_path.format(schema=shacle_namespace)
     shacl_definitions = {}
     url_path = f'{ontology_path}{shacle_namespace}/'
     new_url_path = get_url_for_download(url_path)
