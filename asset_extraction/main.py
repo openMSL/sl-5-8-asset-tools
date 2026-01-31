@@ -127,7 +127,7 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
 
     # run
     try:
-        #logger.info(script_call)
+        logger.info(script_call)
         logger.info(f">>>    start command {script_config['name']}")
         result = subprocess.run(script_call, check=True, capture_output=True, text=True, cwd=str(project_root))
         handle_output(result, script_config['name'] )            
