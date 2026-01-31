@@ -6,8 +6,6 @@ import argparse
 import requests
 import shutil
 
-DEBUG = True
-
 logger = logging.getLogger(__name__)
 
 def trigger_open_sd_wizard(endpoint_url):
@@ -33,8 +31,6 @@ def post_filepath(file_path, endpoint_url, output_path = None):
         print(f"Error sending file path: {e}")
         
 def check_combined_json(endpoint_url):
-    if DEBUG:
-        return
 
     while True:
         response = requests.get(endpoint_url)  # Repeat the GET request
@@ -50,8 +46,9 @@ def check_combined_json(endpoint_url):
         
 def main():
     parser = argparse.ArgumentParser(prog='main.py', description='calls the sd creation wizard with json and merged shacl file to fill the non-extractable attributes from the user')
-    parser.add_argument('filename', type=str,help='filename of json LD file')
-    parser.add_argument('-shacl', type=str,help='merged shacl file')
+    parser.add_argument('filename', type=str, help='filename of json LD file')
+    parser.add_argument('-shacl', type=str, help='merged shacl file')
+    parser.add_argument('-enable', type=str, help='if true call wizard and copy file to out, if false copy input to out')
     parser.add_argument('-out', type=str, help='output filename for enhanced json LD file')
     args = parser.parse_args()
 
@@ -67,20 +64,23 @@ def main():
 
     output_path = Path(args.out)         
 
-    if DEBUG:
+    enable = Path(args.enable)
+    if enable == 'true':
+        # call sd wizrad in docker composed
+        trigger_open_sd_wizard('http://localhost:3000/openSdWizard')
+
+        # use jsonLD_file, shacl_file
+        post_filepath(str(jsonLD_file), 'http://localhost:3000/processJsonLDFile', str(output_path))
+        post_filepath(str(shacl_file), 'http://localhost:3000/processShaclFile')
+        # get enhanced jsonLD file
+        # copy to target file location
+        check_combined_json('http://localhost:3000/processCombinedJsonFile')
+    else:
+        # copy only input file to output
         shutil.copy2(jsonLD_file, output_path)
         logger.info(f'copy json ld to {output_path}')
         return
 
-    # call sd wizrad in docker composed
-    trigger_open_sd_wizard('http://localhost:3000/openSdWizard')
-
-    # use jsonLD_file, shacl_file
-    post_filepath(str(jsonLD_file), 'http://localhost:3000/processJsonLDFile', str(output_path))
-    post_filepath(str(shacl_file), 'http://localhost:3000/processShaclFile')
-    # get enhanced jsonLD file
-    # copy to target file location
-    check_combined_json('http://localhost:3000/processCombinedJsonFile')
 
 if __name__ == '__main__':
     main()

@@ -20,7 +20,7 @@
 			"filename": "config_shacle_combiner.json"	
 		},
 		{
-			"enable" : false,
+			"enable" : true,
 			"filename": "config_wizard_caller.json"	
 		},
 		{

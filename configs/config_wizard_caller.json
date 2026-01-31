@@ -6,8 +6,9 @@
 		"call" : "wizard-caller.main",
 		"input" : {"" : "{path}/temp/{asset_type}_instance.json"},
 		"output" : {"-out" : "{path}/{sub_path}/{asset_type}_instance.json"},
-		"additional" : {
-			"-shacl" : "{path}/temp/{asset_type}_instance.ttl"
+		"additional" : {			
+			"-shacl" : "{path}/temp/{asset_type}_instance.ttl",
+			"-enable" : "false"
 		}	
 	}
 }
