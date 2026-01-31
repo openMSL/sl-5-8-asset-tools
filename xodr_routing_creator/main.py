@@ -165,7 +165,7 @@ def main():
     in_proj, offset, lines = parse_xml(xodr_file)
     if in_proj is None or lines is None:
         logger.error(f"no projection found!")    
-        exit(1)
+        exit(0)
 
     # PROJ.4 projections
     #web_mecator = CRS.from_epsg(3857)
