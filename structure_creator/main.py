@@ -459,8 +459,8 @@ def main():
     parser.add_argument('filename', help='filename of json file from frontend.')
     parser.add_argument('-out', help='json file for manifest.')
     parser.add_argument('-path', help='path to copy/parse data.')
-    parser.add_argument('-asset_json', help='filename to final asset json.')
-    parser.add_argument('-asset_extractor', help='filename to temp asset json.')
+    parser.add_argument('-asset_json', help='filename to final asset json. Required for DID')
+    parser.add_argument('-asset_extractor', help='filename to temp asset json. Required for recording Time')
     args = parser.parse_args()
 
     user_input_file = Path(args.filename)
