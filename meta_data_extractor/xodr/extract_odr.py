@@ -62,7 +62,7 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     #    meta_data_dict['data_link'] = {}
 
     # read xml and search for speed and the element max --> then sort by max and create a set --> set == unique values
-    speedlimit_range = sorted(set((max.attrib['max'] for max in root.findall('.//speed')))) if check_data(root, ".//speed","max") else {0, 50}
+    speedlimit_range = sorted(set((max.attrib['max'] for max in root.findall('.//speed')))) if check_data(root, ".//speed","max") else [0, 50]
     speedlimit_range_dict = {}
     speedlimit_range_dict['hdmap:min'] = float(speedlimit_range[0])
     speedlimit_range_dict['hdmap:max'] = float(speedlimit_range[-1])
@@ -219,7 +219,15 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     meta_data_dict[f'{get_schema_name().lower()}:hasDataResource'] = hasDataResource_dict    
 
     try:        
-        supported_date_syntax = ["%Y-%m-%d", "%d-%m-%Y", "%m-%d-%Y", "%Y/%m/%d", "%d.%m.%Y", "%m/%d/%Y"]
+        supported_date_syntax = [
+            "%Y-%m-%d",
+            "%d-%m-%Y",
+            "%m-%d-%Y",
+            "%Y/%m/%d",
+            "%d.%m.%Y",
+            "%m/%d/%Y",
+            "%Y-%m-%dT%H:%M:%S",  # 2023-01-09T14:51:51
+        ]
         meta_data_dict['recordingTime'] = convert_date_time(data['header']['date'], supported_date_syntax) if check_data(root,".//header","date") else default_value
     except:
         logger.error('cannot extract date')    
