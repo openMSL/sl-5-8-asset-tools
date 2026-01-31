@@ -35,11 +35,13 @@ def get_configs(config_dir: Path, asset_file: Path) ->list:
     # filter for asset_type
     config_files = []
     for config in config_process.get("config_files", []):
-        if "extensions" in config:
-            if asset_type_extension in config["extensions"]:
-                config_files.append(config["filename"])
-        else:
-            config_files.append(config["filename"])   
+        enabled = config.get("enable", False)
+        if enabled is True:
+            if "extensions" in config:
+                if asset_type_extension in config["extensions"]:
+                    config_files.append(config["filename"])
+            else:
+                config_files.append(config["filename"])   
 
     # load configs
     configs = []
