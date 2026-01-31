@@ -57,10 +57,11 @@ def get_configs(config_dir: Path, asset_file: Path) ->list:
     return configs
 
 
-def replace_file_pattern(filepath: str, path: Path, sub_path: Path, name: str, asset_type: str) -> str:
+def replace_file_pattern(filepath: str, path: Path, sub_path: Path, asset_name: str, asset_path: Path, asset_type: str) -> str:
     updated_string = filepath.replace(r"{path}", str(path))
     updated_string = updated_string.replace(r"{sub_path}", str(sub_path))
-    updated_string = updated_string.replace(r"{name}", name)
+    updated_string = updated_string.replace(r"{name}", asset_name)    
+    updated_string = updated_string.replace(r"{asset_path}", str(asset_path))
     updated_string = updated_string.replace(r"{asset_type}", asset_type)
     if 'https:' not in updated_string:
         filename = Path(updated_string)
@@ -81,6 +82,7 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
 
     # prepare asset name
     asset_name = asset_file.stem  # remove extension 
+    asset_path = asset_file.parent
 
     # setup script params
     script_call = []
@@ -104,7 +106,7 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
         for name,value in script_config['params']['input'].items():
             if name:
                 script_call.append(name)
-            updated_string = replace_file_pattern(value, output_dir, sub_path, asset_name, asset_type)
+            updated_string = replace_file_pattern(value, output_dir, sub_path, asset_name, asset_path, asset_type)
             script_call.append(updated_string)
     else:
         script_call.append(asset_file)
@@ -113,7 +115,7 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
     if 'output' in script_config['params']:     
         for name,value in script_config['params']['output'].items():
             script_call.append(name)
-            updated_string = replace_file_pattern(value, output_dir, sub_path, asset_name, asset_type)
+            updated_string = replace_file_pattern(value, output_dir, sub_path, asset_name, asset_path, asset_type)
             script_call.append(updated_string)    
             # TODO create folder here or in sub script?    
             directory = Path(updated_string).parent
@@ -124,13 +126,13 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
         for name,value in script_config['params']['additional'].items():
             script_call.append(name)
             if value:                
-                updated_string = replace_file_pattern(value, output_dir, sub_path, asset_name, asset_type)
+                updated_string = replace_file_pattern(value, output_dir, sub_path, asset_name, asset_path, asset_type)
                 script_call.append(updated_string)
 
     # run
     try:
+        logger.info(f">>>    start command {script_config['name']}")        
         logger.info(script_call)
-        logger.info(f">>>    start command {script_config['name']}")
         result = subprocess.run(script_call, check=True, capture_output=True, text=True, cwd=str(project_root))
         handle_output(result, script_config['name'] )            
         logger.info(f"   <<< end command {script_config['name']}")
