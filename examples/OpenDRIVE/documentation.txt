@@ -1,0 +1,2 @@
+This is a simple OpenDRIVE test data set from https://github.com/vectorgrp/OSC-NCAP-scenarios/tree/main.
+It contains four 4-lane roads that converge at an intersection.
