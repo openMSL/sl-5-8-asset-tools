@@ -15,7 +15,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
-version = 'v4'
+version = 'v5'
 
 SCRIPT_NAME = Path(__file__).name
 IMPLEMENTED_OPENLABEL_TAGS = [
