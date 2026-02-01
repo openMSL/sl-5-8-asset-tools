@@ -10,11 +10,15 @@ import sys
 
 logger = logging.getLogger(__name__)
 
-def update_config_file(template_file: Path, input_file: Path, result_file: Path, config_file: Path) -> Path:
+def update_config_file(template_file: Path, checkerbundle_name: str, input_file: Path, result_file: Path, config_file: Path) -> Path:
     # Parse the XML file
     logger.info(f"Using template {template_file}")
     tree = etree.parse(template_file)
     root = tree.getroot()
+
+    # Find the Param element 'application' in 'CheckerBundle' and update its value attribute
+    for param in root.xpath("//*[local-name()='CheckerBundle']"):    
+        param.set("application", checkerbundle_name)
 
     # Find the Param element 'InputFile' and update its value attribute
     for param in root.findall(".//Param[@name='InputFile']"):
@@ -30,7 +34,7 @@ def update_config_file(template_file: Path, input_file: Path, result_file: Path,
 
     return config_file
 
-def create_config_file(config_file_name: Path, input_file: Path, result_file : Path) -> Path:
+def create_config_file(config_file_name: Path, checkerbundle_name: str, input_file: Path, result_file : Path) -> Path:
     #file_type = input_file.suffix.lstrip('.') # Get file extension without the dot
 
     script_folder = Path(__file__).parent
@@ -41,7 +45,7 @@ def create_config_file(config_file_name: Path, input_file: Path, result_file : P
         logger.error(f'template file not exist {template_file}')
         exit(1)
 
-    return update_config_file(template_file, input_file, result_file, Path("qc_config.xml"))
+    return update_config_file(template_file, checkerbundle_name, input_file, result_file, Path("qc_config.xml"))
 
 def main():
     # parse arguments
@@ -49,6 +53,7 @@ def main():
     parser.add_argument('filename', type=str,help='ASAM OpenX file, e.g. xodr, xosc')
     parser.add_argument('-out', type=str, help='output result file')
     parser.add_argument('-config', type=str, help='name of config file in subfolder templates')    
+    parser.add_argument('-app', type=str, help='name of quality checker application')
     parser.add_argument('-checkerbundle', type=str, help='name of checkerbundle')
     args = parser.parse_args()
 
@@ -67,9 +72,14 @@ def main():
         logger.error(f'missing config file {config_file_name}')
         exit(1)    
 
-    config_file = create_config_file(config_file_name, input_file, output_file)
+    bundle_name = args.checkerbundle
+    if not bundle_name:
+        logger.error(f'bundle name not valid {bundle_name}')
+        exit(1)        
 
-    app_name = args.checkerbundle
+    config_file = create_config_file(config_file_name, bundle_name, input_file, output_file)
+
+    app_name = args.app
     if not app_name:
         logger.error(f'app name not valid {app_name}')
         exit(1)
@@ -81,9 +91,10 @@ def main():
     script_call.append(config_file.as_posix())
 
     try:
-        logger.info(f"start command {app_name}")
+        logger.info(f"start sub command {app_name}")
+        logger.info(script_call)  
         result = subprocess.run(script_call, check=True, capture_output=True, text=True)
-        logger.info(f"end command {app_name} succeeded with output:")
+        logger.info(f"end sub command {app_name} succeeded with output:")
         logger.info(result.stdout)  # print default output from sub process
         logger.info(result.stderr)  # print logging output from sub process
     except subprocess.CalledProcessError as e:

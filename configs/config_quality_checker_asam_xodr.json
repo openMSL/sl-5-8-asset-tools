@@ -7,7 +7,8 @@
 		"output" : {"-out" : "{path}/{sub_path}/{name}_asam_cb_xodr.xqar"},
         "additional" : {
             "-config" : "qc_config_xodr.xml",
-			"-checkerbundle" : "qc_opendrive"
+			"-app" : "qc_opendrive",
+			"-checkerbundle" : "xodrBundle"
 		}	
 	}
 }
