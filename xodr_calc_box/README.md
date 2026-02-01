@@ -2,7 +2,7 @@
 calculates the bounding box of the road data in the OpenDRIVE and outputs the lat/lon box as a print
 
 # Motivation
-in some OpenDrive files the bounding specification is missing
+in some OpenDRIVE files the bounding specification is missing
 
 # How to run
 - main.py with arguments

@@ -431,7 +431,7 @@ def extract_meta_data(file: Path) ->Tuple[bool, dict]:
     
 
 def get_description() -> str:
-    return 'extract OpenDrive'
+    return 'extract OpenDRIVE'
 
 
 def get_schema_name() -> str:
