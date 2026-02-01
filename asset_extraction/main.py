@@ -1,6 +1,7 @@
 from pathlib import Path
 from zipfile import ZipFile
 from utils.log_config import setup_logging, handle_output
+from utils.utils import is_url, download_file, normalize_url
 
 import json
 import subprocess
@@ -166,18 +167,44 @@ def get_asset_type(asset_type: Path) -> str:
     logger.error(f'asset type not found {asset_type}')
     exit(1)
 
+# Return the first filename where type == "Asset" or raise if not found
+def get_asset_filename(json_path: Path) -> Path:
+    data = json.loads(json_path.read_text(encoding="utf-8"))
+
+    for entry in data:
+        if entry.get("type") == "Asset":
+            filename = entry.get("filename")
+            if not isinstance(filename, str) or not filename:
+                raise ValueError("Asset entry found but 'filename' is missing/invalid")
+            return Path(filename)
+
+    raise ValueError("No entry with type == 'Asset' found")
+
+
+def get_asset_file(uploadedFile : Path) -> Path:
+    # get from xml
+    asset_file = get_asset_filename(uploadedFile)
+
+    if is_url(asset_file):
+        asset_file = Path(download_file(normalize_url(str(asset_file)), uploadedFile.parent, asset_file.name))
+
+    asset_file = asset_file.resolve()
+    return asset_file
 
 def main():
     # parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='extracted from asset and user infos all extractor/creator scripts are called to create an asset archive.')
-    parser.add_argument('filename', type=str,help='filename of asset data.')
+    parser.add_argument('filename', type=str,help='filename of uploadedFiles.json')
     parser.add_argument('-config', type=str, help='config path for sub tools.')
     parser.add_argument('-out', type=str, help='output path for asset archive.')
     args = parser.parse_args()
 
+    output_dir = Path(args.out)
+    output_dir = output_dir.resolve()       
+
     # determine asset type (e.g., ".xodr")
-    asset_file = Path(args.filename)
-    asset_file = asset_file.resolve()
+    uploaded_file = Path(args.filename)
+    asset_file = get_asset_file(uploaded_file)
     if not asset_file.exists():
         logger.error(f'asset file {asset_file} not exists')
         exit(1)
@@ -197,8 +224,7 @@ def main():
         logger.error(f"File {asset_name} has points in name! Not supported!")
         exit(1)
 
-    output_dir = Path(args.out)
-    output_dir = output_dir.resolve()    
+ 
     output_sub_dir = output_dir / asset_name
     if output_sub_dir.exists():
         shutil.rmtree(output_sub_dir)

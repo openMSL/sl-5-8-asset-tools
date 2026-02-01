@@ -3,18 +3,15 @@ from urllib.parse import urlparse
 from multiformats import CID
 from multiformats.multihash import digest
 from PIL import Image
-from utils.utils import create_uuid, get_url_for_download
+from utils.utils import create_uuid, is_url, url_from_path, download_file, normalize_url
 from datetime import datetime
 
-import re
 import argparse
 import json
 import shutil
 import logging
 import os
 import requests
-import secrets
-import string
 
 g_envitedX = 'envited-x'
 g_envited_url = 'https://ontologies.envited-x.net/'
@@ -344,24 +341,6 @@ def create_filename(filename: Path, asset_name: Path, file_data : dict, index : 
     filename_new = f"{basename}{extension}"
     return Path(filename_new)
 
-def url_from_path(path: Path) -> str:
-    s = path.as_posix()
-    # from 'http:/example.com' to 'http://example.com'
-    s = re.sub(
-        r'^(?P<scheme>https?):/+',
-        lambda m: f"{m.group('scheme')}://",
-        s,
-        flags=re.IGNORECASE
-    )
-    return s
-
-def is_url(path: Path):
-    url = url_from_path(path)
-    parsed = urlparse(url)
-    # A URL usually has a scheme (e.g. “http”, “https”) and a “netloc” (e.g. “www.example.com”)
-    return parsed.scheme in ('http', 'https') and bool(parsed.netloc)
-
-
 def update_readme(file_path_in: Path, file_path_out: Path, name_value: str, description_value: str) -> None:
     # Read the entire content of the file using UTF-8 encoding
     content = file_path_in.read_text(encoding="utf-8")
@@ -453,13 +432,6 @@ def get_asset_info(asset_json : Path, asset_extractor : Path) -> dict:
 
     return asset_info
 
-# Normalize a URL that accidentally contains backslashes or wrong number of slashes
-def normalize_url(u: str) -> str:
-    u = u.strip().replace("\\", "/")  # Fix Windows separators
-    # Ensure scheme has exactly '://'
-    u = re.sub(r"^(https?):/+", r"\1://", u)
-    return u
-
 def main():
     parser = argparse.ArgumentParser(prog='main.py', description='the folder structure is completed from the user info and a metadata table is created for the manifest')   
     parser.add_argument('filename', help='filename of json file from frontend.')
@@ -520,15 +492,8 @@ def main():
 
         if is_url(filename): 
             # download and write to temp
-            url = url = normalize_url(str(filename))
-            with requests.get(url, stream=True, timeout=30) as r:
-                r.raise_for_status()  # Raise an error for HTTP 4xx/5xx
-                out_path = filename_out.parent / filename.name
-                with out_path.open("wb") as f:
-                    for chunk in r.iter_content(chunk_size=1024 * 1024):
-                        if chunk:  # Filter out keep-alive chunks
-                            f.write(chunk)
-                filename = out_path
+            url = normalize_url(str(filename))
+            filename = download_file(url, filename_out.parent, filename.name)
     
         # get dest name
         dest_name = filename.name

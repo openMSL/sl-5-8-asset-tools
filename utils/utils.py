@@ -6,6 +6,7 @@ from rdflib import Graph, URIRef, BNode
 from rdflib.collection import Collection
 from typing import Optional
 
+import re
 import json
 import requests
 import logging
@@ -16,6 +17,19 @@ logger = logging.getLogger(__name__)
 g_envited_url = 'https://ontologies.envited-x.net'
 g_gaiax_server = "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base"
 g_shacle_folder = 'shacles' 
+
+def download_file(url_path : str, out_path: Path, filename: str)-> Path:
+    url_path = github_to_raw(url_path)
+    with requests.get(url_path, stream=True, timeout=30) as r:
+        r.raise_for_status()  # Raise an error for HTTP 4xx/5xx
+        if not out_path.exists():
+            out_path.mkdir()
+        filepath = out_path / filename
+        with filepath.open("wb") as f:
+            for chunk in r.iter_content(chunk_size=1024 * 1024):
+                if chunk:  # Filter out keep-alive chunks
+                    f.write(chunk)
+        return filepath
 
 # download shacl from url if not in local shacles folder
 def download_shacle(url_path : str, shacle_name: str) -> Path:
@@ -153,3 +167,48 @@ def convert_graph_to_dict(graph, search_node_shape: bool):
         graph_dict[str(node_shape)] = prop_list
 
     return graph_dict
+
+def is_url(path: Path):
+    url = url_from_path(path)
+    parsed = urlparse(url)
+    # A URL usually has a scheme (e.g. “http”, “https”) and a “netloc” (e.g. “www.example.com”)
+    return parsed.scheme in ('http', 'https') and bool(parsed.netloc)
+
+def url_from_path(path: Path) -> str:
+    s = path.as_posix()
+    # from 'http:/example.com' to 'http://example.com'
+    s = re.sub(
+        r'^(?P<scheme>https?):/+',
+        lambda m: f"{m.group('scheme')}://",
+        s,
+        flags=re.IGNORECASE
+    )
+    return s
+
+# Convert GitHub blob URL to raw URL; pass through raw URLs unchanged
+def github_to_raw(url: str) -> str:
+    url = url.strip()
+    p = urlparse(url)
+
+    # Already raw
+    if p.netloc == "raw.githubusercontent.com":
+        return url
+
+    if p.netloc != "github.com":
+        return url  # Not GitHub; leave as-is
+
+    parts = [x for x in p.path.split("/") if x]
+    # Expect: org, repo, "blob", ref, ...path
+    if len(parts) >= 5 and parts[2] == "blob":
+        org, repo, ref = parts[0], parts[1], parts[3]
+        file_path = "/".join(parts[4:])
+        return f"https://raw.githubusercontent.com/{org}/{repo}/{ref}/{file_path}"
+
+    return url
+
+# Normalize a URL that accidentally contains backslashes or wrong number of slashes
+def normalize_url(u: str) -> str:
+    u = u.strip().replace("\\", "/")  # Fix Windows separators
+    # Ensure scheme has exactly '://'
+    u = re.sub(r"^(https?):/+", r"\1://", u)
+    return u
