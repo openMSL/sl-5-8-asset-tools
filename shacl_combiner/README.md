@@ -1,13 +1,22 @@
 # Description
-combine shalce file for jsonLD to one file
+Combines all necessary Shacl files of an asset type into a single Shalc for use in, for example, the SD Creation Wizard or Shalc Playgrounds.
 
-# Motivation
-Automatic verification of generated json LD files
+Input
+- JSON LD file
 
+Output
+- combined Shacl file  
+  
 # How to run
 - main.py with arguments
     - [filename] : json LD file
     - -out : output path for combined shacle file
 
 # Install
-    To install the required libraries run: `pip install -r requirements.txt` or `python -m pip install -r requirements.txt`    
+```bash
+pip install -r requirements.txt` 
+```      
+or 
+```bash
+python -m pip install -r requirements.txt`    
+```     

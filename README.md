@@ -2,11 +2,11 @@ Asset Tools
 ====
 
 ## Description
-This repository contains scripts for analyzing and editing asset data. The goal of these scripts is to generate an asset archive from asset data as automatically as possible, which can be used, for example, for the Envited Marketplace. These scripts are mainly used in https://github.com/openMSL/sl-5-7-asset-services in a Docker environment to generate and download the asset.zip archive from an asset file via a frontend.
+This repository contains scripts for analyzing and editing asset data. The goal of these scripts is to generate an asset archive from asset data as automatically as possible, which can be used, for example, for the [Envited Marketplace](https://staging.envited-x.net/). These scripts are mainly used in https://github.com/openMSL/sl-5-7-asset-services in a Docker environment to generate and download the asset.zip archive from an asset file via a frontend.
 Most of the tools of Asset Extractor supports the following formats:
-- ASAM OpenDRIVE
-- ASAM OpenSCENARI XML
-- 3D Environment model (with metadata json input from Trian3DBuilder)
+- [ASAM OpenDRIVE](https://www.asam.net/standards/detail/opendrive/)
+- [ASAM OpenSCENARI XML](https://www.asam.net/standards/detail/openscenario-xml/)
+- 3D Environment model (with metadata json input from [Trian3DBuilder](https://trian3dbuilder.de/))
 
 ## Script Overview 
 
@@ -20,7 +20,7 @@ The following modules are executed in the pipeline in the order specified here
 
     Input
     - Asset file
-    - Pipeline config file
+    - Pipeline config file folder
   
     Output
     - Asset archive
@@ -113,13 +113,14 @@ The following modules are executed in the pipeline in the order specified here
 
 - **[xodr_routing_creator]([xodr_routing_creator/README.md](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/xodr_routing_creator/README.md))**
 
-    Creates a routing file (KML or GeoJSON) to display the asset geographically in map applications.
+    Creates a routing file (KML or GeoJSON) to display the asset geographically in map applications. 
 
     Input
     - Asset file
   
     Output
-    - Geometry files in Geojson format    
+    - Georeferenced line geometry (in KML or GeoJSON)
+    - Georeferenced bounding box geometry (in KML or GeoJSON)
 
 #### Process diagramm
 
@@ -154,9 +155,17 @@ The following modules are executed in the pipeline in the order specified here
    - data folder: folder name of the generated output
    - params: parameters for the call, the following subparameters can be defined:
      - call: Name of the function to be executed
-     - Input: Name of the input file for this module
-     - output: Name of the output file 
+     - Input: List with attributes and file names of the input for this module
+     - output: List with attributes and file names of the output for this module
      - additional: List of additional parameters for the call  
+    
+    The following placeholders can be used
+
+    - path: Path of the input file
+    - sub_path: Path to the specified data folder
+    - name: name of asset dile
+    - asset_path: path of asset file
+    - asset_type: typ of the asset
 
     Example
     ```
@@ -173,7 +182,9 @@ The following modules are executed in the pipeline in the order specified here
         }
     }
     ```
-### Build Instructions
+
+
+#### Build Instructions
 
 1. [asset_extraction](https://github.com/openMSL/sl-5-8-asset-tools/tree/main/asset_extraction/README.md)
    
@@ -205,6 +216,8 @@ The following modules are executed in the pipeline in the order specified here
 ```bash
 asset_extraction -"asset_file" -config "config_folder" -out "ouput_folder" 
 ```    
+
+
 
 ### Additional Scripts
 

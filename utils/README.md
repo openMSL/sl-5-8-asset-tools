@@ -3,4 +3,10 @@ Collection of different help functions like logging with colors, download of sha
 These are used in the main scripts.
 
 # Install
-    To install the required libraries run: `pip install -r requirements.txt` or `python -m pip install -r requirements.txt`    
+```bash
+pip install -r requirements.txt` 
+```      
+or 
+```bash
+python -m pip install -r requirements.txt`    
+```     

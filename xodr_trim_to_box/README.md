@@ -1,14 +1,23 @@
 # Description
-parses an OpenDRIVE file and projects the coordinates of the reference line into LatLon and writes them out as a georeferenced vector format as Google KML or GeoJSON.
+It is often helpful to have only part of an OpenDRIVE file, e.g., for debugging purposes. This script reduces the original OpenDRIVE file to the specified bounding box data.
 
-# Motivation
-the georeferenced vector format is required for the web display of the asset in order to display the route in a Google Map or OpenStreetMap viewn
+Input
+- OpenDRIVE file
+- bounding box
+
+Output
+- reduced OpenDRIVE file (with postif "_reduced")
 
 # How to run
 - main.py with arguments
     - [filename] : filename of OpenDRIVE file
-    - -out : filename of exported file - use extension for format selection ('kml', 'geojson')
-	- -box : filename for boundingbox geo file - use extension for format selection ('kml', 'geojson')
+	- -bbox : bounding box as 4 values: x_min, y_min, x_max, y_max
 
 # Install
-    To install the required libraries run: `pip install -r requirements.txt` or `python -m pip install -r requirements.txt`    
+```bash
+pip install -r requirements.txt` 
+```      
+or 
+```bash
+python -m pip install -r requirements.txt`    
+```    

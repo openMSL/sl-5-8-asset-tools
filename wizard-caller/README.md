@@ -1,8 +1,14 @@
 # Description
-calls the sd creation wizard with json and merged shacl file to fill the non-extractable attributes from the user
+With the pre-filled jsonLD and the combined Shacl file, the [SD Creation Wizard](https://github.com/eclipse-xfsc/sd-creation-wizard-frontend) is called up for the user to complete.
 
-# Motivation
-non-extractable attributes must be filled by the user
+*This module is currently __disabled__ in the pipeline because the SD Creation Wizard is not compatible with the latest Shacl version!*
+
+Input
+- JSON LD file
+- combined Shacl file  
+
+Output
+- extended JSON LD file 
 
 # How to run
 - main.py with arguments
@@ -11,4 +17,10 @@ non-extractable attributes must be filled by the user
     - -out : output filename for enhanced json LD file
 
 # Install
-    To install the required libraries run: `pip install -r requirements.txt` or `python -m pip install -r requirements.txt`    
+```bash
+pip install -r requirements.txt` 
+```      
+or 
+```bash
+python -m pip install -r requirements.txt`    
+```     

@@ -1,9 +1,13 @@
 # Description
-setup and run quality checker 
+Calls ASAM's Quality Checker bundles (for [OpenDRIVE](https://github.com/asam-ev/qc-opendrive) and [OpenSCENARIO](https://github.com/asam-ev/qc-openscenarioxml)) and OpenMSL Simulation Checker bundle for [OpenDRIVE](https://github.com/openMSL/sl-5-9-openmsl-qc-opendrive) to validate the ASAM OpenX formats.
 
-# Motivation
-Automatic verification of ASAM OpenX files
+Input
+- Asset file
+- Default configuration file for QualityChecker (see [template](https://github.com/openMSL/sl-5-8-asset-tools/tree/main/qualitychecker_caller/templates) folder)
 
+Output
+- validation files in xqar and txt   
+  
 # How to run
 - main.py with arguments
     - [filename] : ASAM OpenX file, e.g. xodr, xosc
@@ -12,4 +16,10 @@ Automatic verification of ASAM OpenX files
     - -checkerbundle : name of checkerbundle
 
 # Install
-    To install the required libraries run: `pip install -r requirements.txt` or `python -m pip install -r requirements.txt`    
+```bash
+pip install -r requirements.txt` 
+```      
+or 
+```bash
+python -m pip install -r requirements.txt`    
+```    
