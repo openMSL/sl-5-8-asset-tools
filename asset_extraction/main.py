@@ -203,7 +203,7 @@ def main():
     if output_sub_dir.exists():
         shutil.rmtree(output_sub_dir)
     output_sub_dir.mkdir(parents=True, exist_ok=True)
-    print (f'output path {output_sub_dir}')  
+    logger.info(f'output path {output_sub_dir}')  
 
     # execute each script and collect outputs
     for script_config in applicable_scripts:

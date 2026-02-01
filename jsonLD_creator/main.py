@@ -16,14 +16,12 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Tuple, Union, Dict, List
 from utils.utils import download_shacle, get_url_for_download, get_prefixes, convert_graph_to_dict
-#from utils.log_config import setup_logging # debug
 import shutil
 import json
 import logging
 import argparse
 import operator
 
-#setup_logging(logging.DEBUG) # debug
 logger = logging.getLogger(__name__)
 
 # global values

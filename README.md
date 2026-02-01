@@ -76,7 +76,9 @@ The following modules are executed in the pipeline in the order specified here
 
 - **[structure_creator](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/structure_creator/README.md)**    
     
-    Creates the folder and file structure for the asset archive and writes the structure to a JSON file. Additional data on the asset, such as documentation, images, and videos, are defined by the user in the front end (see https://github.com/openMSL/sl-5-7-asset-services/tree/main/asset_extractor) and evaluated in this module as a JSON file.
+    Creates the folder and file structure for the asset archive and writes the structure to a JSON file for further processing in JSONLD Creator for generating the manifest file. 
+    
+    Additional data on the asset, such as documentation, images, and videos, are defined by the user in the front end (see https://github.com/openMSL/sl-5-7-asset-services/tree/main/asset_extractor) and evaluated in this module as a JSON file.
     
 
     Input
@@ -101,7 +103,7 @@ The following modules are executed in the pipeline in the order specified here
 
 - **[xodr_to_geojson_caller](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/xodr_to_geojson_caller/README.md)**
 
-    Calls the Java file from [vcs-odr-converter](https://github.com/virtualcitySYSTEMS/opendriveconverter) to create a 3D preview files for OpenDRIVE.
+    Calls the [opendriveconverter](https://github.com/virtualcitySYSTEMS/opendriveconverter) java tool from Virtual City Systems to create a 3D preview files for OpenDRIVE.
 
     *This module is currently __disabled__ in the pipeline because the application requires a special Java version, which still needs to be set up! In addition, the generated geometry data takes up a large part of the asset archive!*  
 
