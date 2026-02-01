@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 from multiformats import CID
 from multiformats.multihash import digest
 from PIL import Image
-from utils.utils import create_uuid
+from utils.utils import create_uuid, get_url_for_download
 from datetime import datetime
 
 import re
@@ -453,6 +453,12 @@ def get_asset_info(asset_json : Path, asset_extractor : Path) -> dict:
 
     return asset_info
 
+# Normalize a URL that accidentally contains backslashes or wrong number of slashes
+def normalize_url(u: str) -> str:
+    u = u.strip().replace("\\", "/")  # Fix Windows separators
+    # Ensure scheme has exactly '://'
+    u = re.sub(r"^(https?):/+", r"\1://", u)
+    return u
 
 def main():
     parser = argparse.ArgumentParser(prog='main.py', description='the folder structure is completed from the user info and a metadata table is created for the manifest')   
@@ -512,24 +518,35 @@ def main():
             logger.error(f'type {typ} not found in category {category}')
             exit(1)
 
-        if not is_url(filename):      
-            # get dest name
-            dest_name = filename.name
-            dest_name = create_filename(Path(dest_name), asset_name, cat_type_data, indexImage)        
-            if category == "visualization" and typ == 'Image':
-                indexImage = indexImage + 1 # increase image index for image mask
+        if is_url(filename): 
+            # download and write to temp
+            url = url = normalize_url(str(filename))
+            with requests.get(url, stream=True, timeout=30) as r:
+                r.raise_for_status()  # Raise an error for HTTP 4xx/5xx
+                out_path = filename_out.parent / filename.name
+                with out_path.open("wb") as f:
+                    for chunk in r.iter_content(chunk_size=1024 * 1024):
+                        if chunk:  # Filter out keep-alive chunks
+                            f.write(chunk)
+                filename = out_path
+    
+        # get dest name
+        dest_name = filename.name
+        dest_name = create_filename(Path(dest_name), asset_name, cat_type_data, indexImage)        
+        if category == "visualization" and typ == 'Image':
+            indexImage = indexImage + 1 # increase image index for image mask
 
-            # destination filename
-            dest = Path(data_path / cat_type_data["folder"])
-            if not dest.exists():
-                dest.mkdir()
-            dest = dest /  dest_name    
-            dest = dest.resolve()    
-            # source filename
-            source = upload_folder / filename
-            source = source.resolve()
-            # copy        
-            shutil.copy(source, dest)
+        # destination filename
+        dest = Path(data_path / cat_type_data["folder"])
+        if not dest.exists():
+            dest.mkdir()
+        dest = dest /  dest_name    
+        dest = dest.resolve()    
+        # source filename
+        source = upload_folder / filename
+        source = source.resolve()
+        # copy        
+        shutil.copy(source, dest)
 
         if 'license_type' in file:
             license_data = {}
