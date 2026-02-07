@@ -12,6 +12,6 @@ ENVITEDX_URL = 'https://ontologies.envited-x.net/'
 GAIAX_ONTOLOGY_PART = 'GAIA-X4PLC-AAD/ontology-management-base'
 
 # string
-SHACLE_FOLDER_NAME: str = 'shacles'
+SHACL_FOLDER_NAME: str = 'shacls'
 ENVITEDX_NAME: str = 'envited-x'
 DID_ADRESS: str = 'did:web:registry.gaia-x.eu:Manifest:'

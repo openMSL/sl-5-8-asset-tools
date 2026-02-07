@@ -16,9 +16,9 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Tuple, Union, Dict, List
 from utils.rdf import get_prefixes, convert_graph_to_dict
-from utils.http import get_url_for_download, download_shacle
+from utils.http import get_url_for_download, download_shacl
 from utils.json import write_json
-from utils.constants import ENVITEDX_URL, GAIAX_TRUST_NS, SHACL_NS, GITHUB_RAW_URL, GAIAX_ONTOLOGY_PART, ENVITEDX_NAME, SHACLE_FOLDER_NAME
+from utils.constants import ENVITEDX_URL, GAIAX_TRUST_NS, SHACL_NS, GITHUB_RAW_URL, GAIAX_ONTOLOGY_PART, ENVITEDX_NAME, SHACL_FOLDER_NAME
 
 import shutil
 import json
@@ -28,7 +28,7 @@ import operator
 
 logger = logging.getLogger(__name__)
 
-# global config value with all shacles, dicts and jsonLD output
+# global config value with all shacls, dicts and jsonLD output
 class Config:
     _instance = None
 
@@ -276,16 +276,16 @@ def create_node(namespace : str, shapename : str, type: str, lsonLD: Union[Dict,
     return node
 
 
-# get shacle shema
-def get_shacle_shema(namespace : str) -> dict:
+# get shacl shema
+def get_shacl_shema(namespace : str) -> dict:
     if namespace in config.SHACLS:
         return config.SHACLS[namespace]
     return None
 
 
-# get shape from shacle data
-def get_shacle_shape(namespace : str, shapename : str) -> list:
-    shacl_graph_data = get_shacle_shema(namespace)
+# get shape from shacl data
+def get_shacl_shape(namespace : str, shapename : str) -> list:
+    shacl_graph_data = get_shacl_shema(namespace)
     if shacl_graph_data:
         if shapename in shacl_graph_data['dict']:
             return shacl_graph_data['dict'][shapename]
@@ -316,7 +316,7 @@ def register_key(key : str, values : dict, meta_data: dict, nodes : list, namesp
                     continue # already filled
                 ulr = node if isinstance(node, str) else list(node)[0]
                 namespace_sub, type = get_namespace_name_from_url(ulr)
-                shape_value_sub = get_shacle_shape(namespace_sub, str(ulr))
+                shape_value_sub = get_shacl_shape(namespace_sub, str(ulr))
                 if shape_value_sub is None:
                     continue
                 
@@ -352,7 +352,7 @@ def register_list(key : str, values : dict, meta_data: dict, nodes : list, names
             if nodes:
                 for node in nodes:
                     namespace_sub, type = get_namespace_name_from_url(node)
-                    shape_value_sub = get_shacle_shape(namespace_sub, str(node))
+                    shape_value_sub = get_shacl_shape(namespace_sub, str(node))
                     if shape_value_sub is None:
                         continue
                     
@@ -472,11 +472,11 @@ def process_graph(schema_namespace, schema_name, meta_data):
         # add type
         name = get_name_from_url(schema_name)
         name = name.replace('Shape', '')
-        shacle_namespace = 'manifest' if schema_namespace == ENVITEDX_NAME and name != 'Manifest' else schema_namespace
-        config.JSON_OUT['@type'] = create_namespace_name(shacle_namespace, name)
+        shacl_namespace = 'manifest' if schema_namespace == ENVITEDX_NAME and name != 'Manifest' else schema_namespace
+        config.JSON_OUT['@type'] = create_namespace_name(shacl_namespace, name)
 
-        # get first element of main shacle        
-        shape_value = get_shacle_shape(schema_namespace, schema_name)
+        # get first element of main shacl        
+        shape_value = get_shacl_shape(schema_namespace, schema_name)
         if not shape_value:
             logger.error(f'did not found {schema_name} in shacl {schema_namespace}!')
             exit(1)
@@ -500,9 +500,9 @@ def process_graph(schema_namespace, schema_name, meta_data):
 
 
 # create shacl data structure and register
-def register_shacle(url_path : str, shacle_name: str, shacls):
+def register_shacl(url_path : str, shacl_name: str, shacls):
 
-    local_file_path = download_shacle(url_path, shacle_name)
+    local_file_path = download_shacl(url_path, shacl_name)
 
     try:
         if local_file_path:
@@ -520,7 +520,7 @@ def register_shacle(url_path : str, shacle_name: str, shacls):
             debug_json_file = local_file_path.with_suffix(".json")
             write_json(debug_json_file, graph_data['dict'])
 
-            shacls[shacle_name] = graph_data
+            shacls[shacl_name] = graph_data
     except:
         logger.exception(f'cannot read turtle file: {local_file_path}')
         exit(1)
@@ -544,38 +544,38 @@ def main():
     with open(claim_path, 'r', encoding='utf-8') as file:
         claim_data = json.load(file)
 
-    # download shacle file    
+    # download shacl file    
     if args.removeShacl:
-        shacl_folder = Path(SHACLE_FOLDER_NAME)
+        shacl_folder = Path(SHACL_FOLDER_NAME)
         if shacl_folder.exists():
             shutil.rmtree(shacl_folder)
-    shacle_namespace, shacle_name = get_namespace(claim_data['shacl_type'])    
+    shacl_namespace, shacl_name = get_namespace(claim_data['shacl_type'])    
     del claim_data['shacl_type']
 
     ontology_path = args.ontology + '/'
-    ontology_path = ontology_path.format(schema=shacle_namespace)
+    ontology_path = ontology_path.format(schema=shacl_namespace)
     shacl_definitions = {}
-    url_path = f'{ontology_path}{shacle_namespace}/'
+    url_path = f'{ontology_path}{shacl_namespace}/'
     new_url_path = get_url_for_download(url_path)
-    register_shacle(new_url_path, shacle_namespace, shacl_definitions)
+    register_shacl(new_url_path, shacl_namespace, shacl_definitions)
 
     # get gaiaX/envited prefixes
-    shacl_data = shacl_definitions[shacle_namespace]
+    shacl_data = shacl_definitions[shacl_namespace]
     prefixes = get_prefixes(shacl_data['graph'])
     # add special prefixes
     prefixes["sh"] = SHACL_NS
     prefixes["gx"] = GAIAX_TRUST_NS
 
-    # and download additional shacles
+    # and download additional shacls
     for key, value in prefixes.items():
         if key not in shacl_definitions:
             new_url_path = get_url_for_download(value)
-            register_shacle(new_url_path, key, shacl_definitions)
+            register_shacl(new_url_path, key, shacl_definitions)
     config.SHACLS = shacl_definitions
     
-    # fill data in shacle structure
+    # fill data in shacl structure
     try:
-        process_graph(shacle_namespace, shacle_name, claim_data)
+        process_graph(shacl_namespace, shacl_name, claim_data)
     except:
         logger.exception(f'Could not convert to json')
         exit(1)

@@ -1,5 +1,5 @@
 from pathlib import Path
-from utils.rdf import load_jsonld_file, get_shacle_from_json_graph
+from utils.rdf import load_jsonld_file, get_shacl_from_json_graph
 from utils.constants import ENVITEDX_URL, ENVITEDX_NAME
 
 import argparse
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 def main():
     parser = argparse.ArgumentParser(prog='main.py', description='combine shalce file for jsonLD to one file')
     parser.add_argument('filename', type=str,help='json LD filename')
-    parser.add_argument('-out', type=str, help='output path for combined shacle file')
+    parser.add_argument('-out', type=str, help='output path for combined shacl file')
     args = parser.parse_args()
 
     # load json
@@ -19,7 +19,7 @@ def main():
 
     # load shacls
     prefixes_to_add = {ENVITEDX_NAME : f'{ENVITEDX_URL}{ENVITEDX_NAME}/v2/ontology#'}
-    shacl_graph = get_shacle_from_json_graph(data_graph, prefixes_to_add)
+    shacl_graph = get_shacl_from_json_graph(data_graph, prefixes_to_add)
 
     output_path = Path(args.out)
     if not output_path.exists():

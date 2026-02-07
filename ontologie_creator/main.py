@@ -352,7 +352,7 @@ def create_data_structure(root, cat_namespace):
         else:
             logger.error(f'data node not implmented: {used_type}')  
 
-# crate shacle
+# crate shacl
 def create_shacl(cat, cat_data, output_path, link_repro):
     
     cat_lowercase = cat.lower()
@@ -409,7 +409,7 @@ def create_shacl(cat, cat_data, output_path, link_repro):
     create_data_structure(shacl, cat_namespace)
     used_data_type_nodes.clear()
 
-    # write shacle       
+    # write shacl      
     file = output_path + shacl_name + '.ttl'
     with open(file, 'w') as f:
         f.write(shacl.serialize(format='turtle'))
@@ -417,7 +417,7 @@ def create_shacl(cat, cat_data, output_path, link_repro):
         logger.info(f'write {shacl_name}')
         
 # fix shacl ->  replace "sh:in_" with "sh:in"   
-def fix_shacle(cat, output_path):
+def fix_shacl(cat, output_path):
     shacl_name = f'{cat}_shacl'
     file_name = output_path + shacl_name + '.ttl'    
     with open(file_name, 'r') as file:
@@ -437,9 +437,9 @@ def fix_shacle(cat, output_path):
 
 def main():
     # parse arguments
-    parser = argparse.ArgumentParser(prog='main.py', description='ontology and shacle files are generated from an excel table')
+    parser = argparse.ArgumentParser(prog='main.py', description='ontology and shacl files are generated from an excel table')
     parser.add_argument('-table', type=str,default='Metadata.xlsx', help='Path to Excel Table.')
-    parser.add_argument('-out', '--out', type=str, default='ontologies/', help='Path to exported ontology and shacle files.')    
+    parser.add_argument('-out', '--out', type=str, default='ontologies/', help='Path to exported ontology and shacl files.')    
     parser.add_argument('-url', '--url', type=str, default='https://github.com/GAIA-X4PLC-AAD/map-and-scenario-data/tools/ontologie_creator/ontologies/', help='URL for the ontologies.')
 
     args = parser.parse_args()
@@ -450,7 +450,7 @@ def main():
         exit(1)
     attributes = read_from_excel(table_file)
 
-    #  write turtle files (ontologie and shacle)        
+    #  write turtle files (ontologie and shacl)        
     if not os.path.exists(args.out):
         os.makedirs(args.out)     
   
@@ -459,11 +459,11 @@ def main():
         # fill ontology
         create_onotology(cat, cat_data, args.out, args.url)
 
-        # fill shacle
+        # fill shacl
         create_shacl(cat, cat_data, args.out, args.url)
 
-        #fix sh.in in shacle
-        fix_shacle(cat, args.out)
+        #fix sh.in in shacl
+        fix_shacl(cat, args.out)
 
 if __name__ == '__main__':
     main()

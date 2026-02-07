@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from urllib.parse import urlparse
-from utils.constants import GITHUB_URL, GITHUB_RAW_URL, ENVITEDX_URL, GAIAX_ONTOLOGY_PART, SHACLE_FOLDER_NAME
+from utils.constants import GITHUB_URL, GITHUB_RAW_URL, ENVITEDX_URL, GAIAX_ONTOLOGY_PART, SHACL_FOLDER_NAME
 
 import re
 import logging
@@ -111,11 +111,11 @@ def download_file(url_path: str, out_path: Path, filename: str) -> Path:
     return filepath
 
 
-def download_shacle(url_path: str, shacle_name: str) -> Path:
-    """Download SHACL file from URL into local shacles folder if missing."""
+def download_shacl(url_path: str, shacl_name: str) -> Path:
+    """Download SHACL file from URL into local shacls folder if missing."""
     
-    filename = f"{shacle_name}_shacl.ttl"
-    local_filepath = Path(f"{SHACLE_FOLDER_NAME}/{filename}")
+    filename = f"{shacl_name}_shacl.ttl"
+    local_filepath = Path(f"{SHACL_FOLDER_NAME}/{filename}")
 
     if not local_filepath.exists():
         url = f"{url_path}{filename}" if str(url_path).startswith(ENVITEDX_URL) else url_path
@@ -124,7 +124,7 @@ def download_shacle(url_path: str, shacle_name: str) -> Path:
             logger.error(f"No shacl files found in url: {url}")
             raise RuntimeError(f"No shacl files found in url: {url}")
 
-        Path(SHACLE_FOLDER_NAME).mkdir(parents=True, exist_ok=True)
+        Path(SHACL_FOLDER_NAME).mkdir(parents=True, exist_ok=True)
         local_filepath.write_bytes(response.content)
 
     return local_filepath

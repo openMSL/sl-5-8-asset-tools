@@ -5,7 +5,7 @@ from typing import Optional, Any, Dict
 from rdflib import Graph, BNode
 from rdflib.namespace import SH, RDF
 from rdflib.collection import Collection
-from utils.http import download_shacle, get_url_for_download
+from utils.http import download_shacl, get_url_for_download
 from utils.constants import ENVITEDX_URL
 
 import json
@@ -46,7 +46,7 @@ def load_shacl_files(shacl_files: list) -> Graph:
     return shacl_graph
 
 
-def get_shacle_from_json_graph(data_graph : Graph, prefixes_to_add : Optional[dict] = None) ->Graph:
+def get_shacl_from_json_graph(data_graph : Graph, prefixes_to_add : Optional[dict] = None) ->Graph:
     """load all shacls for jsonld and return as one graph"""
 
     prefixes = get_prefixes(data_graph)
@@ -56,7 +56,7 @@ def get_shacle_from_json_graph(data_graph : Graph, prefixes_to_add : Optional[di
     shacl_files = []
     for key, value in prefixes.items():
         new_url_path = get_url_for_download(value)
-        shacl_files.append(download_shacle(new_url_path, key))
+        shacl_files.append(download_shacl(new_url_path, key))
     shacl_graph = load_shacl_files(shacl_files)    
     return shacl_graph
 

@@ -1,3 +1,5 @@
+from .constants import GAIAX_CORE_NS, GAIAX_TRUST_NS, SHACL_NS, GITHUB_URL, GITHUB_RAW_URL, ENVITEDX_URL, GAIAX_ONTOLOGY_PART, SHACL_FOLDER_NAME, ENVITEDX_NAME, DID_ADRESS
+from .log_config import setup_logging, handle_output
 from .geometry import Vec2D, Box2D
 from .subprocess import run_command
 from .ids import create_uuid

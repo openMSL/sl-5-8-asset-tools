@@ -1,6 +1,7 @@
 # Common dependencies
 
 # Include requirements from subprojects
+-r utils/requirements.txt
 -r asset_extraction/requirements.txt
 -r asset_reducer/requirements.txt
 -r jsonLD_creator/requirements.txt

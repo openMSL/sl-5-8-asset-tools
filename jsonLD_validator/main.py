@@ -2,7 +2,7 @@ from pathlib import Path
 from pyshacl import validate
 from rdflib.namespace import SH, RDF
 from rdflib import Graph, Literal
-from utils.rdf import load_jsonld_file, get_shacle_from_json_graph
+from utils.rdf import load_jsonld_file, get_shacl_from_json_graph
 
 import argparse
 import logging
@@ -50,7 +50,7 @@ def main():
     data_graph = load_jsonld_file(json_LD_file)
 
     # load shacls
-    shacl_graph = get_shacle_from_json_graph(data_graph)
+    shacl_graph = get_shacl_from_json_graph(data_graph)
 
     # find all closed tags and set to True
     if args.closed:

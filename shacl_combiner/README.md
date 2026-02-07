@@ -10,7 +10,7 @@ Output
 # How to run
 - main.py with arguments
     - [filename] : json LD file
-    - -out : output path for combined shacle file
+    - -out : output path for combined shacl file
 
 # Install
 ```bash
