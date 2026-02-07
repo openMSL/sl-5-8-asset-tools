@@ -2,7 +2,6 @@ from pathlib import Path
 from lxml import etree
 from utils.subprocess import run_command
 
-import subprocess
 import argparse
 import stat
 import logging

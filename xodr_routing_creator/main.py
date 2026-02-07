@@ -6,8 +6,6 @@ from utils.json import write_json
 import xml.etree.ElementTree as ET
 import simplekml
 import argparse
-import json
-import math
 import logging
 
 from utils.geometry import Vec2D, Box2D

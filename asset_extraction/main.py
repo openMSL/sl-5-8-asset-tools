@@ -6,7 +6,6 @@ from utils.subprocess import run_command
 from utils.json import read_json
 
 import json
-import subprocess
 import argparse
 import shutil
 import logging

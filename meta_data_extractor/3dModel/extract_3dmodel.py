@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-version = 'v4'
+MODEL_VERSION  = 'v4'
 
 def get_meta_data(file_data: dict, attributes: dict):
     if 'project' in file_data:
@@ -64,4 +64,4 @@ def get_schema_name() -> str:
     return 'environmentModel'
 
 def get_namespace() -> str:
-    return f'https://ontologies.envited-x.net/environment-model/{version}/ontology'
+    return f'https://ontologies.envited-x.net/environment-model/{MODEL_VERSION}/ontology'

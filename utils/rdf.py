@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional, Any, Dict
-from rdflib import Graph, URIRef, BNode
+from rdflib import Graph, BNode
 from rdflib.namespace import SH, RDF
 from rdflib.collection import Collection
 

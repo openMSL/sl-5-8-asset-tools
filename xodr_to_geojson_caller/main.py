@@ -1,10 +1,8 @@
 from pathlib import Path
 from lxml import etree
-from utils.log_config import handle_output
 from utils.subprocess import run_command
 
 import argparse
-import subprocess
 import logging
 
 DEBUG = False

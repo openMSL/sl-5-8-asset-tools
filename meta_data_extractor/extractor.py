@@ -5,12 +5,11 @@ from pyproj import CRS, Transformer
 from utils.json import write_json
 
 import logging
-import json
 
 logger = logging.getLogger(__name__)
 
 # manual assignment of local country name (Germany) to alpha-2 -> OSM only receives local name, but for alpha 2 code you need the English name.
-country_name_to_alpha2 = {
+COUNTRY_NAME_TO_ALPHA2 = {
     "Deutschland": "DE",
     "Österreich": "AT",
     "Schweiz": "CH",
@@ -46,20 +45,20 @@ country_name_to_alpha2 = {
     # Todo, add more
 }
 
+CONVERT_GERMAN_UMLAUT= {
+    "ä": "ae",
+    "ö": "oe",
+    "ü": "ue",
+    "Ä": "Ae",
+    "Ö": "Oe",
+    "Ü": "Ue",
+    "ß": "ss"
+}
+
 # replace German umlauts with non-umlaut equivalents
 def replace_german_umlauts(text: str) -> str:
-    
-    replacements = {
-        "ä": "ae",
-        "ö": "oe",
-        "ü": "ue",
-        "Ä": "Ae",
-        "Ö": "Oe",
-        "Ü": "Ue",
-        "ß": "ss"
-    }
-    
-    for umlaut, replacement in replacements.items():
+        
+    for umlaut, replacement in CONVERT_GERMAN_UMLAUT.items():
         text = text.replace(umlaut, replacement)
     
     return text
@@ -75,7 +74,7 @@ def get_adress_from_osm(data_dict, latitude, longitude):
     # Extract the desired information
     address = location.raw['address']
     country_name = address.get('country', '')
-    data_dict['georeference:country'] = replace_german_umlauts(str(address.get('country_code', country_name_to_alpha2.get(country_name, "DE"))).upper())
+    data_dict['georeference:country'] = replace_german_umlauts(str(address.get('country_code', COUNTRY_NAME_TO_ALPHA2.get(country_name, "DE"))).upper())
     data_dict['georeference:state'] = address.get('ISO3166-2-lvl4', address.get('state', ''))
     #data_dict['postcode'] = address.get('postcode', '')
     data_dict['georeference:region'] = replace_german_umlauts(address.get('county', ''))

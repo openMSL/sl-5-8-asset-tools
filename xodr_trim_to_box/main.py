@@ -3,8 +3,6 @@ from lxml import etree
 
 import logging
 import argparse
-import math
-import sys
 from utils.geometry import Vec2D, Box2D
 
 logger = logging.getLogger(__name__)
