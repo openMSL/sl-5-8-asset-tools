@@ -10,6 +10,7 @@ import sys
 
 logger = logging.getLogger(__name__)
 
+# update config file and replace input, output file and bundle name
 def update_config_file(template_file: Path, checkerbundle_name: str, input_file: Path, result_file: Path, config_file: Path) -> Path:
     # Parse the XML file
     logger.info(f"Using template {template_file}")
@@ -34,9 +35,8 @@ def update_config_file(template_file: Path, checkerbundle_name: str, input_file:
 
     return config_file
 
+# create config file
 def create_config_file(config_file_name: Path, checkerbundle_name: str, input_file: Path, result_file : Path) -> Path:
-    #file_type = input_file.suffix.lstrip('.') # Get file extension without the dot
-
     script_folder = Path(__file__).parent
     templates_folder = script_folder / 'templates'
     template_file = templates_folder / config_file_name
