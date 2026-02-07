@@ -6,6 +6,7 @@ from lxml import etree
 from enum import Enum
 from utils.ids import create_uuid
 from utils.json import write_json
+from utils.constants import ENVITEDX_URL
 
 import xml.etree.ElementTree as ET
 import logging
@@ -15,7 +16,6 @@ import os
 
 logger = logging.getLogger(__name__)
 
-ENVITEDX_URL: str = 'https://ontologies.envited-x.net'
 OSC_SCHEMA_VERSION: str = 'v5'
 
 SCRIPT_NAME = Path(__file__).name
@@ -1451,4 +1451,4 @@ def get_schema_name() -> str:
     return 'Scenario'
 
 def get_namespace() -> str:
-    return f'{ENVITEDX_URL}/{get_schema_name().lower()}/{OSC_SCHEMA_VERSION}/ontology'
+    return f'{ENVITEDX_URL}{get_schema_name().lower()}/{OSC_SCHEMA_VERSION}/ontology'

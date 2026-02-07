@@ -3,17 +3,15 @@
 
 from rdflib import Graph, Literal, Namespace, BNode
 from rdflib.namespace import XSD, OWL, RDF, RDFS, SH, SKOS, DCTERMS
+from utils.constants import GAIAX_CORE_NS, GAIAX_TRUST_NS, SHACL_NS
 
 import pandas as pd
 import argparse
 import logging
 import os
+import utils.constants 
 
 logger = logging.getLogger(__name__)
-
-GAIAX_CORE_URL = 'https://w3id.org/gaia-x/core#'
-GAIAX_TRUST_URL = 'https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#'
-SHACL_URL = 'http://www.w3.org/ns/shacl#'
 
 # data string to data type
 DATA_TYPE_MAP = {
@@ -196,8 +194,8 @@ def read_from_excel(filename: str) ->dict:
 
 # create ontology
 def create_onotology(cat, cat_data, output_path, link_repro):
-    namespace_GaiaX_Core = Namespace(GAIAX_CORE_URL)
-    namespace_GaiaX_Trust = Namespace(GAIAX_TRUST_URL)
+    namespace_GaiaX_Core = Namespace(GAIAX_CORE_NS)
+    namespace_GaiaX_Trust = Namespace(GAIAX_TRUST_NS)
  
     cat_lowercase = cat.lower()
 
@@ -248,7 +246,7 @@ def handle_data_type(root, propierty, cat_namespace, attrib_data):
             root.add((propierty, SH.pattern, Literal(type_data['pattern'])))
 
         if 'values' in type_data:
-            namespace_Shacl = Namespace(SHACL_URL)
+            namespace_Shacl = Namespace(SHACL_NS)
             type_data['values'].sort() # alpha numeric order ist imported
             in_constraint = root.resource(propierty)
             values = "(" + " ".join("'" + value + "'" for value in type_data['values']) + ")"

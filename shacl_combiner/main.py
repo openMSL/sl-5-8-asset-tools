@@ -1,12 +1,11 @@
 from pathlib import Path
 from utils.rdf import load_jsonld_file, get_shacle_from_json_graph
+from utils.constants import ENVITEDX_URL, ENVITEDX_NAME
 
 import argparse
 import logging
 
 logger = logging.getLogger(__name__)
-
-gaiax_url_part = 'GAIA-X4PLC-AAD/ontology-management-base'
    
 def main():
     parser = argparse.ArgumentParser(prog='main.py', description='combine shalce file for jsonLD to one file')
@@ -19,7 +18,7 @@ def main():
     data_graph = load_jsonld_file(json_LD_file)  
 
     # load shacls
-    prefixes_to_add = {'envited-x' : 'https://ontologies.envited-x.net/envited-x/v2/ontology#'}
+    prefixes_to_add = {ENVITEDX_NAME : f'{ENVITEDX_URL}{ENVITEDX_NAME}/v2/ontology#'}
     shacl_graph = get_shacle_from_json_graph(data_graph, prefixes_to_add)
 
     output_path = Path(args.out)

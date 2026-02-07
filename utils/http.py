@@ -2,17 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 from urllib.parse import urlparse
+from utils.constants import GITHUB_URL, GITHUB_RAW_URL, ENVITEDX_URL, GAIAX_ONTOLOGY_PART, SHACLE_FOLDER_NAME
+
 import re
 import logging
 import requests
 
 logger = logging.getLogger(__name__)
-
-GITHUB_URL: str = 'https://github.com/'
-GITHUB_RAW_URL: str = 'https://raw.githubusercontent.com/'
-ENVITEDX_URL: str = 'https://ontologies.envited-x.net'
-GAIAX_ONTOLOGY_URL_PART: str = 'GAIA-X4PLC-AAD/ontology-management-base'
-SHACLE_FOLDER_NAME: str = "shacles"
 
 def download_or_get_file(filename : Path, out_path: Path) -> Path:
     """get filename, if url download file first and get local filename"""
@@ -94,7 +90,7 @@ def get_url_for_download(url: str) -> str:
         if segments:
             name = segments[0]
             # Create the new URL: new server, /main/, then the extracted name
-            new_url = f"{GITHUB_RAW_URL}{GAIAX_ONTOLOGY_URL_PART}/main/{name}/{name}_shacl.ttl"
+            new_url = f"{GITHUB_RAW_URL}{GAIAX_ONTOLOGY_PART}/main/{name}/{name}_shacl.ttl"
             return new_url
     else:
         # If no path segments were found, return the new server

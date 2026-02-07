@@ -5,12 +5,12 @@ from datetime import datetime
 from typing import Tuple
 from ..extractor import get_adress_from_osm, proj4_to_epsg, convert_to_LatLon
 from utils.ids import create_uuid
+from utils.constants import ENVITEDX_URL
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-ENVITEDX_URL: str = 'https://ontologies.envited-x.net'
 ODR_SCHEMA_VERSION = 'v4'
 
 # convert container to str
@@ -438,4 +438,4 @@ def get_schema_name() -> str:
     return 'HdMap'
 
 def get_namespace() -> str:
-    return f'{ENVITEDX_URL}/{get_schema_name().lower()}/{ODR_SCHEMA_VERSION}/ontology'
+    return f'{ENVITEDX_URL}{get_schema_name().lower()}/{ODR_SCHEMA_VERSION}/ontology'

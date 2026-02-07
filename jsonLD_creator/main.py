@@ -18,6 +18,7 @@ from typing import Any, Tuple, Union, Dict, List
 from utils.rdf import get_prefixes, convert_graph_to_dict
 from utils.http import get_url_for_download, download_shacle
 from utils.json import write_json
+from utils.constants import ENVITEDX_URL, GAIAX_TRUST_NS, SHACL_NS, GITHUB_RAW_URL, GAIAX_ONTOLOGY_PART, ENVITEDX_NAME, SHACLE_FOLDER_NAME
 
 import shutil
 import json
@@ -26,13 +27,6 @@ import argparse
 import operator
 
 logger = logging.getLogger(__name__)
-
-# global values
-SHACL_URL = 'http://www.w3.org/ns/shacl#'
-GX_URL = 'https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#'
-ENVITEDX_NAME = 'envited-x'
-GAIAX_URL = "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base"
-
 
 # global config value with all shacles, dicts and jsonLD output
 class Config:
@@ -105,24 +99,24 @@ def collect_nodes(shape: Any) -> List[str]:
     if isinstance(shape, dict):
         for k, v in shape.items():
             # SHACL-node / SHACL-class
-            if k.endswith(f"{SHACL_URL}node"):
+            if k.endswith(f"{SHACL_NS}node"):
                 if isinstance(v, str):
                     nodes.append(v)
                 else:
                     nodes.extend(collect_nodes(v))
 
             # qualifiedValueShape enthält verschachtelte Shapes
-            elif k.endswith(f"{SHACL_URL}qualifiedValueShape"):
+            elif k.endswith(f"{SHACL_NS}qualifiedValueShape"):
                 nodes.extend(collect_nodes(v))
 
             # sh:and / sh:or
-            elif k.endswith(f"{SHACL_URL}and") or k.endswith(f"{SHACL_URL}or"):
+            elif k.endswith(f"{SHACL_NS}and") or k.endswith(f"{SHACL_NS}or"):
                 if isinstance(v, list):
                     for item in v:
                         nodes.extend(collect_nodes(item))
 
             # property-Array: dort können wiederum qualifiedValueShape o.ä. stehen
-            elif k.endswith(f"{SHACL_URL}property"):
+            elif k.endswith(f"{SHACL_NS}property"):
                 if isinstance(v, list):
                     for prop in v:
                         nodes.extend(collect_nodes(prop))
@@ -218,8 +212,8 @@ def create_property(namespace : str, property_name : str, value, datatype: str, 
     logger.debug(f'{" " * level * 3}add prop {key}')
 
 
-# from 'https://ontologies.envited-x.net/manifest/v4/ontology#hasManifestReference'
-# compare with registered prefixes, e.g  @prefix manifest: <https://ontologies.envited-x.net/manifest/v4/ontology#>
+# from 'https://ontologies.envited-x.net/manifest/v5/ontology#hasManifestReference'
+# compare with registered prefixes, e.g  @prefix manifest: <https://ontologies.envited-x.net/manifest/v5/ontology#>
 # to manifest, hasManifestReference
 def get_namespace_name_from_url(url: str) -> Tuple[str, str]:
     # serach in own prefixes
@@ -393,7 +387,7 @@ def process_node(shape_value: list, meta_data: Union[Dict, List], nodes_in: list
     handle_node =[]
     for values in shape_value:
         path_data = get_value("path", values)     
-        if path_data == 'https://ontologies.envited-x.net/manifest/v5/ontology#hasArtifacts':
+        if path_data == f'{ENVITEDX_URL}/manifest/v5/ontology#hasArtifacts':
             test = 0
         path, nodes = get_node_data(values)           
         namespace, shapename = get_namespace_name_from_url(path)
@@ -515,7 +509,7 @@ def register_shacle(url_path : str, shacle_name: str, shacls):
             graph = Graph()
             graph.parse(local_file_path, format='turtle')
             
-            is_gaiax_ontology = True if str(url_path).startswith(GAIAX_URL) else False
+            is_gaiax_ontology = True if str(url_path).startswith(f"{GITHUB_RAW_URL}{GAIAX_ONTOLOGY_PART}") else False
 
             graph_data = {}
             graph_data['graph'] = graph
@@ -552,7 +546,7 @@ def main():
 
     # download shacle file    
     if args.removeShacl:
-        shacl_folder = Path('shacles')
+        shacl_folder = Path(SHACLE_FOLDER_NAME)
         if shacl_folder.exists():
             shutil.rmtree(shacl_folder)
     shacle_namespace, shacle_name = get_namespace(claim_data['shacl_type'])    
@@ -569,8 +563,8 @@ def main():
     shacl_data = shacl_definitions[shacle_namespace]
     prefixes = get_prefixes(shacl_data['graph'])
     # add special prefixes
-    prefixes["sh"] = SHACL_URL
-    prefixes["gx"] = GX_URL
+    prefixes["sh"] = SHACL_NS
+    prefixes["gx"] = GAIAX_TRUST_NS
 
     # and download additional shacles
     for key, value in prefixes.items():

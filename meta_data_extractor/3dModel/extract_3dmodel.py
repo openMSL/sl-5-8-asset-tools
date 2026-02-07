@@ -1,6 +1,7 @@
 from typing import Tuple
 from pathlib import Path
 from utils.ids import create_uuid
+from utils.constants import ENVITEDX_URL
 
 import json
 import logging
@@ -64,4 +65,4 @@ def get_schema_name() -> str:
     return 'environmentModel'
 
 def get_namespace() -> str:
-    return f'https://ontologies.envited-x.net/environment-model/{MODEL_VERSION}/ontology'
+    return f'{ENVITEDX_URL}environment-model/{MODEL_VERSION}/ontology'

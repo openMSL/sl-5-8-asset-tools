@@ -5,15 +5,13 @@ from typing import Optional, Any, Dict
 from rdflib import Graph, BNode
 from rdflib.namespace import SH, RDF
 from rdflib.collection import Collection
-
 from utils.http import download_shacle, get_url_for_download
+from utils.constants import ENVITEDX_URL
 
 import json
 import logging
 
 logger = logging.getLogger(__name__)
-
-ENVITEDX_URL = 'https://ontologies.envited-x.net' 
 
 def get_prefixes(graph: Graph) -> Dict[str, str]:
     """Extract prefixes from an RDF graph."""

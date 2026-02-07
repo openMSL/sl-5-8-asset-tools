@@ -3,11 +3,12 @@ from urllib.parse import urlparse
 from multiformats import CID
 from multiformats.multihash import digest
 from PIL import Image
+from datetime import datetime
 from utils.http import url_from_path
 from utils.ids import create_uuid
 from utils.http import is_url, download_or_get_file
 from utils.json import write_json
-from datetime import datetime
+from utils.constants import ENVITEDX_URL, ENVITEDX_NAME, GITHUB_RAW_URL, GAIAX_ONTOLOGY_PART, DID_ADRESS
 
 import argparse
 import json
@@ -18,11 +19,8 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-ENVITEDX_NAME: str = 'envited-x'
-ENVITEDX_URL: str = 'https://ontologies.envited-x.net/'
-SCHEMA_VERSION: str = 'v2'
-DID_ADRESS: str = 'did:web:registry.gaia-x.eu:Manifest:'
-README_URL: str = "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base/main/artifacts/envited-x/README.md"
+
+SCHEMA_MANIFEST_VERSION: str = 'v2'
 
 CATEGORIES = {
     "isSimulationData" : [
@@ -324,7 +322,7 @@ def register_folder(data: list, user_data: dict, path: Path, abs_data_path: Path
         if category == 'isMetadata':
             file_entry['manifest:iri'] = asset_info['did']
             file_entry['skos:note'] = f'This is the domain metadata for a {asset_data["type"]}.'
-            file_entry['sh:conformsTo'] = [f'{ENVITEDX_URL}{asset_data["classname"]}/{SCHEMA_VERSION}/ontology']
+            file_entry['sh:conformsTo'] = [f'{ENVITEDX_URL}{asset_data["classname"]}/{SCHEMA_MANIFEST_VERSION}/ontology']
                      
         data.append(file_entry)
 
@@ -532,7 +530,7 @@ def main():
     # create json file for jsonLD creator
     data = {}
     data['did'] = DID_ADRESS + manifest_uuid
-    data['shacl_type'] = f'{ENVITEDX_NAME}::{ENVITEDX_URL}{ENVITEDX_NAME}/{SCHEMA_VERSION}/ontology#ManifestShape'
+    data['shacl_type'] = f'{ENVITEDX_NAME}::{ENVITEDX_URL}{ENVITEDX_NAME}/{SCHEMA_MANIFEST_VERSION}/ontology#ManifestShape'
     data_group = []
     data['manifest:hasArtifacts'] = data_group
     for sub_folder in data_path.iterdir():
@@ -564,7 +562,9 @@ def main():
     # create readme
     script_path = Path(__file__).resolve()
     readme_template = script_path.parent / 'README_template.md'
-    download_readme(README_URL, readme_template)    
+    
+    readme_url = f"{GITHUB_RAW_URL}{GAIAX_ONTOLOGY_PART}/main/artifacts/envited-x/README.md"
+    download_readme(readme_url, readme_template)    
     if asset_extension in ASSET_TYPES:
         # get name + description from {asset_type}_instance.json
         classname = ASSET_TYPES[asset_extension]['classname']
