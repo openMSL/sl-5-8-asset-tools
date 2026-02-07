@@ -2,6 +2,7 @@ from pathlib import Path
 from zipfile import ZipFile
 from utils.log_config import setup_logging, handle_output
 from utils.utils import download_or_get_file
+from utils.subprocess import run_command
 
 import json
 import subprocess
@@ -137,17 +138,8 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
     script_call = create_script_params(script_config, asset_file, output_dir) 
 
     # run sub script
-    try:
-        logger.info(f">>>    start command {script_config['name']}")        
-        logger.info(script_call)
-        project_root = Path(__file__).parent.parent
-        result = subprocess.run(script_call, check=True, capture_output=True, text=True, cwd=str(project_root))
-        handle_output(result, script_config['name'] )            
-        logger.info(f"   <<< end command {script_config['name']}")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"!!!!!!!!!!!! Command {script_config['name']} failed with return code {e.returncode}")        
-        handle_output(e, script_config['name'] )
-        exit(1)
+    project_root = Path(__file__).parent.parent
+    run_command(cmd=script_call, name=script_config['name'], cwd=str(project_root))
 
 # create zip file from folder
 def create_zip(output_dir: Path, zip_filename : Path):

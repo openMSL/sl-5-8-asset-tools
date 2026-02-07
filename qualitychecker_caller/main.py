@@ -1,5 +1,6 @@
 from pathlib import Path
 from lxml import etree
+from utils.subprocess import run_command
 
 import subprocess
 import argparse
@@ -90,18 +91,7 @@ def main():
     script_call.append('-c')
     script_call.append(config_file.as_posix())
 
-    try:
-        logger.info(f"start sub command {app_name}")
-        logger.info(script_call)  
-        result = subprocess.run(script_call, check=True, capture_output=True, text=True)
-        logger.info(f"end sub command {app_name} succeeded with output:")
-        logger.info(result.stdout)  # print default output from sub process
-        logger.info(result.stderr)  # print logging output from sub process
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Command {app_name} failed with return code {e.returncode}")
-        logger.error(f"Error output: {e.stderr}")
-        logger.error(f"Error output: {e.stdout}")
-        exit(1)
+    run_command(cmd=script_call, name=app_name)
 
     # write als txt
     os.chdir(output_file.parent) # change system path
@@ -117,29 +107,17 @@ def main():
     script_call.append (f'{text_report_executable_path}') # call Textreport
     script_call.append(f'{output_file}')
 
-    logger.info(f'{script_call}')
-    try:
-        logger.info(f"Start Converting xqar to human readable form :")
-        if sys.platform.startswith("linux") :
-            os.chmod(text_report_executable_path, stat.S_IXUSR) #chmode +x TextReport (in docker i.e. the Docker )
-            # Confirm permissions (optional)
-            permissions = oct(os.stat(text_report_executable_path).st_mode)[-3:]
-            logger.info(f"Permissions: {permissions}")
-        result = subprocess.run(script_call, check=True, capture_output=True, text=True)
-        
-        xqar_path_without_extension = output_file.with_suffix('')  # Get full path without extension
-        new_path = f"{xqar_path_without_extension}_QCReport.txt"
-        result_text_path = output_file.parent / 'Report.txt'
-        result_text_path.rename(new_path)
-
-        logger.info(f"Succeeded with output:")
-        logger.info(result.stdout)  # print default output from sub process
-        logger.info(result.stderr)  # print logging output from sub process
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed with return code {e.returncode}")
-        logger.error(f"Error output: {e.stderr}")
-        logger.error(f"Error output: {e.stdout}")
-        exit(1)
+    if sys.platform.startswith("linux") :
+        os.chmod(text_report_executable_path, stat.S_IXUSR) #chmode +x TextReport (in docker i.e. the Docker )
+        # Confirm permissions (optional)
+        permissions = oct(os.stat(text_report_executable_path).st_mode)[-3:]
+        logger.info(f"Permissions: {permissions}")
+    run_command(script_call, f"Start Converting xqar to human readable form :")
+    
+    xqar_path_without_extension = output_file.with_suffix('')  # Get full path without extension
+    new_path = f"{xqar_path_without_extension}_QCReport.txt"
+    result_text_path = output_file.parent / 'Report.txt'
+    result_text_path.rename(new_path)
 
 
 if __name__ == "__main__":
