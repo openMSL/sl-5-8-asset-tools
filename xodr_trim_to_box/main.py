@@ -26,7 +26,8 @@ class Box2D:
         self.xMax = xMax        
         self.yMax = yMax
 
-    def intersection(self, box2):
+    # check intersection to box2
+    def intersection(self, box2) -> bool:
         x_overlap = max(0, min(self.xMax, box2.xMax) - max(self.xMin, box2.xMin))
         y_overlap = max(0, min(self.yMax, box2.yMax) - max(self.yMin, box2.yMin))
         
@@ -34,7 +35,7 @@ class Box2D:
             return True
         else:
             return False
-        
+    # expands the box with box_expand
     def expandByBox(self, box_expand):
         if box_expand.xMin < self.xMin:
             self.xMin = box_expand.xMin
@@ -45,6 +46,7 @@ class Box2D:
         if box_expand.yMax > self.yMax:
             self.yMax = box_expand.yMax       
 
+    # expands the box with position
     def expandByPos(self, x, y):
         if x < self.xMin:
             self.xMin = x
@@ -56,6 +58,7 @@ class Box2D:
         if y > self.yMax:
             self.yMax = y            
     
+    # expands the box with seam
     def expandBySeam(self, seam):
         self.xMin = self.xMin - seam
         self.xMax = self.xMax + seam
@@ -71,6 +74,7 @@ def calculate_end_position(start_x, start_y, heading, length):
     return end_x, end_y
 
 
+# calc box for line segment
 def calculate_bounding_box(x, y, hdg, length):
 
     endPos = calculate_end_position(x, y, hdg, length)
@@ -80,7 +84,7 @@ def calculate_bounding_box(x, y, hdg, length):
     box.expandBySeam(10)
     return box
 
-
+# calc box for road element
 def getRoadBounding(road):
     geometries = road.findall(".//geometry")
     boxRoad = Box2D()
@@ -93,7 +97,7 @@ def getRoadBounding(road):
         boxRoad.expandByBox(boxGeom)
     return boxRoad  
 
-
+# replace box data in xodr file
 def reduceXODR(box, file_in, file_out):
 
     root = etree._Element()
@@ -159,6 +163,7 @@ def reduceXODR(box, file_in, file_out):
 
 
 def main():
+    # parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='removes the streets and intersections that are not in the specified bounding box and writes them out with *_reduce.xodr.')   
     parser.add_argument('filename', help='OpenDRIVE filename')
     parser.add_argument("--bbox", type=float, nargs=4, required=True,

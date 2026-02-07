@@ -10,6 +10,8 @@ DEBUG = False
 
 logger = logging.getLogger(__name__)
 
+ASAM_ODR_VERSION_URL: str = 'http://www.asam.de/ODR/16/'
+
 def main():
     parser = argparse.ArgumentParser(prog='main.py', description='Calls the java tool from VCS https://github.com/virtualcitySYSTEMS/opendriveconverter to convert an OpenDRIVE file into a geojson.')   
     parser.add_argument('filename', help='filename of OpenDRIVE file')
@@ -30,7 +32,7 @@ def main():
     # fix header
     tree = etree.parse(xodr_file)
     root = tree.getroot()
-    root.set("xmlns", "http://www.asam.de/ODR/16/")
+    root.set("xmlns", ASAM_ODR_VERSION_URL)
 
     # write temp file
     new_temp_file = temp_path / 'geojson'

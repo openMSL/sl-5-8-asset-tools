@@ -13,15 +13,15 @@ import logging
 import os
 import requests
 
+logger = logging.getLogger(__name__)
+
 ENVITEDX_NAME: str = 'envited-x'
 ENVITEDX_URL: str = 'https://ontologies.envited-x.net/'
 SCHEMA_VERSION: str = 'v2'
 DID_ADRESS: str = 'did:web:registry.gaia-x.eu:Manifest:'
 README_URL: str = "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base/main/artifacts/envited-x/README.md"
 
-logger = logging.getLogger(__name__)
-
-categories = {
+CATEGORIES = {
     "isSimulationData" : [
         {
             "type" : "Asset",
@@ -108,7 +108,7 @@ categories = {
     ]            
 }
 
-asset_type = {
+ASSET_TYPES = {
     'xodr' : {
         'type' : 'HD-Map',
         'category' : 'HdMap',
@@ -135,7 +135,7 @@ asset_type = {
     }
 }
 
-mime_type = {
+MIME_TYPE = {
     'isManifest' : {
         'json' : 'application/ld+json'
     },
@@ -168,16 +168,18 @@ mime_type = {
     }
 }
 
-def get_data_from_category_type(category, type):
-    if category in categories:
-        found_category = categories[category]
+# get data from category and type
+def get_data_from_category_type(category: str, type: str) -> dict:
+    if category in CATEGORIES:
+        found_category = CATEGORIES[category]
         for data in found_category:
             if data["type"] == type:
                 return data
     return None
 
-def get_data_from_folder_extension(folder, extension):
-    for key, category in categories.items():
+# get data from folder and extension
+def get_data_from_folder_extension(folder: str, extension: str) -> tuple[dict, str]:
+    for key, category in CATEGORIES.items():
         for data in category:
             if folder in data["folder"]:
                 for ext in data["extensions"]:
@@ -185,7 +187,7 @@ def get_data_from_folder_extension(folder, extension):
                         return data, key
     return None, None
 
-
+# get file data from category
 def get_file_data_from_category(file: Path)-> dict:
     extension = file.suffix.lstrip('.') # Get file extension without the dot
     folder = file.parent.name
@@ -197,16 +199,17 @@ def get_file_data_from_category(file: Path)-> dict:
     
     return None
 
-
+# get file data
 def get_file_data(user_data, filename: Path) -> dict:
     for file in user_data:
         if file['filename'] == filename:
             return file
     return None
 
+# get mime typ
 def get_mime_type(category: str, extension: str) -> str:
-    if category in mime_type:
-        cat_data = mime_type[category]
+    if category in MIME_TYPE:
+        cat_data = MIME_TYPE[category]
         if extension in cat_data:
             mime_type_str = cat_data[extension]
         elif '' in cat_data:
@@ -219,7 +222,7 @@ def get_mime_type(category: str, extension: str) -> str:
     
     return None
 
-
+# create and fill file_data element
 def create_file_data(filename: Path, abs_data_path: Path, data_type: str, role: str, asset_info : dict):
     file_data = {}
     file_data['manifest:hasAccessRole'] = 'manifest:' + role
@@ -272,6 +275,7 @@ def create_file_data(filename: Path, abs_data_path: Path, data_type: str, role: 
     
     return file_data
 
+# register licence
 def register_licence(data: dict, filename: Path, abs_data_path: Path, category: str, role: str, data_type=None):
     data = create_file_data(filename, abs_data_path, category, role, None)
     if data_type:
@@ -283,6 +287,7 @@ def register_licence(data: dict, filename: Path, abs_data_path: Path, category: 
         data.clear()
         data.update(data)
 
+# regrister asset
 def register_asset(data: dict, filename: Path, abs_data_path: Path, category: str, role: str, data_type=None):
     files = []   
     files.append(create_file_data(filename, abs_data_path, category, role, None))
@@ -295,7 +300,7 @@ def register_asset(data: dict, filename: Path, abs_data_path: Path, category: st
         data.clear()
         data.update(files[0])
 
-
+# register folder
 def register_folder(data: list, user_data: dict, path: Path, abs_data_path: Path, asset_data: dict, asset_info: dict):
     if not path.exists():
         return
@@ -320,12 +325,14 @@ def register_folder(data: list, user_data: dict, path: Path, abs_data_path: Path
                      
         data.append(file_entry)
 
+# fill mask element
 def fill_mask(filename: Path, file_data : dict, index : int) -> Path:
     mask = file_data["mask"]
     if file_data["type"] == 'Document' and filename.suffix == '.pdf' and not filename.stem.endswith("_Documentation"):
         mask = mask + '_Documentation'
     return mask
 
+# create filename
 def create_filename(filename: Path, asset_name: Path, file_data : dict, index : int) -> Path:
     basename = str(filename.stem)  # Name without extension
 
@@ -343,6 +350,7 @@ def create_filename(filename: Path, asset_name: Path, file_data : dict, index : 
     filename_new = f"{basename}{extension}"
     return Path(filename_new)
 
+#  updat ereadme
 def update_readme(file_path_in: Path, file_path_out: Path, name_value: str, description_value: str) -> None:
     # Read the entire content of the file using UTF-8 encoding
     content = file_path_in.read_text(encoding="utf-8")
@@ -354,7 +362,7 @@ def update_readme(file_path_in: Path, file_path_out: Path, name_value: str, desc
     # Write the updated content back to the file using UTF-8 encoding
     file_path_out.write_text(content, encoding="utf-8")
 
-
+# download readme
 def download_readme(readme_url : str, filename_target : str) -> str:
     # get file from github
     response = requests.get(readme_url)
@@ -366,23 +374,20 @@ def download_readme(readme_url : str, filename_target : str) -> str:
         logger.error(f'No readme files found in url: {readme_url}')
         exit(1)
 
-def safe_get(d, keys, default=None):
-    """
-    Helper function to safely retrieve nested keys from a dictionary.
-    
-    :param d: The dictionary to extract the value from.
-    :param keys: A list of keys representing the path to the desired value.
-    :param default: The value to return if a key in the path does not exist.
-    :return: The value found at the end of the key path, or default if any key is missing.
-    """
+# Helper function to safely retrieve nested keys from a dictionary.
+# :param d: The dictionary to extract the value from.
+# :param keys: A list of keys representing the path to the desired value.
+# :param default: The value to return if a key in the path does not exist.
+# :return: The value found at the end of the key path, or default if any key is missing.
+def safe_get(data: dict, keys: str, default=None) -> dict:
     for key in keys:
         try:
-            d = d[key]
+            data = data[key]
         except (KeyError, TypeError):
             return default
-    return d
+    return data
 
-
+# get name and description from domainMetadata.json file
 def get_name_description_from_domainMetadata(filename, type):
     with open(filename, "r", encoding="utf-8") as file:
         data = json.load(file)
@@ -396,8 +401,8 @@ def get_name_description_from_domainMetadata(filename, type):
 
     return name, description
 
-
-def get_asset(user_data):
+# get asset name and extension from user data
+def get_asset(user_data: dict) -> tuple[str, str]:
     for file in user_data:
         if file['category'] == 'isSimulationData' and file['type'] == 'Asset':
             asset_name = Path(file['filename'])            
@@ -406,7 +411,7 @@ def get_asset(user_data):
             return asset_name, asset_extension
     return None, None
 
-
+# get asset info (did, recordingTime)
 def get_asset_info(asset_json : Path, asset_extractor : Path) -> dict:
     
     # load asset json
@@ -435,6 +440,7 @@ def get_asset_info(asset_json : Path, asset_extractor : Path) -> dict:
     return asset_info
 
 def main():
+    #  parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='the folder structure is completed from the user info and a metadata table is created for the manifest')   
     parser.add_argument('filename', help='filename of json file from frontend.')
     parser.add_argument('-out', help='json file for manifest.')
@@ -474,8 +480,8 @@ def main():
     if not asset_name or not asset_extension:
         logger.error(f'no asset found in {file}')
         exit(1)
-    if asset_extension in asset_type:        
-        asset_data = asset_type[asset_extension]
+    if asset_extension in ASSET_TYPES:        
+        asset_data = ASSET_TYPES[asset_extension]
 
     # copy files
     upload_folder = user_input_file.parent
@@ -555,9 +561,9 @@ def main():
     script_path = Path(__file__).resolve()
     readme_template = script_path.parent / 'README_template.md'
     download_readme(README_URL, readme_template)    
-    if asset_extension in asset_type:
+    if asset_extension in ASSET_TYPES:
         # get name + description from {asset_type}_instance.json
-        classname = asset_type[asset_extension]['classname']
+        classname = ASSET_TYPES[asset_extension]['classname']
         domainMetadata = filename_out.parent.parent / f'metadata/{classname}_instance.json'
         name, description = get_name_description_from_domainMetadata(domainMetadata, classname.lower())
         if name and description:

@@ -8,6 +8,7 @@ import shutil
 
 logger = logging.getLogger(__name__)
 
+#  trigger if SD Creation Wizard is open
 def trigger_open_sd_wizard(endpoint_url):
     try:
         response = requests.post(endpoint_url)
@@ -17,6 +18,7 @@ def trigger_open_sd_wizard(endpoint_url):
             print(f"Failed to trigger SD Wizard: {response.status_code}")
     except Exception as e:
         print(f"Error triggering SD Wizard: {e}")
+
 
 def post_filepath(file_path, endpoint_url, output_path = None):
     try:
@@ -30,8 +32,8 @@ def post_filepath(file_path, endpoint_url, output_path = None):
     except Exception as e:
         print(f"Error sending file path: {e}")
         
+# check if combined json is avaiable     
 def check_combined_json(endpoint_url):
-
     while True:
         response = requests.get(endpoint_url)  # Repeat the GET request
         if response.status_code == 204:
@@ -45,6 +47,7 @@ def check_combined_json(endpoint_url):
             break  # Exit the loop if there is an error
         
 def main():
+    # parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='calls the sd creation wizard with json and merged shacl file to fill the non-extractable attributes from the user')
     parser.add_argument('filename', type=str, help='filename of json LD file')
     parser.add_argument('-shacl', type=str, help='merged shacl file')
