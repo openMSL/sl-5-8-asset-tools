@@ -13,9 +13,11 @@ import logging
 import os
 import requests
 
-g_envitedX = 'envited-x'
-g_envited_url = 'https://ontologies.envited-x.net/'
-g_version = 'v2'
+ENVITEDX_NAME: str = 'envited-x'
+ENVITEDX_URL: str = 'https://ontologies.envited-x.net/'
+SCHEMA_VERSION: str = 'v2'
+DID_ADRESS: str = 'did:web:registry.gaia-x.eu:Manifest:'
+README_URL: str = "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base/main/artifacts/envited-x/README.md"
 
 logger = logging.getLogger(__name__)
 
@@ -314,7 +316,7 @@ def register_folder(data: list, user_data: dict, path: Path, abs_data_path: Path
         if category == 'isMetadata':
             file_entry['manifest:iri'] = asset_info['did']
             file_entry['skos:note'] = f'This is the domain metadata for a {asset_data["type"]}.'
-            file_entry['sh:conformsTo'] = [f'{g_envited_url}{asset_data["classname"]}/{g_version}/ontology']
+            file_entry['sh:conformsTo'] = [f'{ENVITEDX_URL}{asset_data["classname"]}/{SCHEMA_VERSION}/ontology']
                      
         data.append(file_entry)
 
@@ -519,8 +521,8 @@ def main():
 
     # create json file for jsonLD creator
     data = {}
-    data['did'] = 'did:web:registry.gaia-x.eu:Manifest:' + manifest_uuid
-    data['shacl_type'] = f'{g_envitedX}::{g_envited_url}{g_envitedX}/{g_version}/ontology#ManifestShape'
+    data['did'] = DID_ADRESS + manifest_uuid
+    data['shacl_type'] = f'{ENVITEDX_NAME}::{ENVITEDX_URL}{ENVITEDX_NAME}/{SCHEMA_VERSION}/ontology#ManifestShape'
     data_group = []
     data['manifest:hasArtifacts'] = data_group
     for sub_folder in data_path.iterdir():
@@ -550,11 +552,9 @@ def main():
         path.mkdir()
 
     # create readme
-    url = "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base/main/envited-x/README.md"
     script_path = Path(__file__).resolve()
     readme_template = script_path.parent / 'README_template.md'
-    download_readme(url, readme_template)    
-    #readme_template = Path(__file__).parent.resolve() / 'README_template.md'
+    download_readme(README_URL, readme_template)    
     if asset_extension in asset_type:
         # get name + description from {asset_type}_instance.json
         classname = asset_type[asset_extension]['classname']
