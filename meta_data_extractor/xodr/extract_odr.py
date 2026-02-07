@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Tuple
 from ..extractor import get_adress_from_osm, proj4_to_epsg, convert_to_LatLon
-from utils.utils import create_uuid
+from utils.ids import create_uuid
 
 import logging
 

@@ -1,6 +1,6 @@
 from typing import Tuple
 from pathlib import Path
-from utils.utils import create_uuid
+from utils.ids import create_uuid
 
 import json
 import logging

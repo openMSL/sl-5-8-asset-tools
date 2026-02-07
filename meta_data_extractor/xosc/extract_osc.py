@@ -4,13 +4,12 @@ from datetime import datetime
 from pathlib import Path
 from lxml import etree
 from enum import Enum
-from utils.utils import create_uuid
+from utils.ids import create_uuid
 
 import xml.etree.ElementTree as ET
 import logging
 import typing
 import json
-import uuid
 import os
 
 logger = logging.getLogger(__name__)
@@ -391,19 +390,19 @@ def add_coordinate_systems(scenario: OpenSCENARIO, coordinate_systems: typing.Di
 
 
 def add_ontologies(ontologies: typing.Dict, metadata_config: typing.Dict) -> typing.Tuple[str, str, str]:
-    uuid_openlabel = str(uuid.uuid4())
+    uuid_openlabel = create_uuid()
     ontologies[uuid_openlabel] = {
         'uri': get_conf_value(metadata_config, 'openlabel/ontologies/openlabel/uri', 'https://openlabel.asam.net/V1-0-0/ontologies/openlabel_ontology_scenario_tags.ttl'),
         'boundary_list': IMPLEMENTED_OPENLABEL_TAGS,
         'boundary_mode': 'include'
     }
-    uuid_setlevel = str(uuid.uuid4())
+    uuid_setlevel = create_uuid()
     ontologies[uuid_setlevel] = {
         'uri': get_conf_value(metadata_config, 'openlabel/ontologies/setlevel/uri', 'https://github.com/GAIA-X4PLC-AAD/map-and-scenario-data/blob/main/ontologies/setlevel/setlevel.ttl'),
         'boundary_list': [],
         'boundary_mode': 'include'
     }
-    uuid_gaiax = str(uuid.uuid4())
+    uuid_gaiax = create_uuid()
     ontologies[uuid_gaiax] = {
         'uri': get_conf_value(metadata_config, 'openlabel/ontologies/gaiax/uri', 'https://github.com/GAIA-X4PLC-AAD/map-and-scenario-data/blob/main/ontologies/gaiax4plc/gaiax4plc_meta_auto.ttl'),
         'boundary_list': [],
@@ -413,19 +412,19 @@ def add_ontologies(ontologies: typing.Dict, metadata_config: typing.Dict) -> typ
 
 
 def add_resources(scenario: OpenSCENARIO, resources: typing.Dict, metadata_config: typing.Dict) -> str:
-    uuid_map = str(uuid.uuid4())
+    uuid_map = create_uuid()
     relative_path = Path(scenario.map_location).relative_to(scenario.scenario_file.parent)
     resources[uuid_map] = get_conf_value(metadata_config, 'map/location', relative_path)
     for catalogs in scenario.catalog_locations.values():
         for catalog in catalogs:
-            resources[str(uuid.uuid4())] = Path(catalog).relative_to(scenario.scenario_file.parent)
+            resources[create_uuid()] = Path(catalog).relative_to(scenario.scenario_file.parent)
     return uuid_map
 
 
 def add_tag(tags: typing.Dict, ontology_uid: str, tag_data: TagData, add_atts: typing.Dict) -> str:
     if tag_data is None or tag_data.is_empty():
         return None
-    id = str(uuid.uuid4())
+    id = create_uuid()
     tags[id] = {
         'ontology_uid': ontology_uid
     }
@@ -1016,8 +1015,7 @@ def add_tags(scenario: OpenSCENARIO, tags: typing.Dict, uuid_openlabel: str, uui
         {'type': 'scenarioDefinitionLanguageURI'})
     add_tag(tags, uuid_openlabel, TextTag([TextTagValue(get_conf_value(metadata_config, 'openlabel/tags/scenarioParentReference', None))]),
             {'type': 'scenarioParentReference'})
-    sc_uuid = str(
-        uuid.uuid4()) if prev_scenario_uuid is None else prev_scenario_uuid
+    sc_uuid = str(create_uuid()) if prev_scenario_uuid is None else prev_scenario_uuid
     add_tag(tags, uuid_openlabel, TextTag([TextTagValue(get_conf_value(metadata_config, 'openlabel/tags/scenarioUniqueReference', sc_uuid))]),
             {'type': 'scenarioUniqueReference'})
     add_tag(tags, uuid_openlabel, TextTag([TextTagValue(get_conf_value(metadata_config, 'openlabel/tags/scenarioVisualisationURL', None))]),

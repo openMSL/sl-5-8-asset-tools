@@ -10,7 +10,6 @@ import re
 import json
 import requests
 import logging
-import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -126,11 +125,6 @@ def get_shacle_from_json_graph(data_graph : Graph, prefixes_to_add : Optional[di
         shacl_files.append(download_shacle(new_url_path, key))
     shacl_graph = load_shacl_files(shacl_files)    
     return shacl_graph
-
-# create unique id
-def create_uuid() -> str:
-    random_uuid = uuid.uuid4()   # e.g. 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
-    return str(random_uuid)
 
 #    Recursive function to “resolve” a value.
 #    If it is a blank node, it is checked whether it is an RDF list.
