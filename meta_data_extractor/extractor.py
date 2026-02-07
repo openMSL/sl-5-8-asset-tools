@@ -2,6 +2,7 @@ from pathlib import Path
 from datetime import datetime
 from geopy.geocoders import Nominatim
 from pyproj import CRS, Transformer
+from utils.json import write_json
 
 import logging
 import json
@@ -95,12 +96,6 @@ def convert_to_LatLon(x: float, y : float, proj4 : str) -> tuple[float, float]:
     lon, lat = transformer.transform(x, y)
     return lon, lat
 
-# datetime hanlder to write correct in json file
-def datetime_handler(x):
-    if isinstance(x, datetime.datetime):
-        return x.isoformat()
-    raise TypeError("Unknown type")
-
 # extract meta data from file
 def extract(file: Path, output_file: Path) -> bool:   
     file = file.expanduser()
@@ -145,8 +140,7 @@ def extract(file: Path, output_file: Path) -> bool:
         logger.exception(f'Could not extract format {extract_module.get_description()}')
         return False     
 
-    with open(output_file, 'w') as f:
-        json.dump(meta_data, f, indent=4, ensure_ascii=False, default=datetime_handler)
-        logger.info(f'write json to {output_file}')
+    write_json(output_file, meta_data)
+    logger.info(f'write json to {output_file}')
    
     return True

@@ -1,10 +1,10 @@
 from lxml import etree
 from pathlib import Path
+from utils.json import read_json, write_json
 
 import argparse
 import logging
 import json
-import pickle
 
 logger = logging.getLogger(__name__)
 
@@ -79,18 +79,6 @@ def process_element(element, mapping):
     else:
         return None     
     
-# read json file
-def read_json_file(file_path : Path, binary : bool):
-    if binary:
-        with open(file_path, 'rb') as f:
-            json_data = pickle.load(f)
-    else:
-        with open(file_path, 'r') as file:
-            json_data_binary = file.read()
-            json_data = json.loads(json_data_binary)
-    return json_data       
-
-
 # load mapping table
 def load_mapping_table(mapping_file : Path):
     if not Path(mapping_file).exists():
@@ -137,16 +125,6 @@ def json_to_xml(json_data):
     return root
 
 
-# write json
-def write_json_file(data: list, file_name : Path, binary : bool):
-    if binary:
-        with open(file_name, 'wb') as f:
-            pickle.dump(data, f)
-    else:
-        with open(file_name, 'w') as f:
-            json.dump(data, f, indent=4)
-  
-
 def main():
     # parse argument
     parser = argparse.ArgumentParser(prog='main.py', description='reduces the original xml to relevant nodes and attributes (see mapping_tables) and writes a binary json for the extended search.')   
@@ -187,14 +165,14 @@ def main():
             json_data.append(result)
 
     # write to json file
-    write_json_file(json_data, output_json_file, True)
+    write_json(output_json_file, json_data, binary=True)
 
     # test to read json, convert to xml and find nodes
     debug = False
     if debug:
         # read json
         binary = False
-        json_read_data = read_json_file(output_json_file, binary)
+        json_read_data = read_json(output_json_file, binary)
         # convert to xml
         root_read = json_to_xml(json_read_data)
         

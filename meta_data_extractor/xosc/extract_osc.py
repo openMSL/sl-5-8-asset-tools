@@ -5,6 +5,7 @@ from pathlib import Path
 from lxml import etree
 from enum import Enum
 from utils.ids import create_uuid
+from utils.json import write_json
 
 import xml.etree.ElementTree as ET
 import logging
@@ -1091,8 +1092,8 @@ def generate_openlabel_metadata(scenario: OpenSCENARIO, out_file: Path, metadata
     add_resources(scenario, resources, metadata_config)
     add_tags(scenario, tags, uuid_openlabel,
              uuid_setlevel, uuid_gaiax, metadata_config, prev_scenario_uuid)
-    with open(out_file, 'w') as f:
-        json.dump(output, f, indent=4)
+    
+    write_json(out_file, output)
 
 
 def find_files_with_ending(parent: Path, ending: str, files: typing.List[Path]) -> None:

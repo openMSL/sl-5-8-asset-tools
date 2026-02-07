@@ -6,6 +6,7 @@ from PIL import Image
 from utils.http import url_from_path
 from utils.ids import create_uuid
 from utils.http import is_url, download_or_get_file
+from utils.json import write_json
 from datetime import datetime
 
 import argparse
@@ -575,8 +576,7 @@ def main():
             update_readme(readme_template, readme_file, name, description)
 
     # write metadata json 
-    with open(filename_out, 'w') as f:
-        json.dump(data, f, indent=4)
+    write_json(filename_out, data)
 
     # replace with uuid in json
     asset_content = asset_json.read_text(encoding="utf-8")

@@ -1,6 +1,7 @@
 from pyproj import CRS, Transformer
 from pathlib import Path
 from utils.xodr import parse_planview
+from utils.json import write_json
 
 import xml.etree.ElementTree as ET
 import simplekml
@@ -86,8 +87,7 @@ def create_geojson(elements: list, output_file: Path, isPolygon: bool):
     }
 
     # write GeoJSON
-    with open(output_file, 'w') as f:
-        json.dump(geojson, f, indent=2)
+    write_json(output_file, geojson, indentValue=2)
 
 
 # create bounding box from point list

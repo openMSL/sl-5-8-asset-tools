@@ -3,6 +3,7 @@ from zipfile import ZipFile
 from utils.log_config import setup_logging, handle_output
 from utils.http import download_or_get_file
 from utils.subprocess import run_command
+from utils.json import read_json
 
 import json
 import subprocess
@@ -169,7 +170,7 @@ def get_asset_type(asset_type: Path) -> str:
 
 # Return the first filename where type == "Asset" or raise if not found
 def get_asset_filename(json_path: Path) -> Path:
-    data = json.loads(json_path.read_text(encoding="utf-8"))
+    data = read_json(json_path)
 
     for entry in data:
         if entry.get("type") == "Asset":

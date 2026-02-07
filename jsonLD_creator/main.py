@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any, Tuple, Union, Dict, List
 from utils.rdf import get_prefixes, convert_graph_to_dict
 from utils.http import get_url_for_download, download_shacle
+from utils.json import write_json
+
 import shutil
 import json
 import logging
@@ -45,13 +47,7 @@ class Config:
         return cls._instance
 
 config = Config()
-
-
-def datetime_handler(x):
-    if isinstance(x, datetime):
-        return x.isoformat()
-    raise TypeError("Unknown type")
-    
+   
 # check if value is greater/smaller then value
 def check_min_max(shacl_data, name: str, compare_value: int, op):
     if name in shacl_data:
@@ -528,8 +524,7 @@ def register_shacle(url_path : str, shacle_name: str, shacls):
 
             # DEBUG write as json
             debug_json_file = local_file_path.with_suffix(".json")
-            with open(debug_json_file, 'w') as f:
-                json.dump(graph_data['dict'], f, indent=2, default=datetime_handler)
+            write_json(debug_json_file, graph_data['dict'])
 
             shacls[shacle_name] = graph_data
     except:
@@ -593,9 +588,8 @@ def main():
         
     # write claims as json id to output    
     output_path = Path(args.out)
-    with open(output_path, 'w') as f:
-        json.dump(config.JSON_OUT, f, indent=2, default=datetime_handler)
-        logger.info(f'write json ld to {output_path}')
+    write_json(output_path, config.JSON_OUT, indentValue= 2)
+    logger.info(f'write json ld to {output_path}')
 
 
 if __name__ == '__main__':
