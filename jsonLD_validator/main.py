@@ -9,9 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-gaiax_url_part = 'GAIA-X4PLC-AAD/ontology-management-base'
-
-
+# validate jsonld against shacl schema
 def validate_jsonld_against_shacl(data_graph : Graph, shacl_graph : Graph, json_LD_file: Path):
     conforms, v_graph, v_text = validate(data_graph, shacl_graph=shacl_graph, 
                                          inference='rdfs', 

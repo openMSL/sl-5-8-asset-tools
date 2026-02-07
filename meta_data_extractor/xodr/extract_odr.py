@@ -3,16 +3,17 @@ from lxml import etree
 from pathlib import Path
 from datetime import datetime
 from typing import Tuple
-from ..extractor import get_position_from_osm, proj4_to_epsg, convert_to_LatLon
+from ..extractor import get_adress_from_osm, proj4_to_epsg, convert_to_LatLon
 from utils.utils import create_uuid
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-version = 'v4'
+ENVITEDX_URL: str = 'https://ontologies.envited-x.net'
+ODR_SCHEMA_VERSION = 'v4'
 
-
+# convert container to str
 def container_in_str(data: any) -> str:
     string = ''
     for value in data:
@@ -20,7 +21,8 @@ def container_in_str(data: any) -> str:
             string = string + f' {value}'
     return string
 
-def convert_date_time(date_string, supported_syntax):
+# convert data and time to str
+def convert_date_time(date_string : str, supported_syntax : list[str]) -> str:
     for syntax in supported_syntax:
         try:
             date = datetime.strptime(date_string, syntax)
@@ -102,9 +104,6 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     geo_reference = None
     if 'header' in data and 'geoReference' in data['header']:
         geo_reference = data['header']['geoReference']
-    
-    #lat = 0.0
-    #lon = 0.0
 
     if geo_reference:
         geodetic_ref_system_dict = dict()
@@ -195,7 +194,7 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
         # get country, state, town from OSM
         center_lon = (bounding_dict['xMin'] + bounding_dict['xMax']) * 0.5
         center_lat = (bounding_dict['yMin'] + bounding_dict['yMax']) * 0.5
-        get_position_from_osm(projection_location_dict, center_lat, center_lon)
+        get_adress_from_osm(projection_location_dict, center_lat, center_lon)
         viewpoint_dict = dict()
         viewpoint_dict['georeference:lat'] = str(center_lat)
         viewpoint_dict['georeference:lon'] = str(center_lon)
@@ -402,6 +401,7 @@ def get_elevation_range(root, elevations, list_of_lengths):
 
 
 #######################################################################################################################
+# open asset file, parse xml and extract meta data
 def extract_meta_data(file: Path) ->Tuple[bool, dict]:
     # read file
     logger.debug(f'Loading input file {file.absolute()}')
@@ -438,4 +438,4 @@ def get_schema_name() -> str:
     return 'HdMap'
 
 def get_namespace() -> str:
-    return f'https://ontologies.envited-x.net/{get_schema_name().lower()}/{version}/ontology'
+    return f'{ENVITEDX_URL}/{get_schema_name().lower()}/{ODR_SCHEMA_VERSION}/ontology'

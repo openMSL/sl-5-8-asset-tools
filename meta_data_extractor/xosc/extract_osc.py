@@ -15,7 +15,8 @@ import os
 
 logger = logging.getLogger(__name__)
 
-version = 'v5'
+ENVITEDX_URL: str = 'https://ontologies.envited-x.net'
+OSC_SCHEMA_VERSION: str = 'v5'
 
 SCRIPT_NAME = Path(__file__).name
 IMPLEMENTED_OPENLABEL_TAGS = [
@@ -348,23 +349,25 @@ def get_osc_value(el: ET.Element, key: str, osc: OpenSCENARIO) -> str:
 def load_openscenario_file(osc_path: Path) -> OpenSCENARIO:
     osc = OpenSCENARIO()
     osc.scenario_file = osc_path.resolve()
+
     sc = ET.parse(osc_path).getroot()
     osc.scenario_et = sc
     extract_variables(osc, sc)
+    
     logic_file = sc.find('.//LogicFile')
     filepath = get_osc_value(logic_file, 'filepath', osc)
-    osc.map_location = (
-        osc_path.parent / filepath).resolve()
+    osc.map_location = (osc_path.parent / filepath).resolve()
+
     logger.debug(f'Loading map {osc.map_location}')
     if not osc.map_location.exists():
         logger.error(f'map not exist {osc.map_location}')
         exit(1)
+
     if './/CatalogLocations' in sc:
         for catalog in sc.find('.//CatalogLocations'):
             if 'path' not in catalog.find('.//Directory').attrib or catalog.find('.//Directory').attrib['path'] == '':
                 continue
-            location = (osc_path.parent /
-                        catalog.find('.//Directory').attrib['path']).resolve()
+            location = (osc_path.parent / catalog.find('.//Directory').attrib['path']).resolve()
             osc.catalogs[catalog.tag] = []
             osc.catalog_locations[catalog.tag] = []
             if location.is_dir():
@@ -1449,4 +1452,4 @@ def get_schema_name() -> str:
     return 'Scenario'
 
 def get_namespace() -> str:
-    return f'https://ontologies.envited-x.net/{get_schema_name().lower()}/{version}/ontology'
+    return f'{ENVITEDX_URL}/{get_schema_name().lower()}/{OSC_SCHEMA_VERSION}/ontology'

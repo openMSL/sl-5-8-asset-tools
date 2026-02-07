@@ -26,11 +26,12 @@ def main():
     if not directory.exists():
         directory.mkdir(parents=True, exist_ok=True)
 
-    # open file, extract, an write 
+    
     file = Path(args.filename)
     if not file.exists():
         exit(1)
 
+    # extract meta data depended on asset type
     valid = extract(file, output_file)
     if valid is not True:
         logger.error(f'file {file.absolute()} can not be extraced')

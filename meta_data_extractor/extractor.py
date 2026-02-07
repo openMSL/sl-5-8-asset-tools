@@ -45,8 +45,9 @@ country_name_to_alpha2 = {
     # Todo, add more
 }
 
-def replace_german_umlauts(text):
-    # Replace German umlauts with non-umlaut equivalents
+# replace German umlauts with non-umlaut equivalents
+def replace_german_umlauts(text: str) -> str:
+    
     replacements = {
         "ä": "ae",
         "ö": "oe",
@@ -62,7 +63,8 @@ def replace_german_umlauts(text):
     
     return text
 
-def get_position_from_osm(data_dict, latitude, longitude):
+# get adress from OSM geolocator
+def get_adress_from_osm(data_dict, latitude, longitude):
     # custom User-Agent
     custom_user_agent = "GaiaX_ODR_Extractor/1.0"
     # Initialize Nominatim geocoder    
@@ -78,8 +80,8 @@ def get_position_from_osm(data_dict, latitude, longitude):
     data_dict['georeference:region'] = replace_german_umlauts(address.get('county', ''))
     data_dict['georeference:city'] = replace_german_umlauts(address.get('city', address.get('town', address.get('village', ''))))
 
-
-def proj4_to_epsg(proj4_string):
+# convert proj4 to epsg code
+def proj4_to_epsg(proj4_string: str) -> int:
     # create a CRS-Object from Proj4-String
     crs = CRS.from_proj4(proj4_string)
     # get EPSG-Code
@@ -87,17 +89,19 @@ def proj4_to_epsg(proj4_string):
     return epsg_code
 
 
-def convert_to_LatLon(x, y, proj4):
+# convert coordinates to LatLon using pyproj
+def convert_to_LatLon(x: float, y : float, proj4 : str) -> tuple[float, float]:
     transformer = Transformer.from_proj(proj4, 'epsg:4326')  # WGS84
     lon, lat = transformer.transform(x, y)
     return lon, lat
 
+# datetime hanlder to write correct in json file
 def datetime_handler(x):
     if isinstance(x, datetime.datetime):
         return x.isoformat()
     raise TypeError("Unknown type")
 
-
+# extract meta data from file
 def extract(file: Path, output_file: Path) -> bool:   
     file = file.expanduser()
     file = file.resolve()
