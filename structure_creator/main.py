@@ -490,10 +490,10 @@ def main():
     for file in user_data:
         filename = Path(file['filename'])
 
-        #if filename.parent != Path(".") and not is_url(filename):
-        # no path elements
+        # no path elements?
         if len(filename.parts) == 1:
             filename = upload_folder / filename
+
         # get cat, type data
         category = file['category']
         typ = file['type']
