@@ -24,8 +24,8 @@ class BoundingBox:
         self.yMax = yMax
 
 
-# function to parse the XML file and extract coordinates
-def parse_xml(file_path):
+# function to parse the XML file and extract coordinates and projection data
+def parse_xml(file_path : Path) -> tuple[str, Vec2, list]:
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -52,32 +52,41 @@ def parse_xml(file_path):
     return proj4_str, offset, lines
 
 
-def calculate_end_position(start_pos : Vec2, heading, length):
+# calculate the end position of a line based on its starting point, length, and direction
+def calculate_end_position(start_pos : Vec2, heading, length) -> Vec2 : 
     end_x = start_pos.x + math.cos(heading) * length
     end_y = start_pos.y + math.sin(heading) * length
     return Vec2(end_x, end_y)
 
+# transform coordiante with or without transformer
+def transform_coord(pos_abs : Vec2, transformer : Transformer) -> tuple[float, float]:
+    if transformer is not None:
+        lon, lat = transformer.transform(pos_abs.x, pos_abs.y)
+    else :
+        lon = pos_abs.x
+        lat = pos_abs.y
+    return lon, lat
 
-# function to reproject the coordinates
-def reproject(lines, offset, transformer):
+# reproject the coordinates
+def reproject(lines : list, offset : Vec2, transformer : Transformer) -> list : 
     transformed_lines = []
     for line in lines:
         transformed_coords = []
         count = len(line) - 1
         for x, y, hdg, length in line:
             pos_abs = Vec2(x + offset.x, y + offset.y)
-            lon, lat = transformer.transform(pos_abs.x, pos_abs.y)
+            lon, lat = transform_coord(pos_abs, transformer)
             transformed_coords.append((lon, lat))
             if count == 0:
                 end_pos = calculate_end_position(pos_abs, hdg, length)
-                lon, lat = transformer.transform(end_pos.x, end_pos.y)
+                lon, lat = transform_coord(end_pos, transformer)
                 transformed_coords.append((lon, lat))
             count = count - 1
         transformed_lines.append(transformed_coords)
     return transformed_lines
 
 
-# Function to create and write KML elements
+# create and write data as KML elements
 def create_kml(elements: list, output_file: Path, isPolygon: bool):
     kml = simplekml.Kml()
     for element in elements:
@@ -88,10 +97,11 @@ def create_kml(elements: list, output_file: Path, isPolygon: bool):
             datastring = kml.newlinestring(name="Line")
             datastring.coords = element
 
+    # write KML
     kml.save(output_file)
 
 
-# Function to create and write a GeoJson elements
+# create and write data as GeoJson elements
 def create_geojson(elements: list, output_file: Path, isPolygon: bool):
     features = []
     for element in elements:
@@ -125,7 +135,7 @@ def create_geojson(elements: list, output_file: Path, isPolygon: bool):
         json.dump(geojson, f, indent=2)
 
 
-# function to create bounding box from point list
+# create bounding box from point list
 def create_bounding_box(elements: list) -> BoundingBox :        
     x_coords = []
     y_coords = []
@@ -163,19 +173,22 @@ def main():
 
     # Parse the XML file and extract coordinates
     in_proj, offset, lines = parse_xml(xodr_file)
-    if in_proj is None or lines is None:
-        logger.error(f"no projection found!")    
+    if lines is None:
+        logger.error(f"no line data found!")    
         exit(0)
 
-    # PROJ.4 projections
-    #web_mecator = CRS.from_epsg(3857)
-    web_mecator = CRS.from_proj4(in_proj)
-    wgs84 = CRS.from_epsg(4326)
-    transformer_proj_to_wgs84 = Transformer.from_crs(web_mecator, wgs84, always_xy=True)
+    if in_proj is not None:
+        # create projection transform
+        web_mecator = CRS.from_proj4(in_proj)
+        wgs84 = CRS.from_epsg(4326)
+        transformer_proj_to_wgs84 = Transformer.from_crs(web_mecator, wgs84, always_xy=True)
 
-    # Reproject the coordinates
-    transformed_lines= reproject(lines, offset, transformer_proj_to_wgs84)
+        # Reproject the coordinates
+        transformed_lines = reproject(lines, offset, transformer_proj_to_wgs84)
+    else :
+        transformed_lines = reproject(lines, offset, None)
 
+    # crate and write bounding box
     output_file_box = args.box
     if output_file_box:
         box = create_bounding_box(transformed_lines)
@@ -192,7 +205,7 @@ def main():
         else:
             create_kml(boxes, output_file_box, True)
 
-    # Create the KML line
+    # write line data 
     if extension == "geojson":
         create_geojson(transformed_lines, output_file, False)
     else:
