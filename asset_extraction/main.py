@@ -20,7 +20,7 @@ asset_types = {
     "3dmodel" :"environment-model"
 }
 
-# load config file for asset_type
+# load configurations depending on asset type
 def get_configs(config_dir: Path, asset_file: Path) ->list:
     # get asset extension
     asset_type_extension = get_asset_type_extension(asset_file)
@@ -57,7 +57,7 @@ def get_configs(config_dir: Path, asset_file: Path) ->list:
 
     return configs
 
-
+# replace placeholders in file path
 def replace_file_pattern(filepath: str, path: Path, sub_path: Path, asset_name: str, asset_path: Path, asset_type: str) -> str:
     updated_string = filepath.replace(r"{path}", str(path))
     updated_string = updated_string.replace(r"{sub_path}", str(sub_path))
@@ -71,9 +71,9 @@ def replace_file_pattern(filepath: str, path: Path, sub_path: Path, asset_name: 
     else:
         return updated_string
 
-
-def execute_script(script_config: dict, asset_file: Path, output_dir: Path):    
-    # prepare script path
+# create params for script calls
+def create_script_params(script_config: dict, asset_file : Path, output_dir: Path) -> list:
+        # prepare script path
     script_path = Path(script_config['params']['call'])
     
     # prepare output path
@@ -99,8 +99,6 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
     script_call.append(script_path)
 
     asset_type = get_asset_type(get_asset_type_extension(asset_file))     
-
-    project_root = Path(__file__).parent.parent
 
     # input
     if 'input' in script_config['params']:
@@ -128,12 +126,21 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
             script_call.append(name)
             if value:                
                 updated_string = replace_file_pattern(value, output_dir, sub_path, asset_name, asset_path, asset_type)
-                script_call.append(updated_string)
+                script_call.append(updated_string)    
 
-    # run
+    return script_call
+
+# Combine parameters and call sub script
+def execute_script(script_config: dict, asset_file: Path, output_dir: Path):   
+
+    # create script parameters
+    script_call = create_script_params(script_config, asset_file, output_dir) 
+
+    # run sub script
     try:
         logger.info(f">>>    start command {script_config['name']}")        
         logger.info(script_call)
+        project_root = Path(__file__).parent.parent
         result = subprocess.run(script_call, check=True, capture_output=True, text=True, cwd=str(project_root))
         handle_output(result, script_config['name'] )            
         logger.info(f"   <<< end command {script_config['name']}")
@@ -142,7 +149,7 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
         handle_output(e, script_config['name'] )
         exit(1)
 
-
+# create zip file from folder
 def create_zip(output_dir: Path, zip_filename : Path):
     with ZipFile(zip_filename, 'w') as zipf:
         for file_path in output_dir.rglob('*'):            
@@ -153,13 +160,14 @@ def create_zip(output_dir: Path, zip_filename : Path):
                 file_local = file_path.relative_to(output_dir)
                 zipf.write(file_path, file_local)
 
-
-def get_asset_type_extension(asset_file: Path):
+# get asset type extension
+def get_asset_type_extension(asset_file: Path) -> str:
     asset_type = asset_file.suffix.lstrip('.') # Get file extension without the dot
     if asset_type == 'zip' or asset_type == '7z':
         asset_type = '3dmodel'
     return asset_type
 
+# get asset type
 def get_asset_type(asset_type: Path) -> str:
     if asset_type in asset_types:
         return asset_types[asset_type]
@@ -180,7 +188,7 @@ def get_asset_filename(json_path: Path) -> Path:
 
     raise ValueError("No entry with type == 'Asset' found")
 
-
+# get asset file from frontend json
 def get_asset_file(uploadedFile : Path) -> Path:
     # get from xml
     asset_file = get_asset_filename(uploadedFile)
@@ -223,7 +231,6 @@ def main():
     if '.' in asset_name:
         logger.error(f"File {asset_name} has points in name! Not supported!")
         exit(1)
-
  
     output_sub_dir = output_dir / asset_name
     if output_sub_dir.exists():

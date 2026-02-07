@@ -19,7 +19,7 @@ The following modules are executed in the pipeline in the order specified here
   The main script, which calls the other scripts according to their configuration and exchanges the generated data. Creates the asset.zip archive at the end.
 
     Input
-    - Asset file
+    - json file with uploaded files from frontend
     - Pipeline config file folder
   
     Output
