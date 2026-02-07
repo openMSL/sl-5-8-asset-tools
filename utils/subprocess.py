@@ -35,4 +35,4 @@ def run_command(cmd: list[str], name: str, cwd: Path | None = None) -> None:
     except subprocess.CalledProcessError as e:
         logger.error(f"!!!!!!!!!!!! Command {name} failed with return code {e.returncode}")        
         handle_output(e, name)
-        exit(1)
+        raise Exception(f"Command {name}")

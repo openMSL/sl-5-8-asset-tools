@@ -107,8 +107,7 @@ def main():
 
     xodr_file = Path(args.filename)
     if not xodr_file.exists():
-        logger.error(f'xodr file {xodr_file} not exists')
-        exit(1)
+        raise FileNotFoundError(f'xodr file {xodr_file} not exists')
 
     output_file = Path(args.out)
     if not output_file.parent.exists():
@@ -119,8 +118,7 @@ def main():
     # Parse the XML file and extract coordinates
     projection, offset, lines = parse_planview(xodr_file)
     if lines is None:
-        logger.error(f"no line data found!")    
-        exit(0)
+        raise ValueError(f"no line data found!")    
 
     if projection is not None:
         # create projection transform

@@ -27,8 +27,7 @@ def load_jsonld_file(jsonld_file: Path) -> Graph:
     """Load JSON-LD into an rdflib graph."""
 
     if not jsonld_file.exists():
-        logger.error(f'JsonLD files not found: {jsonld_file}')
-        exit(1)  
+        raise FileNotFoundError(f'JsonLD files not found: {jsonld_file}')
 
     data_graph = Graph()
     logger.info(f'adding jsonld file to data graph: {jsonld_file}.')

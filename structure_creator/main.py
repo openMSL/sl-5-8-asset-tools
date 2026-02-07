@@ -372,8 +372,7 @@ def download_readme(readme_url : str, filename_target : str) -> str:
         with open(filename_target, "w", encoding="utf-8") as file:
             file.write(content)
     else:
-        logger.error(f'No readme files found in url: {readme_url}')
-        exit(1)
+        raise FileNotFoundError(f'No readme files found in url: {readme_url}')
 
 # Helper function to safely retrieve nested keys from a dictionary.
 # :param d: The dictionary to extract the value from.
@@ -419,8 +418,7 @@ def get_asset_info(asset_json : Path, asset_extractor : Path) -> dict:
     if not asset_json.is_absolute():
         asset_json = asset_json.resolve()     
     if not asset_json.exists():
-        logger.error(f'asset file {asset_json} not exists')
-        exit(1)
+        raise FileNotFoundError(f'asset file {asset_json} not exists')
     with open(asset_json, 'r') as file:
         asset_json_data = json.load(file)
     asset_info = {}
@@ -430,8 +428,8 @@ def get_asset_info(asset_json : Path, asset_extractor : Path) -> dict:
     if not asset_extractor.is_absolute():
         asset_extractor = asset_extractor.resolve()   
     if not asset_extractor.exists():
-        logger.error(f'asset file {asset_extractor} not exists')
-        exit(1) 
+        raise FileNotFoundError(f'asset file {asset_extractor} not exists')
+    
     with open(asset_extractor, 'r') as file:
         asset_extractor_data = json.load(file)
 
@@ -457,14 +455,12 @@ def main():
     if not user_input_file.is_absolute():
         user_input_file = user_input_file.resolve()
     if not user_input_file.exists():
-        logger.error(f'json file {user_input_file} not exists')
-        exit(1)
+        raise FileNotFoundError(f'json file {user_input_file} not exists')
 
     if not data_path.is_absolute():
         data_path = data_path.resolve()
     if not data_path.exists():
-        logger.error(f'data path {data_path} not exists')
-        exit(1)
+        raise FileNotFoundError(f'data path {data_path} not exists')
 
     # read json
     with open(user_input_file, 'r') as file:
@@ -479,8 +475,8 @@ def main():
     # initialize asset_name
     asset_name, asset_extension = get_asset(user_data)
     if not asset_name or not asset_extension:
-        logger.error(f'no asset found in {file}')
-        exit(1)
+        raise FileNotFoundError(f'no asset found in {file}')
+    
     if asset_extension in ASSET_TYPES:        
         asset_data = ASSET_TYPES[asset_extension]
 
@@ -500,8 +496,7 @@ def main():
         typ = file['type']
         cat_type_data = get_data_from_category_type(category, typ)
         if not cat_type_data:
-            logger.error(f'type {typ} not found in category {category}')
-            exit(1)
+            raise ValueError(f'type {typ} not found in category {category}')
 
         filename = download_or_get_file(filename, filename_out.parent)
     

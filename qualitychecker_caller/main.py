@@ -42,8 +42,7 @@ def create_config_file(config_file_name: Path, checkerbundle_name: str, input_fi
     template_file = templates_folder / config_file_name
 
     if not template_file.exists():
-        logger.error(f'template file not exist {template_file}')
-        exit(1)
+        raise FileNotFoundError(f'template file not exist {template_file}')
 
     return update_config_file(template_file, checkerbundle_name, input_file, result_file, Path("qc_config.xml"))
 
@@ -59,8 +58,7 @@ def main():
 
     input_file = Path(args.filename)
     if not input_file.exists():
-        logger.error(f'input file {input_file} not exists')
-        exit(1)
+        raise FileNotFoundError(f'input file {input_file} not exists')
 
     # create config file from templates with input_file replacement
     output_file = Path(args.out)
@@ -69,20 +67,17 @@ def main():
 
     config_file_name = Path(args.config)
     if not config_file_name:
-        logger.error(f'missing config file {config_file_name}')
-        exit(1)    
+        raise ValueError(f'missing config file {config_file_name}')
 
     bundle_name = args.checkerbundle
     if not bundle_name:
-        logger.error(f'bundle name not valid {bundle_name}')
-        exit(1)        
+        raise ValueError(f'bundle name not valid {bundle_name}')   
 
     config_file = create_config_file(config_file_name, bundle_name, input_file, output_file)
 
     app_name = args.app
     if not app_name:
-        logger.error(f'app name not valid {app_name}')
-        exit(1)
+        raise ValueError(f'app name not valid {app_name}')
     
     # call
     script_call = []

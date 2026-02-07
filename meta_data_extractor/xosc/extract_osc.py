@@ -360,8 +360,7 @@ def load_openscenario_file(osc_path: Path) -> OpenSCENARIO:
 
     logger.debug(f'Loading map {osc.map_location}')
     if not osc.map_location.exists():
-        logger.error(f'map not exist {osc.map_location}')
-        exit(1)
+        raise FileNotFoundError(f'map not exist {osc.map_location}')
 
     if './/CatalogLocations' in sc:
         for catalog in sc.find('.//CatalogLocations'):

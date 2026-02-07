@@ -1,7 +1,7 @@
 from pathlib import Path
 from zipfile import ZipFile
 from utils.log_config import setup_logging, handle_output
-from utils.http import download_or_get_file
+from utils.http import download_or_get_file, is_url
 from utils.subprocess import run_command
 from utils.json import read_json
 
@@ -29,9 +29,8 @@ def get_configs(config_dir: Path, asset_file: Path) ->list:
     # load process.json
     process_file = config_dir / "process.json"
     if not process_file.exists():
-        logger.error(f'config file {process_file} not exists')
-        exit(1)
-    with open((config_dir / process_file), 'r') as file:
+        raise FileNotFoundError(f'config file {process_file} not exists')
+    with open(process_file, 'r') as file:
         config_process = json.load(file)
 
     # filter for asset_type
@@ -50,8 +49,7 @@ def get_configs(config_dir: Path, asset_file: Path) ->list:
     for filename in config_files:
         config_file = config_dir / filename
         if not config_file.exists():
-            logger.error(f'config file {config_file} not exists')
-            exit(1)    
+            raise FileNotFoundError(f'config file {config_file} not exists')
 
         with open((config_dir / filename), 'r') as file:
             configs.append(json.load(file)) 
@@ -164,8 +162,7 @@ def get_asset_type(asset_type: Path) -> str:
     if asset_type in asset_types:
         return asset_types[asset_type]
     
-    logger.error(f'asset type not found {asset_type}')
-    exit(1)
+    raise FileNotFoundError(f'asset type not found {asset_type}')
 
 # Return the first filename where type == "Asset" or raise if not found
 def get_asset_filename(json_path: Path) -> Path:
@@ -202,23 +199,20 @@ def main():
     uploaded_file = Path(args.filename)
     asset_file = get_asset_file(uploaded_file)
     if not asset_file.exists():
-        logger.error(f'asset file {asset_file} not exists')
-        exit(1)
+        raise FileNotFoundError(f'asset file {asset_file} not exists')
     logger.info(f'asset file {asset_file}')
 
     # load all configs that are applicable to the asset type 
     config_dir = Path(args.config)
     config_dir = config_dir.resolve()
     if not config_dir.is_dir():
-        logger.error(f'config path {config_dir} not exists')
-        exit(1)
+        raise FileNotFoundError(f'config path {config_dir} not exists')
     applicable_scripts = get_configs(config_dir, asset_file)
 
     # create, cleanup output directory for the asset file
     asset_name = asset_file.stem
     if '.' in asset_name:
-        logger.error(f"File {asset_name} has points in name! Not supported!")
-        exit(1)
+        raise FileNotFoundError(f"File {asset_name} has points in name! Not supported!")
  
     output_sub_dir = output_dir / asset_name
     if output_sub_dir.exists():

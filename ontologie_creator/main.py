@@ -446,8 +446,8 @@ def main():
 
     table_file = args.table
     if not os.path.isfile(table_file):
-        logger.error(f'table file {table_file} not exists')
-        exit(1)
+        raise FileNotFoundError(f'table file {table_file} not exists')
+    
     attributes = read_from_excel(table_file)
 
     #  write turtle files (ontologie and shacl)        

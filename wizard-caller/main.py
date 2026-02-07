@@ -57,13 +57,11 @@ def main():
 
     jsonLD_file = Path(args.filename)
     if not jsonLD_file.exists():
-        logger.error(f'jsonLD file not exist {jsonLD_file}')
-        exit(1)
+        raise FileNotFoundError(f'jsonLD file not exist {jsonLD_file}')
 
     shacl_file = Path(args.shacl)
     if not shacl_file.exists():
-        logger.error(f'shacl file not exist {shacl_file}')
-        exit(1)
+        raise FileNotFoundError(f'shacl file not exist {shacl_file}')
 
     output_path = Path(args.out)         
 

@@ -22,8 +22,7 @@ def main():
     if not xodr_file.is_absolute():
         xodr_file = xodr_file.resolve()
     if not xodr_file.exists():
-        logger.error(f'json file {xodr_file} not exists')
-        exit(1)
+        raise FileNotFoundError(f'json file {xodr_file} not exists')
         
     filename_out = Path(args.out)
     temp_path = Path(args.path)

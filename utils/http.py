@@ -19,7 +19,7 @@ def download_or_get_file(filename : Path, out_path: Path) -> Path:
     filename = filename.resolve()
     return filename
 
-def is_url(url: Path | str) -> bool:
+def is_url(url: Path) -> bool:
     """Return True if the given string/path looks like a URL."""
 
     url = url_from_path(url)
@@ -121,7 +121,6 @@ def download_shacl(url_path: str, shacl_name: str) -> Path:
         url = f"{url_path}{filename}" if str(url_path).startswith(ENVITEDX_URL) else url_path
         response = requests.get(url, timeout=30)
         if not response:
-            logger.error(f"No shacl files found in url: {url}")
             raise RuntimeError(f"No shacl files found in url: {url}")
 
         Path(SHACL_FOLDER_NAME).mkdir(parents=True, exist_ok=True)

@@ -30,15 +30,13 @@ def main():
 
     xodr_file = args.filename
     if not xodr_file.exists():        
-        logger.error(f'{xodr_file} not found')
-        exit(1)
+        raise FileNotFoundError(f'{xodr_file} not found')
     
     # Parse the XML file and extract coordinates
     projection, offset, lines = parse_planview(xodr_file)
     
     if lines is None:
-        logger.error(f"no line data found!")    
-        exit(1)
+        raise ValueError(f"no line data found!")    
 
     # calculate box from coordinates
     bounding_box = calcBox(lines, offset)

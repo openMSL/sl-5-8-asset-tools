@@ -20,7 +20,7 @@ def main():
     # get output dir
     output_file = Path(args.output)
     if not output_file:
-        exit(1)
+        raise ValueError(f'args.output not defined')
     
     directory = output_file.parent
     if not directory.exists():
@@ -29,7 +29,7 @@ def main():
     
     file = Path(args.filename)
     if not file.exists():
-        exit(1)
+        raise ValueError(f'args.filename not defined')
 
     # extract meta data depended on asset type
     valid = extract(file, output_file)

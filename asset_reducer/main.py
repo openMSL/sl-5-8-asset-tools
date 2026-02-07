@@ -82,8 +82,7 @@ def process_element(element, mapping):
 # load mapping table
 def load_mapping_table(mapping_file : Path):
     if not Path(mapping_file).exists():
-        logger.info(f"file '{mapping_file}' not exist.")
-        return None
+        raise FileNotFoundError(f"file '{mapping_file}' not exist.")
     with open(mapping_file, 'r') as f:
         node_mapping = json.load(f)
     return node_mapping
@@ -135,8 +134,7 @@ def main():
     # Path to the XML file
     xml_file_path = Path(args.filename)
     if not xml_file_path.exists():
-        logger.error(f'json file {xml_file_path} not exists')
-        exit(1)
+        raise FileNotFoundError(f'json file {xml_file_path} not exists')
 
     # Target JSON file
     output_json_file = Path(args.out)
@@ -150,8 +148,6 @@ def main():
     script_dir = Path(__file__).parent.resolve()
     mapping_file = script_dir / mapping_name
     node_mapping = load_mapping_table(mapping_file)
-    if not node_mapping:
-        exit(1)
 
     # read xml 
     tree = etree.parse(xml_file_path)

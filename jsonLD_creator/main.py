@@ -239,8 +239,7 @@ def get_namespace_name_from_url(url: str) -> Tuple[str, str]:
 def get_namespace(namespace_and_name):
     parts = namespace_and_name.split('::')
     if len(parts) != 2:
-        logger.error(f'{namespace_and_name} not valid!')
-        exit(1)
+        raise ValueError(f'{namespace_and_name} not valid!')
     return parts[0], parts[1]
 
 def get_name_from_url(url):
@@ -343,8 +342,7 @@ def register_key(key : str, values : dict, meta_data: dict, nodes : list, namesp
 def register_list(key : str, values : dict, meta_data: dict, nodes : list, namespace: str, shapename: str, path: str, is_required: bool, lsonLD_dict: dict, level : int):
     if key in meta_data:
         if not isinstance(meta_data[key], list):
-            logger.error(f'meta_data of {key} should be list!')
-            exit(1)
+            raise ValueError(f'meta_data of {key} should be a list!')
 
         created_nodes = []
         for sub_meta_data in meta_data[key]:
@@ -381,8 +379,7 @@ def register_list(key : str, values : dict, meta_data: dict, nodes : list, names
 # process node with all props and sub nodes
 def process_node(shape_value: list, meta_data: Union[Dict, List], nodes_in: list, lsonLD_dict: dict, level : int):
     if not isinstance(shape_value, list):
-        logger.error(f'shape_value should be a list!')
-        exit(1)
+        raise ValueError(f'shape_value should be a list!')
     
     handle_node =[]
     for values in shape_value:
@@ -466,8 +463,7 @@ def process_graph(schema_namespace, schema_name, meta_data):
             config.JSON_OUT['@id'] = meta_data['did']
             del meta_data['did']
         else:
-            logger.error(f'did not found in extraced data!')
-            exit(1)
+            raise ValueError(f'did not found in extraced data!')
 
         # add type
         name = get_name_from_url(schema_name)
@@ -478,8 +474,7 @@ def process_graph(schema_namespace, schema_name, meta_data):
         # get first element of main shacl        
         shape_value = get_shacl_shape(schema_namespace, schema_name)
         if not shape_value:
-            logger.error(f'did not found {schema_name} in shacl {schema_namespace}!')
-            exit(1)
+            raise ValueError(f'did not found {schema_name} in shacl {schema_namespace}!')
 
         process_node(shape_value, meta_data, None, config.JSON_OUT, 0)
 
@@ -507,7 +502,7 @@ def register_shacl(url_path : str, shacl_name: str, shacls):
     try:
         if local_file_path:
             graph = Graph()
-            graph.parse(local_file_path, format='turtle')
+            graph = graph.parse(local_file_path, format='turtle')
             
             is_gaiax_ontology = True if str(url_path).startswith(f"{GITHUB_RAW_URL}{GAIAX_ONTOLOGY_PART}") else False
 
@@ -522,8 +517,7 @@ def register_shacl(url_path : str, shacl_name: str, shacls):
 
             shacls[shacl_name] = graph_data
     except:
-        logger.exception(f'cannot read turtle file: {local_file_path}')
-        exit(1)
+        raise FileNotFoundError(f'cannot read turtle file: {local_file_path}')
 
 
 def main():
@@ -539,8 +533,7 @@ def main():
     claim_path = Path(args.filename)
     claim_path = claim_path.resolve()
     if not claim_path.exists():
-        logger.exception(f'Could not find file {claim_path}')
-        exit(1)
+        raise FileNotFoundError(f'Could not find file {claim_path}')
     with open(claim_path, 'r', encoding='utf-8') as file:
         claim_data = json.load(file)
 
@@ -577,8 +570,7 @@ def main():
     try:
         process_graph(shacl_namespace, shacl_name, claim_data)
     except:
-        logger.exception(f'Could not convert to json')
-        exit(1)
+        raise Exception(f'Could not convert to json')
         
     # write claims as json id to output    
     output_path = Path(args.out)
