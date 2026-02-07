@@ -1,7 +1,7 @@
 from pathlib import Path
 from zipfile import ZipFile
 from utils.log_config import setup_logging, handle_output
-from utils.utils import download_or_get_file
+from utils.http import download_or_get_file
 from utils.subprocess import run_command
 
 import json

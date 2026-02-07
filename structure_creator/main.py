@@ -3,8 +3,9 @@ from urllib.parse import urlparse
 from multiformats import CID
 from multiformats.multihash import digest
 from PIL import Image
-from utils.utils import is_url, url_from_path, download_or_get_file
+from utils.http import url_from_path
 from utils.ids import create_uuid
+from utils.http import is_url, download_or_get_file
 from datetime import datetime
 
 import argparse
