@@ -11,8 +11,12 @@ import os
 
 logger = logging.getLogger(__name__)
 
+GAIAX_CORE_URL = 'https://w3id.org/gaia-x/core#'
+GAIAX_TRUST_URL = 'https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#'
+SHACL_URL = 'http://www.w3.org/ns/shacl#'
+
 # data string to data type
-dataTypeMap = {
+DATA_TYPE_MAP = {
     'string': {'type' : XSD.string},
     'boolean': {'type' : XSD.boolean},
     'date': {'type' : XSD.dateTime},
@@ -44,7 +48,7 @@ dataTypeMap = {
 }   
 
 # use only this rows for import
-use_row_names = {
+USE_ROW_NAME = {
     'category' : str, 
     'subtype' : str, 
     'attribute_name' : str, 
@@ -58,15 +62,17 @@ use_row_names = {
 # used data_type_node
 used_data_type_nodes = set()
 
-def check_special_chars(s):
+# check special chars in string
+def check_special_chars(string : str) -> bool:
     special_chars = [" ", "/", "..."]
     for char in special_chars:
-        if char in s:
-            logger.error(f'attribute name {s} has unsuported chars!')
+        if char in string:
+            logger.error(f'attribute name {string} has unsuported chars!')
             return True
     return False
 
-def to_camel_case(s):
+# convert str to camel case forma
+def to_camel_case(s : str) -> str:
     words = s.split()
     if not words:
         return s
@@ -77,7 +83,8 @@ def to_camel_case(s):
         camel_case_string += word.capitalize()
     return camel_case_string
 
-def is_utf16_le(string):
+# check if utf16-le is used for string encoding
+def is_utf16_le(string: str) -> bool:
     try:
         string.encode('utf-16le')
         return True
@@ -85,8 +92,8 @@ def is_utf16_le(string):
         logger.exception(f'string {string} has utf16 chars!')
         return False
 
-
-def addData(category, subcategory, data_name, data, attributes):
+# add to attributes
+def addData(category : str, subcategory : str, data_name : str, data : dict, attributes : dict):
     if category not in attributes:
         attributes[category] = {}
     if subcategory not in attributes[category]:
@@ -95,11 +102,11 @@ def addData(category, subcategory, data_name, data, attributes):
         attributes[category][subcategory][data_name] = {}
     attributes[category][subcategory][data_name] = data
 
-
-def read_from_excel(table):
+# read excel file
+def read_from_excel(filename: str) ->dict:
     
     # read excel file
-    df = pd.read_excel(table, header=0, usecols=use_row_names)
+    df = pd.read_excel(filename, header=0, usecols=USE_ROW_NAME)
 
     #convert all values to str
     for c in df.columns.values:
@@ -187,10 +194,10 @@ def read_from_excel(table):
                     attrib_data['unit'] = ''    
     return attributes
 
-
+# create ontology
 def create_onotology(cat, cat_data, output_path, link_repro):
-    namespace_GaiaX_Core = Namespace('https://w3id.org/gaia-x/core#')
-    namespace_GaiaX_Trust = Namespace('https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#')
+    namespace_GaiaX_Core = Namespace(GAIAX_CORE_URL)
+    namespace_GaiaX_Trust = Namespace(GAIAX_TRUST_URL)
  
     cat_lowercase = cat.lower()
 
@@ -224,11 +231,11 @@ def create_onotology(cat, cat_data, output_path, link_repro):
         f.close()
         logger.info(f'write {ontology_name}')
 
-
+# handle data type
 def handle_data_type(root, propierty, cat_namespace, attrib_data):
     data_type = attrib_data['data_type']
-    if data_type in dataTypeMap:
-        type_data = dataTypeMap[data_type]        
+    if data_type in DATA_TYPE_MAP:
+        type_data = DATA_TYPE_MAP[data_type]        
         data_type_str = type_data['type']
         if '#' in data_type_str:
             root.add((propierty, SH.datatype, type_data['type']))
@@ -241,15 +248,15 @@ def handle_data_type(root, propierty, cat_namespace, attrib_data):
             root.add((propierty, SH.pattern, Literal(type_data['pattern'])))
 
         if 'values' in type_data:
-            SHACL = Namespace("http://www.w3.org/ns/shacl#")
+            namespace_Shacl = Namespace(SHACL_URL)
             type_data['values'].sort() # alpha numeric order ist imported
             in_constraint = root.resource(propierty)
             values = "(" + " ".join("'" + value + "'" for value in type_data['values']) + ")"
-            in_constraint.add(SHACL.in_, Literal(values))
+            in_constraint.add(namespace_Shacl.in_, Literal(values))
     else:
         logger.error(f'unsupported datatype: {data_type} for {attrib_data['name']}')    
 
-
+# create property for the shape
 def create_property(root, shape, cat_namespace, attrib_data, order):    
     propierty = BNode()
     root.add((shape, SH.property, propierty))
@@ -278,7 +285,7 @@ def create_property(root, shape, cat_namespace, attrib_data, order):
 
     root.add((propierty, SH.order,  Literal(int(order))))    
 
-
+# create shape for bounding box
 def create_BoundingBoxShape(root, cat_namespace):
     box_shape = cat_namespace[f'BoundingBoxShape']
     root.add((box_shape, RDF.type, SH.NodeShape))
@@ -294,7 +301,7 @@ def create_BoundingBoxShape(root, cat_namespace):
     attrib_data = {'name' : 'yMax', 'data_type' : 'float'}
     create_property(root, box_shape, cat_namespace, attrib_data, 3)
 
-
+# crate shape for coordiante 2d
 def create_Coordinate2DShape(root, cat_namespace):
     coordinate_shape = cat_namespace[f'Coordinate2DShape']
     root.add((coordinate_shape, RDF.type, SH.NodeShape))
@@ -306,7 +313,7 @@ def create_Coordinate2DShape(root, cat_namespace):
     attrib_data = {'name' : 'y', 'data_type' : 'float'}
     create_property(root, coordinate_shape, cat_namespace, attrib_data, 1)
 
-
+# create shape for range 2d
 def create_Range2DShape(root, cat_namespace):
     range_shape = cat_namespace[f'Range2DShape']
     root.add((range_shape, RDF.type, SH.NodeShape))
@@ -318,7 +325,7 @@ def create_Range2DShape(root, cat_namespace):
     attrib_data = {'name' : 'max', 'data_type' : 'float'}
     create_property(root, range_shape, cat_namespace, attrib_data, 0)   
 
-
+# create shape for link
 def create_LinkShape(root, cat_namespace):
     link_shape = cat_namespace[f'LinkShape']
     root.add((link_shape, RDF.type, SH.NodeShape))
@@ -332,7 +339,7 @@ def create_LinkShape(root, cat_namespace):
     #attrib_data = {'name' : 'data', 'data_type' : 'string', 'frequency_min' : 0}
     #create_property(root, link_shape, cat_namespace, attrib_data)
 
-
+# create data structure
 def create_data_structure(root, cat_namespace):
 
     for used_type in used_data_type_nodes:
@@ -347,7 +354,7 @@ def create_data_structure(root, cat_namespace):
         else:
             logger.error(f'data node not implmented: {used_type}')  
 
-
+# crate shacle
 def create_shacl(cat, cat_data, output_path, link_repro):
     
     cat_lowercase = cat.lower()
@@ -411,6 +418,7 @@ def create_shacl(cat, cat_data, output_path, link_repro):
         f.close()
         logger.info(f'write {shacl_name}')
         
+# fix shacl ->  replace "sh:in_" with "sh:in"   
 def fix_shacle(cat, output_path):
     shacl_name = f'{cat}_shacl'
     file_name = output_path + shacl_name + '.ttl'    
@@ -430,6 +438,7 @@ def fix_shacle(cat, output_path):
 
 
 def main():
+    # parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='ontology and shacle files are generated from an excel table')
     parser.add_argument('-table', type=str,default='Metadata.xlsx', help='Path to Excel Table.')
     parser.add_argument('-out', '--out', type=str, default='ontologies/', help='Path to exported ontology and shacle files.')    
