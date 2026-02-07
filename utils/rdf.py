@@ -1,41 +1,32 @@
+from __future__ import annotations
+
 from pathlib import Path
-from urllib.parse import urlparse
-from rdflib import Graph
-from rdflib.namespace import SH, RDF
+from typing import Optional, Any, Dict
 from rdflib import Graph, URIRef, BNode
+from rdflib.namespace import SH, RDF
 from rdflib.collection import Collection
-from typing import Optional
 
 from utils.http import download_shacle, get_url_for_download
 
-import re
 import json
-import requests
 import logging
 
 logger = logging.getLogger(__name__)
 
 ENVITEDX_URL = 'https://ontologies.envited-x.net' 
 
-# get all envited x prefixes    
-def get_prefixes(shacl_graph: Graph) -> dict[str, str]:
+def get_prefixes(graph: Graph) -> Dict[str, str]:
+    """Extract prefixes from an RDF graph."""
+
     prefixes = {
         prefix: str(namespace) 
-        for prefix, namespace in shacl_graph.namespace_manager.namespaces() 
+        for prefix, namespace in graph.namespace_manager.namespaces() 
         if str(namespace).startswith(ENVITEDX_URL)
     }   
     return prefixes 
 
-
-# load shacl as rdf graph
-def load_shacl_files(shacl_files) ->Graph:
-    shacl_graph = Graph()
-    for shacl_file in shacl_files:
-        shacl_graph.parse(shacl_file, format='turtle')
-    return shacl_graph
-
-# load json ld and add to rdf graph
-def load_jsonld_file(jsonld_file : Path):
+def load_jsonld_file(jsonld_file: Path) -> Graph:
+    """Load JSON-LD into an rdflib graph."""
 
     if not jsonld_file.exists():
         logger.error(f'JsonLD files not found: {jsonld_file}')
@@ -48,8 +39,18 @@ def load_jsonld_file(jsonld_file : Path):
     data_graph.parse(data=json.dumps(data), format='json-ld')
     return data_graph
 
-# load all shacls for jsonld and return as one graph
+def load_shacl_files(shacl_files: list) -> Graph:
+    """load shacl as rdf graph"""
+
+    shacl_graph = Graph()
+    for shacl_file in shacl_files:
+        shacl_graph.parse(shacl_file, format='turtle')
+    return shacl_graph
+
+
 def get_shacle_from_json_graph(data_graph : Graph, prefixes_to_add : Optional[dict] = None) ->Graph:
+    """load all shacls for jsonld and return as one graph"""
+
     prefixes = get_prefixes(data_graph)
     if prefixes_to_add:
         prefixes.update(prefixes_to_add)
@@ -61,10 +62,11 @@ def get_shacle_from_json_graph(data_graph : Graph, prefixes_to_add : Optional[di
     shacl_graph = load_shacl_files(shacl_files)    
     return shacl_graph
 
-#    Recursive function to “resolve” a value.
-#    If it is a blank node, it is checked whether it is an RDF list.
-#    Otherwise, an attempt is made to convert the blank node into a dict.
-def resolve_value(graph, value):
+
+def resolve_value(graph: Graph, value: Any) -> Any:
+    """Recursive function to “resolve” a value."""
+    """If it is a blank node, it is checked whether it is an RDF list."""
+    """Otherwise, an attempt is made to convert the blank node into a dict."""
     if isinstance(value, BNode):
         # Check whether it is an RDF list
         if (value, RDF.first, None) in graph:
@@ -82,16 +84,18 @@ def resolve_value(graph, value):
         return str(value)
 
 
-# convert blank node recursive to dict
-def convert_bnode_to_dict(graph, bnode):
+def convert_bnode_to_dict(graph: Graph, bnode: BNode) -> Any:
+    """convert blank node recursive to dict"""
+
     result = {}
     for pred, obj in graph.predicate_objects(bnode):
         result[str(pred)] = resolve_value(graph, obj)
     return result
 
 
-# convert rdf graph to dict, resolve blank nodes
-def convert_graph_to_dict(graph, search_node_shape: bool):
+def convert_graph_to_dict(graph: Graph, search_node_shape: bool) -> Dict[str, Any]:
+    """convert rdf graph to dict, resolve blank nodes"""
+
     graph_dict = {}
     type_to_search = SH.NodeShape if search_node_shape else SH.NodeKind
     for node_shape in graph.subjects(RDF.type, type_to_search):

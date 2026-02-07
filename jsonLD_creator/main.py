@@ -15,7 +15,7 @@ from rdflib import Graph, URIRef
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Tuple, Union, Dict, List
-from utils.utils import get_prefixes, convert_graph_to_dict
+from utils.rdf import get_prefixes, convert_graph_to_dict
 from utils.http import get_url_for_download, download_shacle
 import shutil
 import json

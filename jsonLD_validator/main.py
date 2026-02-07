@@ -2,7 +2,7 @@ from pathlib import Path
 from pyshacl import validate
 from rdflib.namespace import SH, RDF
 from rdflib import Graph, Literal
-from utils.utils import load_jsonld_file, get_shacle_from_json_graph
+from utils.rdf import load_jsonld_file, get_shacle_from_json_graph
 
 import argparse
 import logging

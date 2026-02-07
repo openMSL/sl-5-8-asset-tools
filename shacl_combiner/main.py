@@ -1,5 +1,5 @@
 from pathlib import Path
-from utils.utils import load_jsonld_file, get_shacle_from_json_graph
+from utils.rdf import load_jsonld_file, get_shacle_from_json_graph
 
 import argparse
 import logging
