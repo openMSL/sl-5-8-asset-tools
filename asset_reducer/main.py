@@ -8,9 +8,10 @@ import pickle
 
 logger = logging.getLogger(__name__)
 
+ASSET_TYPE: str = "OpenDRIVE"
 
-################ reduce functions ########################
-def calcExtrema(element, nodename):
+# calc min,max of values
+def calcExtrema(element, nodename) -> dict | None:
     if element is None:
         return None
     
@@ -30,17 +31,16 @@ def calcExtrema(element, nodename):
     return {'min': min_value, 'max': max_value}
 
 
-# reduce xml to json functions
-def extract_attributes(element, attributes):
-    #return {attr: element.get(attr) for attr in attributes if element.get(attr) is not None}
-    attres = {}
+# get only extractable attributes
+def extract_attributes(element, attributes) -> dict | None:
+    attribs = {}
     for attr in attributes:
         element_attr = element.get(attr)
         if element_attr is not None:
-            attres[attr] = element_attr
-    return attres
+            attribs[attr] = element_attr
+    return attribs
 
-
+# process element and get min, max and attributes
 def process_element(element, mapping):
     tag = element.tag
     node_data = {}
@@ -79,8 +79,8 @@ def process_element(element, mapping):
     else:
         return None     
     
-
-def read_json_file(file_path, binary):
+# read json file
+def read_json_file(file_path : Path, binary : bool):
     if binary:
         with open(file_path, 'rb') as f:
             json_data = pickle.load(f)
@@ -91,8 +91,8 @@ def read_json_file(file_path, binary):
     return json_data       
 
 
-# mapping table
-def load_mapping_table(mapping_file):
+# load mapping table
+def load_mapping_table(mapping_file : Path):
     if not Path(mapping_file).exists():
         logger.info(f"file '{mapping_file}' not exist.")
         return None
@@ -100,7 +100,7 @@ def load_mapping_table(mapping_file):
         node_mapping = json.load(f)
     return node_mapping
 
-
+# convert, parse json attrib and child to xml
 def json_to_xml_add_attributes_and_children(parent, data):
     for key, value in data.items():
         if isinstance(value, dict):
@@ -111,7 +111,7 @@ def json_to_xml_add_attributes_and_children(parent, data):
         else:
             parent.set(key, str(value))
 
-
+# convert, parse json list to xml
 def json_to_xml_handle_list(parent, key, data_list):
     for item in data_list:
         element = etree.SubElement(parent, key)
@@ -120,9 +120,9 @@ def json_to_xml_handle_list(parent, key, data_list):
         else:
             element.text = str(item)
 
-
+# convert json to xml
 def json_to_xml(json_data):
-    root = etree.Element("OpenDRIVE")
+    root = etree.Element(ASSET_TYPE)
 
     for item in json_data:
         for key, value in item.items():
@@ -137,8 +137,8 @@ def json_to_xml(json_data):
     return root
 
 
-# io functions for JSON 
-def save_json(data, file_name, binary):
+# write json
+def write_json_file(data: list, file_name : Path, binary : bool):
     if binary:
         with open(file_name, 'wb') as f:
             pickle.dump(data, f)
@@ -148,6 +148,7 @@ def save_json(data, file_name, binary):
   
 
 def main():
+    # parse argument
     parser = argparse.ArgumentParser(prog='main.py', description='reduces the original xml to relevant nodes and attributes (see mapping_tables) and writes a binary json for the extended search.')   
     parser.add_argument('filename', type=str,help='filename of asset in xml format.')
     parser.add_argument('-out', type=str, help='output filname for reduced file.')
@@ -186,7 +187,7 @@ def main():
             json_data.append(result)
 
     # write to json file
-    save_json(json_data, output_json_file, True)
+    write_json_file(json_data, output_json_file, True)
 
     # test to read json, convert to xml and find nodes
     debug = False

@@ -25,12 +25,10 @@ import operator
 logger = logging.getLogger(__name__)
 
 # global values
-g_sh_url = 'http://www.w3.org/ns/shacl#'
-g_gx_url = 'https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#'
-g_envited_x_str = 'envited-x'
-g_envited_url = 'https://ontologies.envited-x.net'
-g_w3_url = 'http://www.w3.org'
-g_gaiax_server = "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base"
+SHACL_URL = 'http://www.w3.org/ns/shacl#'
+GX_URL = 'https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#'
+ENVITEDX_NAME = 'envited-x'
+GAIAX_URL = "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base"
 
 
 # global config value with all shacles, dicts and jsonLD output
@@ -103,8 +101,6 @@ def get_value(name, values):
             return data
     return None
 
-
-SHACL_NS = "http://www.w3.org/ns/shacl#"
 # Recursively collect all values under the keys 'node' and 'class' and all nested lists/dicts under 'and', 'or' and 'qualifiedValueShape'
 def collect_nodes(shape: Any) -> List[str]:
     
@@ -112,24 +108,24 @@ def collect_nodes(shape: Any) -> List[str]:
     if isinstance(shape, dict):
         for k, v in shape.items():
             # SHACL-node / SHACL-class
-            if k.endswith(f"{SHACL_NS}node"):
+            if k.endswith(f"{SHACL_URL}node"):
                 if isinstance(v, str):
                     nodes.append(v)
                 else:
                     nodes.extend(collect_nodes(v))
 
             # qualifiedValueShape enthält verschachtelte Shapes
-            elif k.endswith(f"{SHACL_NS}qualifiedValueShape"):
+            elif k.endswith(f"{SHACL_URL}qualifiedValueShape"):
                 nodes.extend(collect_nodes(v))
 
             # sh:and / sh:or
-            elif k.endswith(f"{SHACL_NS}and") or k.endswith(f"{SHACL_NS}or"):
+            elif k.endswith(f"{SHACL_URL}and") or k.endswith(f"{SHACL_URL}or"):
                 if isinstance(v, list):
                     for item in v:
                         nodes.extend(collect_nodes(item))
 
             # property-Array: dort können wiederum qualifiedValueShape o.ä. stehen
-            elif k.endswith(f"{SHACL_NS}property"):
+            elif k.endswith(f"{SHACL_URL}property"):
                 if isinstance(v, list):
                     for prop in v:
                         nodes.extend(collect_nodes(prop))
@@ -168,7 +164,7 @@ def get_value_type(key : str, shacl_values : dict) -> str:
         else "@id"
     )    
 
-    # unit test
+    # set value_key
     if key == 'gx:license' and value_key != "@value":
         value_key = "@value" # no idea how to handle this via shacl values
     if key == 'manifest:hasAccessRole' and value_key != "@id":
@@ -221,8 +217,6 @@ def create_property(namespace : str, property_name : str, value, datatype: str, 
             class_value = get_value('class', shacl_values)
             if class_value:
                 jsonLD_dict[key]['@type'] = f'{namespace}:{get_name_from_url(class_value)}'
-
-
        
     logger.debug(f'{" " * level * 3}add prop {key}')
 
@@ -426,7 +420,7 @@ def process_node(shape_value: list, meta_data: Union[Dict, List], nodes_in: list
 
 
 # get prefix from url
-def get_prefix_for_url(url, graph):
+def get_prefix_for_url(url : str, graph : Graph) -> str:
     for prefix, namespace in graph.namespace_manager.namespaces():
         # check if uri starts with namespace
         if url.startswith(str(namespace)):
@@ -436,7 +430,7 @@ def get_prefix_for_url(url, graph):
 
 # from https://ontologies.envited-x.net/envited-x/v2/ontology#isMedia
 # to https://ontologies.envited-x.net/envited-x/v2/ontology#
-def get_url_from_namespace(value):
+def get_url_from_namespace(value: str) -> str:
     if "#" in value:
         url = value.rsplit('#', 1)[0] + '#'
     else: 
@@ -445,7 +439,7 @@ def get_url_from_namespace(value):
 
 
 # get prefixes
-def getPrefixes(shacl_graph):
+def getPrefixes(shacl_graph: Graph) -> dict:
     # collect mamespace prefix
     used_namespaces = set()
     for s, p, o in shacl_graph:
@@ -487,7 +481,7 @@ def process_graph(schema_namespace, schema_name, meta_data):
         # add type
         name = get_name_from_url(schema_name)
         name = name.replace('Shape', '')
-        shacle_namespace = 'manifest' if schema_namespace == g_envited_x_str and name != 'Manifest' else schema_namespace
+        shacle_namespace = 'manifest' if schema_namespace == ENVITEDX_NAME and name != 'Manifest' else schema_namespace
         config.JSON_OUT['@type'] = create_namespace_name(shacle_namespace, name)
 
         # get first element of main shacle        
@@ -495,6 +489,7 @@ def process_graph(schema_namespace, schema_name, meta_data):
         if not shape_value:
             logger.error(f'did not found {schema_name} in shacl {schema_namespace}!')
             exit(1)
+
         process_node(shape_value, meta_data, None, config.JSON_OUT, 0)
 
         if meta_data:
@@ -504,15 +499,13 @@ def process_graph(schema_namespace, schema_name, meta_data):
                 logger.warning(json.dumps(meta_data, indent=4, ensure_ascii=False))
 
         # TODO: hmm, we get valdation errors for manifest if we have envited-x prefix
-        if g_envited_x_str in config.JSON_OUT['@context']:
-            del config.JSON_OUT['@context'][g_envited_x_str]  
+        if ENVITEDX_NAME in config.JSON_OUT['@context']:
+            del config.JSON_OUT['@context'][ENVITEDX_NAME]  
         # remove unused rfd prefix
         if 'rdf' in config.JSON_OUT['@context']:
             del config.JSON_OUT['@context']['rdf']        
     else:
         logger.error(f'Cannot find ontology {schema_namespace}')
-    
-    return
 
 
 # create shacl data structure and register
@@ -525,7 +518,7 @@ def register_shacle(url_path : str, shacle_name: str, shacls):
             graph = Graph()
             graph.parse(local_file_path, format='turtle')
             
-            is_gaiax_ontology = True if str(url_path).startswith(g_gaiax_server) else False
+            is_gaiax_ontology = True if str(url_path).startswith(GAIAX_URL) else False
 
             graph_data = {}
             graph_data['graph'] = graph
@@ -544,6 +537,7 @@ def register_shacle(url_path : str, shacle_name: str, shacls):
 
 
 def main():
+    # parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='creates a jsonLD from an attribute table of the meta data extractors')
     parser.add_argument('filename', type=str,help='filename of json attribute table.')
     parser.add_argument('-ontology', type=str,help='githup path to ontologies')
@@ -579,8 +573,8 @@ def main():
     shacl_data = shacl_definitions[shacle_namespace]
     prefixes = get_prefixes(shacl_data['graph'])
     # add special prefixes
-    prefixes["sh"] = g_sh_url
-    prefixes["gx"] = g_gx_url
+    prefixes["sh"] = SHACL_URL
+    prefixes["gx"] = GX_URL
 
     # and download additional shacles
     for key, value in prefixes.items():
