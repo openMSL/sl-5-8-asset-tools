@@ -14,10 +14,21 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
-g_envited_url = 'https://ontologies.envited-x.net'
-g_gaiax_server = "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base"
-g_shacle_folder = 'shacles' 
+ENVITEDX_URL = 'https://ontologies.envited-x.net'
+GAIAX_GITHUB_RAW_URL = "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base"
+SHACLE_FOLDER_NAME = 'shacles' 
 
+
+# get filename, if url download file first and get local filename
+def download_or_get_file(filename : Path, out_path: Path) -> Path:
+
+    if is_url(filename):
+        filename = Path(download_file(normalize_url(str(filename)), out_path, filename.name))
+
+    filename = filename.resolve()
+    return filename
+
+# download file to out_path
 def download_file(url_path : str, out_path: Path, filename: str)-> Path:
     url_path = github_to_raw(url_path)
     with requests.get(url_path, stream=True, timeout=30) as r:
@@ -34,18 +45,18 @@ def download_file(url_path : str, out_path: Path, filename: str)-> Path:
 # download shacl from url if not in local shacles folder
 def download_shacle(url_path : str, shacle_name: str) -> Path:
     filename = f'{shacle_name}_shacl.ttl'   
-    local_filepath = Path(f'{g_shacle_folder}/{filename}')
+    local_filepath = Path(f'{SHACLE_FOLDER_NAME}/{filename}')
 
     if not local_filepath.exists():
         # get file from github
-        url = f'{url_path}{filename}' if str(url_path).startswith(g_envited_url) else url_path
+        url = f'{url_path}{filename}' if str(url_path).startswith(ENVITEDX_URL) else url_path
         response = requests.get(url)
         if not response:
             logger.error(f'No shacl files found in url: {url}')
             exit(1)
 
-        if not Path(g_shacle_folder).exists():
-            Path(g_shacle_folder).mkdir()
+        if not Path(SHACLE_FOLDER_NAME).exists():
+            Path(SHACLE_FOLDER_NAME).mkdir()
         with open(local_filepath, 'wb') as file:
             file.write(response.content) 
 
@@ -55,7 +66,7 @@ def download_shacle(url_path : str, shacle_name: str) -> Path:
 # replace url with raw.githubusercontent.com
 def get_url_for_download(url: str) -> str:
     
-    is_gaiax_ontology = True if str(url).startswith(g_envited_url) else False
+    is_gaiax_ontology = True if str(url).startswith(ENVITEDX_URL) else False
     if is_gaiax_ontology:
         # Break the old URL into components
         parsed = urlparse(url)
@@ -65,7 +76,7 @@ def get_url_for_download(url: str) -> str:
         if segments:
             name = segments[0]
             # Create the new URL: new server, /main/, then the extracted name
-            new_url = f"{g_gaiax_server}/main/{name}/{name}_shacl.ttl"
+            new_url = f"{GAIAX_GITHUB_RAW_URL}/main/{name}/{name}_shacl.ttl"
             return new_url
     else:
         # If no path segments were found, return the new server
@@ -77,7 +88,7 @@ def get_prefixes(shacl_graph: Graph) -> dict[str, str]:
     prefixes = {
         prefix: str(namespace) 
         for prefix, namespace in shacl_graph.namespace_manager.namespaces() 
-        if str(namespace).startswith(g_envited_url)
+        if str(namespace).startswith(ENVITEDX_URL)
     }   
     return prefixes 
 

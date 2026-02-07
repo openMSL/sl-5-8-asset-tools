@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 from multiformats import CID
 from multiformats.multihash import digest
 from PIL import Image
-from utils.utils import create_uuid, is_url, url_from_path, download_file, normalize_url
+from utils.utils import create_uuid, is_url, url_from_path, download_or_get_file
 from datetime import datetime
 
 import argparse
@@ -490,6 +490,10 @@ def main():
     for file in user_data:
         filename = Path(file['filename'])
 
+        #if filename.parent != Path(".") and not is_url(filename):
+        # no path elements
+        if len(filename.parts) == 1:
+            filename = upload_folder / filename
         # get cat, type data
         category = file['category']
         typ = file['type']
@@ -498,10 +502,7 @@ def main():
             logger.error(f'type {typ} not found in category {category}')
             exit(1)
 
-        if is_url(filename): 
-            # download and write to temp
-            url = normalize_url(str(filename))
-            filename = download_file(url, filename_out.parent, filename.name)
+        filename = download_or_get_file(filename, filename_out.parent)
     
         # get dest name
         dest_name = filename.name

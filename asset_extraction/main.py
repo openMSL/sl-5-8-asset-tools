@@ -1,7 +1,7 @@
 from pathlib import Path
 from zipfile import ZipFile
 from utils.log_config import setup_logging, handle_output
-from utils.utils import is_url, download_file, normalize_url
+from utils.utils import download_or_get_file
 
 import json
 import subprocess
@@ -193,11 +193,7 @@ def get_asset_file(uploadedFile : Path) -> Path:
     # get from xml
     asset_file = get_asset_filename(uploadedFile)
 
-    if is_url(asset_file):
-        asset_file = Path(download_file(normalize_url(str(asset_file)), uploadedFile.parent, asset_file.name))
-
-    asset_file = asset_file.resolve()
-    return asset_file
+    return download_or_get_file(asset_file, uploadedFile.parent)
 
 def main():
     # parse arguments
