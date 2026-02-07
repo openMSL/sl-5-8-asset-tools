@@ -1,5 +1,6 @@
 from pyproj import CRS, Transformer
 from pathlib import Path
+from utils.xodr import parse_planview
 
 import xml.etree.ElementTree as ET
 import simplekml
@@ -11,34 +12,6 @@ import logging
 from utils.geometry import Vec2D, Box2D
 
 logger = logging.getLogger(__name__)
-
-# function to parse the XML file and extract coordinates and projection data
-def parse_xml(file_path : Path) -> tuple[str, Vec2D, list]:
-    tree = ET.parse(file_path)
-    root = tree.getroot()
-
-    georef = root.find('.//geoReference')
-    proj4_str = None
-    if georef is not None:
-        proj4_str = georef.text.strip()
-    
-    offset_node = root.find('.//offset')
-    offset = Vec2D(0,0)
-    if offset_node is not None:
-        offset = Vec2D(float(offset_node.attrib['x']), float(offset_node.attrib['y']))
-
-    lines = []
-    for line in root.findall('.//planView'):
-        coordinates = []
-        for point in line.findall('.//geometry'):
-            x = float(point.attrib['x'])
-            y = float(point.attrib['y'])
-            hdg = float(point.attrib['hdg'])
-            length = float(point.attrib['length'])
-            coordinates.append((x, y, hdg, length))
-        lines.append(coordinates)
-    return proj4_str, offset, lines
-
 
 # transform coordiante with or without transformer
 def transform_coord(pos_abs : Vec2D, transformer : Transformer) -> tuple[float, float]:
@@ -146,14 +119,14 @@ def main():
     extension = output_file.suffix
 
     # Parse the XML file and extract coordinates
-    in_proj, offset, lines = parse_xml(xodr_file)
+    projection, offset, lines = parse_planview(xodr_file)
     if lines is None:
         logger.error(f"no line data found!")    
         exit(0)
 
-    if in_proj is not None:
+    if projection is not None:
         # create projection transform
-        web_mecator = CRS.from_proj4(in_proj)
+        web_mecator = CRS.from_proj4(projection)
         wgs84 = CRS.from_epsg(4326)
         transformer_proj_to_wgs84 = Transformer.from_crs(web_mecator, wgs84, always_xy=True)
 

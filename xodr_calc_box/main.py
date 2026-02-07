@@ -1,37 +1,11 @@
 import xml.etree.ElementTree as ET
 import argparse
-import math
 import logging
 
 from utils.geometry import Vec2D, Box2D
+from utils.xodr import parse_planview
 
 logger = logging.getLogger(__name__)
-
-# parse the XML file and extract proj4_str, offset and coordinates
-def parse_xml(file_path : str) ->tuple[str, Vec2D, list]:
-    tree = ET.parse(file_path)
-    root = tree.getroot()
-
-    georef = root.find('.//geoReference')
-    if georef is not None:
-        proj4_str = georef.text.strip()
-    
-    offset_node = root.find('.//offset')
-    offset = Vec2D(0,0)
-    if offset_node is not None:
-        offset = Vec2D(float(offset_node.attrib['x']), float(offset_node.attrib['y']))
-
-    lines = []
-    for line in root.findall('.//planView'):
-        coordinates = []
-        for point in line.findall('.//geometry'):
-            x = float(point.attrib['x'])
-            y = float(point.attrib['y'])
-            hdg = float(point.attrib['hdg'])
-            length = float(point.attrib['length'])
-            coordinates.append((x, y, hdg, length))
-        lines.append(coordinates)
-    return proj4_str, offset, lines
 
 # calc box from line data
 def calcBox(lines: list, offset: Vec2D) -> Box2D:
@@ -60,10 +34,10 @@ def main():
         exit(1)
     
     # Parse the XML file and extract coordinates
-    in_proj, offset, lines = parse_xml(xodr_file)
+    projection, offset, lines = parse_planview(xodr_file)
     
-    if in_proj is None or lines is None:
-        logger.error(f"no projection found!")    
+    if lines is None:
+        logger.error(f"no line data found!")    
         exit(1)
 
     # calculate box from coordinates
