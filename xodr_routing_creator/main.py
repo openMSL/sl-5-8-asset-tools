@@ -8,24 +8,12 @@ import json
 import math
 import logging
 
+from utils.geometry import Vec2D, Box2D
+
 logger = logging.getLogger(__name__)
 
-class Vec2:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
-
-class BoundingBox:
-    def __init__(self, xMin, yMin, xMax, yMax):
-        self.xMin = xMin
-        self.yMin = yMin
-        self.xMax = xMax
-        self.yMax = yMax
-
-
 # function to parse the XML file and extract coordinates and projection data
-def parse_xml(file_path : Path) -> tuple[str, Vec2, list]:
+def parse_xml(file_path : Path) -> tuple[str, Vec2D, list]:
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -35,9 +23,9 @@ def parse_xml(file_path : Path) -> tuple[str, Vec2, list]:
         proj4_str = georef.text.strip()
     
     offset_node = root.find('.//offset')
-    offset = Vec2(0,0)
+    offset = Vec2D(0,0)
     if offset_node is not None:
-        offset = Vec2(float(offset_node.attrib['x']), float(offset_node.attrib['y']))
+        offset = Vec2D(float(offset_node.attrib['x']), float(offset_node.attrib['y']))
 
     lines = []
     for line in root.findall('.//planView'):
@@ -52,14 +40,8 @@ def parse_xml(file_path : Path) -> tuple[str, Vec2, list]:
     return proj4_str, offset, lines
 
 
-# calculate the end position of a line based on its starting point, length, and direction
-def calculate_end_position(start_pos : Vec2, heading, length) -> Vec2 : 
-    end_x = start_pos.x + math.cos(heading) * length
-    end_y = start_pos.y + math.sin(heading) * length
-    return Vec2(end_x, end_y)
-
 # transform coordiante with or without transformer
-def transform_coord(pos_abs : Vec2, transformer : Transformer) -> tuple[float, float]:
+def transform_coord(pos_abs : Vec2D, transformer : Transformer) -> tuple[float, float]:
     if transformer is not None:
         lon, lat = transformer.transform(pos_abs.x, pos_abs.y)
     else :
@@ -68,17 +50,17 @@ def transform_coord(pos_abs : Vec2, transformer : Transformer) -> tuple[float, f
     return lon, lat
 
 # reproject the coordinates
-def reproject(lines : list, offset : Vec2, transformer : Transformer) -> list : 
+def reproject(lines : list, offset : Vec2D, transformer : Transformer) -> list : 
     transformed_lines = []
     for line in lines:
         transformed_coords = []
         count = len(line) - 1
         for x, y, hdg, length in line:
-            pos_abs = Vec2(x + offset.x, y + offset.y)
+            pos_abs = Vec2D(x + offset.x, y + offset.y)
             lon, lat = transform_coord(pos_abs, transformer)
             transformed_coords.append((lon, lat))
             if count == 0:
-                end_pos = calculate_end_position(pos_abs, hdg, length)
+                end_pos = pos_abs.end_position(hdg, length)
                 lon, lat = transform_coord(end_pos, transformer)
                 transformed_coords.append((lon, lat))
             count = count - 1
@@ -136,21 +118,13 @@ def create_geojson(elements: list, output_file: Path, isPolygon: bool):
 
 
 # create bounding box from point list
-def create_bounding_box(elements: list) -> BoundingBox :        
-    x_coords = []
-    y_coords = []
+def create_bounding_box(elements: list) -> Box2D:
+    # Create bounding box from nested list of coordinates.
+    coords = []
     for element in elements:
         for coord in element:
-            x_coords.append(coord[0])
-            y_coords.append(coord[1])
-
-    box = BoundingBox
-    box.xMin = min(x_coords)
-    box.yMin = min(y_coords)
-    box.xMax = max(x_coords)
-    box.yMax = max(y_coords)
-
-    return box
+            coords.append((coord[0], coord[1]))
+    return Box2D.from_points(coords)
 
 
 def main():

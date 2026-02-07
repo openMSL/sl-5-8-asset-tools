@@ -169,7 +169,7 @@ def read_from_excel(filename: str) ->dict:
                 elif attrib_data['data_type'] == "nan":
                     attrib_data['data_type'] = dataTypeMap['string']
                 else:
-                    logger.error(f'unsupported datatype: {attrib_data['data_type']} for {attrib}')
+                    logger.error(f"unsupported datatype: {attrib_data['data_type']} for {attrib}")
                 """
 
                 # convert frequency str to min max
@@ -187,7 +187,7 @@ def read_from_excel(filename: str) ->dict:
                     attrib_data['frequency_min'] = 0
                 else:
                     logger.info(type(attrib_data['frequency']))
-                    logger.error(f'unsupported frequency: {attrib_data['frequency']} for {attrib}')
+                    logger.error(f"unsupported frequency: {attrib_data['frequency']} for {attrib}")
 
                 # fix unit
                 if attrib_data['unit'] == 'nan' or attrib_data['unit'] == '-':
@@ -213,16 +213,16 @@ def create_onotology(cat, cat_data, output_path, link_repro):
     # ontology and contributer
     node = cat_namespace['']
     ontology.add((node, RDF.type, OWL.Ontology))
-    ontology.add((node, DCTERMS.contributor, Literal(f'{cat_data["categorie_data"]['contributor']}')))
+    ontology.add((node, DCTERMS.contributor, Literal(f"{cat_data['categorie_data']['contributor']}")))
     ontology.add((node, RDFS.label, Literal(f'ontology definition for {cat}', lang='en')))
-    ontology.add((node, OWL.versionInfo, Literal(f'{cat_data["categorie_data"]['version']}',datatype=XSD.float)))
+    ontology.add((node, OWL.versionInfo, Literal(f"{cat_data['categorie_data']['version']}", datatype=XSD.float)))
 
     # category class
     node_cat = cat_namespace[f'{cat}']
     ontology.add((node_cat, RDF.type, OWL.Class))
     ontology.add((node_cat, RDFS.subClassOf, namespace_GaiaX_Core.Resource))
     ontology.add((node_cat, RDFS.label, Literal(f'class definition for {cat}')))
-    ontology.add((node_cat, RDFS.comment, Literal(f'{cat_data["categorie_data"]['description']}', lang='en')))
+    ontology.add((node_cat, RDFS.comment, Literal(f"{cat_data['categorie_data']['description']}", lang="en")))
 
     # write ontology
     file = output_path + ontology_name + '.ttl'
@@ -254,7 +254,7 @@ def handle_data_type(root, propierty, cat_namespace, attrib_data):
             values = "(" + " ".join("'" + value + "'" for value in type_data['values']) + ")"
             in_constraint.add(namespace_Shacl.in_, Literal(values))
     else:
-        logger.error(f'unsupported datatype: {data_type} for {attrib_data['name']}')    
+        logger.error(f"unsupported datatype: {data_type} for {attrib_data['name']}")
 
 # create property for the shape
 def create_property(root, shape, cat_namespace, attrib_data, order):    
@@ -263,7 +263,7 @@ def create_property(root, shape, cat_namespace, attrib_data, order):
 
     handle_data_type(root, propierty, cat_namespace, attrib_data)
 
-    root.add((propierty, SH.path, cat_namespace[f'{attrib_data['name']}']))
+    root.add((propierty, SH.path, cat_namespace[f"{attrib_data['name']}"]))
 
     if 'frequency_min' in attrib_data and attrib_data['frequency_min'] != 1:
         root.add((propierty, SH.minCount, Literal(int(attrib_data['frequency_min']))))
@@ -276,7 +276,7 @@ def create_property(root, shape, cat_namespace, attrib_data, order):
     if 'example' in attrib_data:
         root.add((propierty, SKOS.example, Literal(attrib_data['example'])))        
     
-    message_str = f'Validation of {attrib_data['name']} failed!'
+    message_str = f"Validation of {attrib_data['name']} failed!"
     root.add((propierty, SH.message, Literal(message_str, lang='en')))          
     root.add((propierty, SH.name, Literal(attrib_data['name'], lang='en')))    
 

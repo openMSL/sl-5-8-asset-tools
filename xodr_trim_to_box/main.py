@@ -5,96 +5,31 @@ import logging
 import argparse
 import math
 import sys
+from utils.geometry import Vec2D, Box2D
 
 logger = logging.getLogger(__name__)
 
-# helper class for 2d bounding box
-class Box2D:
-    xMin : float
-    yMin : float
-    xMax : float    
-    yMax : float
-
-    def __init__(self, 
-                 xMin: float = sys.float_info.max, 
-                 yMin: float = sys.float_info.max, 
-                 xMax: float = -sys.float_info.max,                  
-                 yMax: float = -sys.float_info.max) -> None:
-        super().__init__()
-        self.xMin = xMin
-        self.yMin = yMin
-        self.xMax = xMax        
-        self.yMax = yMax
-
-    # check intersection to box2
-    def intersection(self, box2) -> bool:
-        x_overlap = max(0, min(self.xMax, box2.xMax) - max(self.xMin, box2.xMin))
-        y_overlap = max(0, min(self.yMax, box2.yMax) - max(self.yMin, box2.yMin))
-        
-        if x_overlap > 0 and y_overlap > 0:
-            return True
-        else:
-            return False
-    # expands the box with box_expand
-    def expandByBox(self, box_expand):
-        if box_expand.xMin < self.xMin:
-            self.xMin = box_expand.xMin
-        if box_expand.xMax > self.xMax:
-            self.xMax = box_expand.xMax
-        if box_expand.yMin < self.yMin:
-            self.yMin = box_expand.yMin
-        if box_expand.yMax > self.yMax:
-            self.yMax = box_expand.yMax       
-
-    # expands the box with position
-    def expandByPos(self, x, y):
-        if x < self.xMin:
-            self.xMin = x
-        if x > self.xMax:
-            self.xMax = x
-
-        if y < self.yMin:
-            self.yMin = y
-        if y > self.yMax:
-            self.yMax = y            
-    
-    # expands the box with seam
-    def expandBySeam(self, seam):
-        self.xMin = self.xMin - seam
-        self.xMax = self.xMax + seam
-        self.yMin = self.yMin - seam
-        self.yMax = self.yMax + seam
-
-
-# calc end position from start pos, heading and length value
-def calculate_end_position(start_x, start_y, heading, length):
-    end_x = start_x + math.cos(heading) * length
-    end_y = start_y + math.sin(heading) * length
-
-    return end_x, end_y
-
 
 # calc box for line segment
-def calculate_bounding_box(x, y, hdg, length):
+def calculate_bounding_box(pos : Vec2D, hdg, length):
 
-    endPos = calculate_end_position(x, y, hdg, length)
     box = Box2D()
-    box.expandByPos(x, y)
-    box.expandByPos(endPos[0], endPos[1])
-    box.expandBySeam(10)
+    box.expand_by_pos(pos)
+    endPos = pos.end_position(hdg, length)
+    box.expand_by_pos(endPos)
+    box.expand_by_seam(10)
     return box
 
 # calc box for road element
-def getRoadBounding(road):
+def get_road_bounding(road):
     geometries = road.findall(".//geometry")
     boxRoad = Box2D()
     for geometry in geometries:
-        x = float(geometry.attrib['x'])
-        y = float(geometry.attrib['y'])
+        pos = Vec2D(float(geometry.attrib['x']), float(geometry.attrib['y']))
         hdg = float(geometry.attrib['hdg'])
         length = float(geometry.attrib['length'])
-        boxGeom = calculate_bounding_box(x, y, hdg, length)
-        boxRoad.expandByBox(boxGeom)
+        boxGeom = calculate_bounding_box(pos, hdg, length)
+        boxRoad.expand_by_box(boxGeom)
     return boxRoad  
 
 # replace box data in xodr file
@@ -124,7 +59,7 @@ def reduceXODR(box, file_in, file_out):
                     linkIDs.append(child.attrib["elementId"])
             
             # check inside / outside
-            boxRoad = getRoadBounding(road)
+            boxRoad = get_road_bounding(road)
             container = "inside"
             if boxRoad.intersection(box) == False:
                 container = "outside"
