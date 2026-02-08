@@ -9,7 +9,6 @@ import pandas as pd
 import argparse
 import logging
 import os
-import utils.constants 
 
 logger = logging.getLogger(__name__)
 

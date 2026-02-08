@@ -3,7 +3,6 @@ from pathlib import Path
 from utils.xodr import parse_planview
 from utils.json import write_json
 
-import xml.etree.ElementTree as ET
 import simplekml
 import argparse
 import logging

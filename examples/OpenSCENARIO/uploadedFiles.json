@@ -1,0 +1,23 @@
+[
+	{
+    "filename": "https://raw.githubusercontent.com/vectorgrp/OSC-NCAP-scenarios/main/OpenSCENARIO/NCAP/AEB_C2C_2023/NCAP_AEB_C2C_CCFhol_2023.xosc",
+    "type": "Asset",
+    "category": "isSimulationData",
+    "did": "did:key:z6MkghGABERnypYxYg5FZhZf7D9H69P74WRp6b5xBtACNu"
+  },
+  {
+    "filename": "documentation.txt",
+    "type": "Document",
+    "category": "isDocumentation"
+  },
+  {
+    "filename": "https://raw.githubusercontent.com/vectorgrp/OSC-NCAP-scenarios/main/LICENSE",
+    "type": "License",
+    "category": "isLicense"
+  },  
+  {
+    "filename": "screenshot.jpg",
+    "type": "Image",
+    "category": "isMedia"
+  }
+]

@@ -5,10 +5,10 @@ An advanced search is designed to access individual asset information directly, 
 See https://github.com/openMSL/sl-5-7-asset-services/tree/main/extended_search
 
 Input
-- Asset file
+- asset file as xml
 
 Output
-- Asset archive
+- reduced binary JSON file
 
 # How to run
 - main.py with arguments

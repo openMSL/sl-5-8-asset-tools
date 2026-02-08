@@ -1,5 +1,4 @@
 from pathlib import Path
-from datetime import datetime
 from geopy.geocoders import Nominatim
 from pyproj import CRS, Transformer
 from utils.json import write_json

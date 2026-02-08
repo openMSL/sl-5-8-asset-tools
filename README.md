@@ -12,7 +12,7 @@ Most of the tools of Asset Extractor supports the following formats:
 
 ### Module for creating the asset archive
 
-The following modules are executed in the pipeline in the order specified here
+The following modules are executed in the pipeline in the order specified here:
 
 - **[asset_extraction](https://github.com/openMSL/sl-5-8-asset-tools/tree/main/asset_extraction/README.md)**
   
@@ -25,6 +25,16 @@ The following modules are executed in the pipeline in the order specified here
     Output
     - Asset archive
 
+- **[meta_data_extractor](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/meta_data_extractor/README.md)**
+
+    Extract metadata for the asset's product description.
+
+    Input
+    - Asset file
+  
+    Output
+    - JSON attribute file  
+
 - **[jsonLD_creator](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/jsonLD_creator/README.md)**  
 
     Creates a jsonLD file from a input json with the help of ontology files.
@@ -36,34 +46,6 @@ The following modules are executed in the pipeline in the order specified here
     Output
     - JSON LD file    
 
-- **[jsonLD_validator](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/jsonLD_validator/README.md)**
-  
-    Validates a jsonLD file based on its ontology files.
-
-    Input
-    - JSON LD file
-
-- **[meta_data_extractor](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/meta_data_extractor/README.md)**
-
-    Extract metadata for the asset's product description.
-
-    Input
-    - Asset file
-  
-    Output
-    - JSON attribute file 
-   
-- **[qualitychecker_caller](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/qualitychecker_caller/README.md)**
-
-    Calls ASAM's Quality Checker bundles (for [OpenDRIVE](https://github.com/asam-ev/qc-opendrive) and [OpenSCENARIO](https://github.com/asam-ev/qc-openscenarioxml)) and OpenMSL Simulation Checker bundle for [OpenDRIVE](https://github.com/openMSL/sl-5-9-openmsl-qc-opendrive) to validate the formats.
-
-    Input
-    - Asset file
-    - Default configuration file for QualityChecker (see [template](https://github.com/openMSL/sl-5-8-asset-tools/tree/main/qualitychecker_caller/templates) folder)
-  
-    Output
-    - validation files in xqar and txt    
-
 - **[shacl_combiner](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/shacl_combiner/README.md)** 
 
     Combines all necessary Shacl files of an asset type into a single Shalc for use in, for example, the SD Creation Wizard or Shalc Playgrounds.
@@ -73,20 +55,6 @@ The following modules are executed in the pipeline in the order specified here
   
     Output
     - combined Shacl file  
-
-- **[structure_creator](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/structure_creator/README.md)**    
-    
-    Creates the folder and file structure for the asset archive and writes the structure to a JSON file for further processing in JSONLD Creator for generating the manifest file. 
-    
-    Additional data on the asset, such as documentation, images, and videos, are defined by the user in the front end (see https://github.com/openMSL/sl-5-7-asset-services/tree/main/asset_extractor) and evaluated in this module as a JSON file.
-    
-
-    Input
-    - JSON file with additional asset data (from the frontend)
-  
-    Output
-    - Folder and file structure        
-    - JSON attribute file (for Manifest)  
 
 - **[wizard-caller](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/wizard-caller/README.md)**
 
@@ -101,6 +69,35 @@ The following modules are executed in the pipeline in the order specified here
     Output
     - extended JSON LD file  
 
+- **[jsonLD_validator](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/jsonLD_validator/README.md)**
+  
+    Validates a jsonLD file based on its ontology files.
+
+    Input
+    - JSON LD file
+  
+- **[qualitychecker_caller](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/qualitychecker_caller/README.md)**
+
+    Calls ASAM's Quality Checker bundles (for [OpenDRIVE](https://github.com/asam-ev/qc-opendrive) and [OpenSCENARIO](https://github.com/asam-ev/qc-openscenarioxml)) and OpenMSL Simulation Checker bundle for [OpenDRIVE](https://github.com/openMSL/sl-5-9-openmsl-qc-opendrive) to validate the formats.
+
+    Input
+    - Asset file
+    - Default configuration file for QualityChecker (see [template](https://github.com/openMSL/sl-5-8-asset-tools/tree/main/qualitychecker_caller/templates) folder)
+  
+    Output
+    - validation files in xqar and txt    
+
+- **[xodr_routing_creator]([xodr_routing_creator/README.md](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/xodr_routing_creator/README.md))**
+
+    Creates a routing file (KML or GeoJSON) to display the asset geographically in map applications. 
+
+    Input
+    - Asset file
+  
+    Output
+    - Georeferenced line geometry (in KML or GeoJSON)
+    - Georeferenced bounding box geometry (in KML or GeoJSON)
+ 
 - **[xodr_to_geojson_caller](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/xodr_to_geojson_caller/README.md)**
 
     Calls the [opendriveconverter](https://github.com/virtualcitySYSTEMS/opendriveconverter) java tool from Virtual City Systems to create a 3D preview files for OpenDRIVE.
@@ -113,16 +110,31 @@ The following modules are executed in the pipeline in the order specified here
     Output
     - Geometry files in Geojson format
 
-- **[xodr_routing_creator]([xodr_routing_creator/README.md](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/xodr_routing_creator/README.md))**
+- **[asset_reducer](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/asset_reducer/README.md)**
 
-    Creates a routing file (KML or GeoJSON) to display the asset geographically in map applications. 
+    Reduces XML-based asset files (OpenDRIVE, OpenSCENARIO) to relevant nodes and attributes for advanced search. See https://github.com/openMSL/sl-5-7-asset-services/tree/main/extended_search
 
     Input
-    - Asset file
+    - asset file as xml
   
     Output
-    - Georeferenced line geometry (in KML or GeoJSON)
-    - Georeferenced bounding box geometry (in KML or GeoJSON)
+    - reduced binary JSON file
+
+- **[structure_creator](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/structure_creator/README.md)**    
+    
+    Creates the folder and file structure for the asset archive and writes the structure to a JSON file for further processing in JSONLD Creator for generating the manifest file. 
+    
+    Additional data on the asset, such as documentation, images, and videos, are defined by the user in the front end (see https://github.com/openMSL/sl-5-7-asset-services/tree/main/asset_extractor) and evaluated in this module as a JSON file.
+
+    The generated JSON attribute file for the manifest is then created as JSON LD using[jsonLD_creator](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/jsonLD_creator/README.md) and checked with the [jsonLD_validator](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/jsonLD_validator/README.md).
+    
+
+    Input
+    - JSON file with additional asset data (from the frontend)
+  
+    Output
+    - Folder and file structure        
+    - JSON attribute file (for Manifest)  
 
 #### Process diagramm
 
@@ -130,7 +142,7 @@ The following modules are executed in the pipeline in the order specified here
 
 #### Configuration 
  
-  [Configuration files](https://github.com/openMSL/sl-5-8-asset-tools/tree/main/configs) for creating the asset archive.
+The [Configuration files](https://github.com/openMSL/sl-5-8-asset-tools/tree/main/configs) in the 'configs' folder are used to define the pipeline flow and the calls to the individual script modules.
 
   There are two types of configuration files in the Config folder: 
 1. process.json
@@ -186,7 +198,9 @@ The following modules are executed in the pipeline in the order specified here
     ```
 
 
-#### Build Instructions
+### Build Instructions
+
+Python 3.11 or higher is required for the scripts.
 
 1. [asset_extraction](https://github.com/openMSL/sl-5-8-asset-tools/tree/main/asset_extraction/README.md)
    
@@ -213,23 +227,50 @@ The following modules are executed in the pipeline in the order specified here
     ```    
 
 
-#### Usage
+### Usage
+
+The entire pipeline (as it is also called from the [Asset Service](https://github.com/openMSL/sl-5-7-asset-services/blob/main/asset_extractor/README.md) ) is called as follows:
 
 ```bash
-asset_extraction -"asset_file" -config "config_folder" -out "ouput_folder" 
+python.exe -m asset_extraction.main 
+    'data_file.json' 
+    -config 'config_folder' 
+    -out 'ouput_folder'
 ```    
 
+To find out how to call up the individual sub-scripts, please refer to the README.md file in the corresponding script folder.
 
+## Example
+
+In the ‘examples’ folder, you will find sample data for calling the asset extraction pipeline for OpenDRIVE and OpenSCENARIO.
+
+- OpenDRIVE
+  
+    For this example, the file [StraightRoad_NCAP_Roadmarks.xodr](https://github.com/vectorgrp/OSC-NCAP-scenarios/blob/main/OpenDRIVE/NCAP/StraightRoad_NCAP_Roadmarks.xodr) is used.
+
+```bash
+python.exe -m asset_extraction.main 
+    './examples/OpenDRIVE/uploadedFiles.json' 
+    -config './configs' 
+    -out './examples/OpenDRIVE/output'
+```    
+- OpenSCENARIO
+
+    For this example, the file [NCAP_AEB_C2C_CCFhol_2023.xosc](https://raw.githubusercontent.com/vectorgrp/OSC-NCAP-scenarios/main/OpenSCENARIO/NCAP/AEB_C2C_2023/NCAP_AEB_C2C_CCFhol_2023.xosc) is used.
+```bash
+python.exe -m asset_extraction.main 
+    './examples/OpenSCENARIO/uploadedFiles.json' 
+    -config './configs' 
+    -out './examples/OpenSCENARIO/output'
+```    
+
+*The generation of the jsonLD file for OpenSCENARIO is currently failing because it is not compatible with the current Shacl file!*
 
 ### Additional Scripts
 
 - **[utils](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/utils/README.md)**
   
-   Collection of different help functions like logging with colors, download of shacls These are used in the main scripts.
-
-- **[asset_reducer](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/asset_reducer/README.md)**
-
-    Reduces XML-based asset files (OpenDRIVE, OpenSCENARIO) to relevant nodes and attributes for advanced search. See https://github.com/openMSL/sl-5-7-asset-services/tree/main/extended_search
+   Collection of various help functions used in the main scripts.
 
 - **[xodr_calc_box]([xodr_calc_box/README.md](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/xodr_calc_box/README.md))**
   
