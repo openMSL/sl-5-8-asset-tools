@@ -203,8 +203,12 @@ def get_value_type(key : str, shacl_values : dict) -> str:
 def create_property(namespace : str, property_name : str, value, datatype: str, name: str, jsonLD_dict: dict, shacl_values : dict, level : int):
     
     key = create_namespace_name(namespace, property_name)
+    if key == 'manifest:hasAccessRole':
+        test = 0
+
     value_key = get_value_type(key, shacl_values)
 
+   
     if isinstance(value, list):
         if value_key == '@id':
             properties = []
@@ -218,8 +222,9 @@ def create_property(namespace : str, property_name : str, value, datatype: str, 
             if datatype == 'string':
                 jsonLD_dict[key] = value
             else: # literal
+                dtype = f"xsd:{datatype}" if ":" not in datatype else datatype
                 jsonLD_dict[key] = {
-                    '@type' : f'xsd:{datatype}', 
+                    '@type' : dtype, 
                     value_key : value} # value
         elif name: # id-Property
             jsonLD_dict[key] = {
@@ -347,7 +352,12 @@ def register_key(key : str, values : dict, meta_data: dict, nodes : list, namesp
                 name_url = get_value("name", values)
                 name = get_name_from_url(name_url) if name_url else None
                 property_name = create_namespace_name(namespace, name) if name is not None else None
-                create_property(namespace, shapename, meta_data[key], None, property_name, lsonLD_dict, values, level)
+                type = (
+                    "manifest:AccessRole" if shapename == "hasAccessRole"
+                    else "manifest:Category" if shapename == "hasCategory"
+                    else None
+                )
+                create_property(namespace, shapename, meta_data[key], type, property_name, lsonLD_dict, values, level)
                 del meta_data[key]
         else:
             # --- NEW: for hdmap:hasManifest add richer shapes for mapping ---
