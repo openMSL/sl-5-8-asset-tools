@@ -210,7 +210,6 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     meta_data_dict = dict()
     meta_data_dict['did'] = 'did:web:registry.gaia-x.eu:HdMap:' + create_uuid()
     meta_data_dict['shacl_schema'] = get_schema_name()
-    #meta_data_dict['shacl_url'] = f'{get_schema_name().lower()}::{get_namespace()}/{get_schema_name()}Shape'
     meta_data_dict['shacl_url'] = get_namespace()
     meta_data_dict[f'{get_schema_name().lower()}:hasResourceDescription'] = hasResourceDescription_dict
 

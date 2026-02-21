@@ -203,11 +203,7 @@ def get_value_type(key : str, shacl_values : dict) -> str:
 def create_property(namespace : str, property_name : str, value, datatype: str, name: str, jsonLD_dict: dict, shacl_values : dict, level : int):
     
     key = create_namespace_name(namespace, property_name)
-    if key == 'manifest:hasAccessRole':
-        test = 0
-
     value_key = get_value_type(key, shacl_values)
-
    
     if isinstance(value, list):
         if value_key == '@id':
@@ -595,8 +591,7 @@ def main():
         if shacl_folder.exists():
             shutil.rmtree(shacl_folder)
     shacl_namespace = claim_data['shacl_schema']
-    shacl_url = claim_data['shacl_url']
-    #shacl_namespace, shacl_name = get_namespace(claim_data['shacl_type'])    
+    shacl_url = claim_data['shacl_url'] 
     del claim_data['shacl_schema']
     del claim_data['shacl_url']
 
