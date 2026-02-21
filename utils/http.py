@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from urllib.parse import urlparse
-from utils.constants import GITHUB_URL, GITHUB_RAW_URL, ENVITEDX_URL, GAIAX_ONTOLOGY_PART, SHACL_FOLDER_NAME
+from urllib.parse import urlparse, urljoin
+from utils.constants import GITHUB_URL, GITHUB_RAW_URL, ENVITED_URL, ENVITED_DOWNLOAD_URL, SHACL_FOLDER_NAME, SHACLE_NAME
 
 import re
 import logging
@@ -80,17 +80,17 @@ def normalize_url(url: str) -> str:
 def get_url_for_download(url: str) -> str:
     """replace url with raw.githubusercontent.com"""
     
-    is_gaiax_ontology = True if str(url).startswith(ENVITEDX_URL) else False
-    if is_gaiax_ontology:
-        # Break the old URL into components
-        parsed = urlparse(url)
+    if url.startswith(ENVITED_URL):
+        # remove wi3d part
+        rel = url.removeprefix(ENVITED_URL)
+
         # Split the path into individual segments (empty parts are removed)
-        segments = [seg for seg in parsed.path.split("/") if seg]
+        segments = [seg for seg in rel.split("/") if seg]
         
         if segments:
-            name = segments[0]
-            # Create the new URL: new server, /main/, then the extracted name
-            new_url = f"{GITHUB_RAW_URL}{GAIAX_ONTOLOGY_PART}/main/{name}/{name}_shacl.ttl"
+            schema_name = segments[0]            
+            new_url = urljoin(ENVITED_DOWNLOAD_URL, rel)
+            new_url = f'{new_url}{schema_name}{SHACLE_NAME}'
             return new_url
     else:
         # If no path segments were found, return the new server
@@ -114,14 +114,13 @@ def download_file(url_path: str, out_path: Path, filename: str) -> Path:
 def download_shacl(url_path: str, shacl_name: str) -> Path:
     """Download SHACL file from URL into local shacls folder if missing."""
     
-    filename = f"{shacl_name}_shacl.ttl"
+    filename = f"{shacl_name}{SHACLE_NAME}"
     local_filepath = Path(f"{SHACL_FOLDER_NAME}/{filename}")
 
     if not local_filepath.exists():
-        url = f"{url_path}{filename}" if str(url_path).startswith(ENVITEDX_URL) else url_path
-        response = requests.get(url, timeout=30)
+        response = requests.get(url_path, timeout=30)
         if not response:
-            raise RuntimeError(f"No shacl files found in url: {url}")
+            raise RuntimeError(f"No shacl files found in url: {url_path}")
 
         Path(SHACL_FOLDER_NAME).mkdir(parents=True, exist_ok=True)
         local_filepath.write_bytes(response.content)

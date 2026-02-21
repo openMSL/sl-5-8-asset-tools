@@ -1,14 +1,12 @@
 from typing import Tuple
 from pathlib import Path
 from utils.ids import create_uuid
-from utils.constants import ENVITEDX_URL
+from utils.constants import ENVITED_URL, MODEL_SCHEMA_VERSION
 
 import json
 import logging
 
 logger = logging.getLogger(__name__)
-
-MODEL_VERSION  = 'v4'
 
 def get_meta_data(file_data: dict, attributes: dict):
     if 'project' in file_data:
@@ -65,4 +63,4 @@ def get_schema_name() -> str:
     return 'environmentModel'
 
 def get_namespace() -> str:
-    return f'{ENVITEDX_URL}environment-model/{MODEL_VERSION}/ontology'
+    return f'{ENVITED_URL}{get_schema_name().lower()}/{MODEL_SCHEMA_VERSION}'

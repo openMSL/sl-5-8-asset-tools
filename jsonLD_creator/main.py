@@ -18,13 +18,18 @@ from typing import Any, Tuple, Union, Dict, List
 from utils.rdf import get_prefixes, convert_graph_to_dict
 from utils.http import get_url_for_download, download_shacl
 from utils.json import write_json
-from utils.constants import ENVITEDX_URL, GAIAX_TRUST_NS, SHACL_NS, GITHUB_RAW_URL, GAIAX_ONTOLOGY_PART, ENVITEDX_NAME, SHACL_FOLDER_NAME
+from utils.constants import SHACL_NS, SHACL_FOLDER_NAME, GX_NS
 
 import shutil
 import json
 import logging
 import argparse
 import operator
+
+#logging.basicConfig(
+#    level=logging.DEBUG,
+#    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+#)
 
 logger = logging.getLogger(__name__)
 
@@ -92,40 +97,60 @@ def get_value(name, values):
             return data
     return None
 
-# Recursively collect all values under the keys 'node' and 'class' and all nested lists/dicts under 'and', 'or' and 'qualifiedValueShape'
-def collect_nodes(shape: Any) -> List[str]:
-    
-    nodes = []
+def collect_nodes(shape: Any, visited: set | None = None) -> List[str]:
+    """Recursively collect all values under sh:node and sh:class and expand referenced shapes."""
+    if visited is None:
+        visited = set()
+
+    nodes: List[str] = []
+
     if isinstance(shape, dict):
         for k, v in shape.items():
+
             # SHACL-node / SHACL-class
-            if k.endswith(f"{SHACL_NS}node"):
+            if k.endswith(f"{SHACL_NS}node") or k.endswith(f"{SHACL_NS}class"):
                 if isinstance(v, str):
                     nodes.append(v)
-                else:
-                    nodes.extend(collect_nodes(v))
 
-            # qualifiedValueShape enthält verschachtelte Shapes
+                    # Try to resolve referenced NodeShape further (e.g., ContentOrOddSceneryShape -> sh:or -> ...)
+                    if v not in visited:
+                        visited.add(v)
+                        ns, _ = get_namespace_name_from_url(v)
+                        if ns:
+                            sh = get_shacl_shape(ns, v)
+                            if sh is not None:
+                                nodes.extend(collect_nodes(sh, visited))
+
+                else:
+                    nodes.extend(collect_nodes(v, visited))
+
+            # qualifiedValueShape contain nested Shapes
             elif k.endswith(f"{SHACL_NS}qualifiedValueShape"):
-                nodes.extend(collect_nodes(v))
+                nodes.extend(collect_nodes(v, visited))
 
             # sh:and / sh:or
             elif k.endswith(f"{SHACL_NS}and") or k.endswith(f"{SHACL_NS}or"):
                 if isinstance(v, list):
                     for item in v:
-                        nodes.extend(collect_nodes(item))
+                        nodes.extend(collect_nodes(item, visited))
+                else:
+                    nodes.extend(collect_nodes(v, visited))
 
-            # property-Array: dort können wiederum qualifiedValueShape o.ä. stehen
+            # property-Array
             elif k.endswith(f"{SHACL_NS}property"):
                 if isinstance(v, list):
                     for prop in v:
-                        nodes.extend(collect_nodes(prop))
+                        nodes.extend(collect_nodes(prop, visited))
+                else:
+                    nodes.extend(collect_nodes(v, visited))
 
     elif isinstance(shape, list):
         for item in shape:
-            nodes.extend(collect_nodes(item))
+            nodes.extend(collect_nodes(item, visited))
+
     elif isinstance(shape, str):
         nodes.append(shape)
+
     return nodes
 
 
@@ -176,11 +201,8 @@ def get_value_type(key : str, shacl_values : dict) -> str:
 #      "@id": "envited-x:isPublic"
 # }
 def create_property(namespace : str, property_name : str, value, datatype: str, name: str, jsonLD_dict: dict, shacl_values : dict, level : int):
+    
     key = create_namespace_name(namespace, property_name)
-    # debug
-    if key == 'manifest:filename':
-        test = 0
-
     value_key = get_value_type(key, shacl_values)
 
     if isinstance(value, list):
@@ -262,10 +284,6 @@ def create_node(namespace : str, shapename : str, type: str, lsonLD: Union[Dict,
 
     key = create_namespace_name(namespace, shapename)
 
-    # debug
-    if key == 'hdmap:hasManifest':
-        test = 0
-
     if is_list:
         lsonLD.append(node)
     else:
@@ -290,10 +308,33 @@ def get_shacl_shape(namespace : str, shapename : str) -> list:
             return shacl_graph_data['dict'][shapename]
     
     return None
+# --- Add this helper near register_key (e.g., above it) ---
+def _inject_manifest_mapping_candidates(nodes: list | None) -> list:
+    """Add richer Link shapes for mapping hasManifest fields (even if not required by the sh:or)."""
+    if nodes is None:
+        nodes = []
+    # Ensure list
+    if not isinstance(nodes, list):
+        nodes = list(nodes)
+
+    # These URIs exist in your loaded SHACL set (manifest + envited-x)
+    extra = [
+        "https://w3id.org/ascs-ev/envited-x/manifest/v5/LinkShape",
+        "https://w3id.org/ascs-ev/envited-x/envited-x/v3/ExtendedLinkShape",
+    ]
+
+    # Avoid duplicates
+    for uri in extra:
+        if uri not in nodes:
+            nodes.append(uri)
+
+    return nodes
 
 # register key + value to json ld
 def register_key(key : str, values : dict, meta_data: dict, nodes : list, namespace: str, shapename: str, path: str, is_required: bool, lsonLD_dict: dict, level : int):
+
     if key in meta_data:
+
         if nodes is None:
             # register as property
             namespace_sub, name_subtype = get_namespace_name_from_url(path)
@@ -309,10 +350,15 @@ def register_key(key : str, values : dict, meta_data: dict, nodes : list, namesp
                 create_property(namespace, shapename, meta_data[key], None, property_name, lsonLD_dict, values, level)
                 del meta_data[key]
         else:
+            # --- NEW: for hdmap:hasManifest add richer shapes for mapping ---
+            if key == "hdmap:hasManifest":
+                nodes = _inject_manifest_mapping_candidates(nodes)
+
             created_node = None
             for node in nodes:
                 if key not in meta_data:
                     continue # already filled
+
                 ulr = node if isinstance(node, str) else list(node)[0]
                 namespace_sub, type = get_namespace_name_from_url(ulr)
                 shape_value_sub = get_shacl_shape(namespace_sub, str(ulr))
@@ -322,7 +368,15 @@ def register_key(key : str, values : dict, meta_data: dict, nodes : list, namesp
                 if created_node is None:
                     used_namespace, name_subtype = get_namespace_name_from_url(path)
                     type_without_shape = type.replace('Shape', '')
-                    type_str = create_namespace_name(namespace_sub, 'Link' if shapename == 'hasManifest' else type_without_shape) # HACK to support "@type": "manifest:Link",
+                    if shapename == "hasManifest":
+                        # Prefer manifest:Link if the prefix exists, fallback to envited-x:Link
+                        if "manifest" in config.JSON_OUT["@context"]:
+                            type_str = "manifest:Link"
+                        else:
+                            type_str = "envited-x:Link"
+                    else:
+                        type_str = create_namespace_name(namespace_sub, type_without_shape)
+                    #type_str = create_namespace_name(namespace_sub, 'Link' if shapename == 'hasManifest' else type_without_shape) # HACK to support "@type": "manifest:Link",
                     created_node = create_node(used_namespace, shapename, type_str, lsonLD_dict, False, level)
                 # only subnodes / properties of further nodes are registered
 
@@ -331,6 +385,7 @@ def register_key(key : str, values : dict, meta_data: dict, nodes : list, namesp
                 lsonLD_node = created_node
 
                 process_node(shape_value_sub, meta_data[key], nodes_sub, lsonLD_node, level + 1)
+                # remove data if empty
                 if not meta_data[key]:
                     del meta_data[key]
 
@@ -379,13 +434,15 @@ def register_list(key : str, values : dict, meta_data: dict, nodes : list, names
 # process node with all props and sub nodes
 def process_node(shape_value: list, meta_data: Union[Dict, List], nodes_in: list, lsonLD_dict: dict, level : int):
     if not isinstance(shape_value, list):
-        raise ValueError(f'shape_value should be a list!')
+        raise ValueError('shape_value should be a list!')
     
     handle_node =[]
     for values in shape_value:
         path_data = get_value("path", values)     
-        if path_data == f'{ENVITEDX_URL}/manifest/v5/ontology#hasArtifacts':
-            test = 0
+        # Skip shape-level constraints that do not represent a property (no sh:path)
+        if path_data is None:
+            continue
+
         path, nodes = get_node_data(values)           
         namespace, shapename = get_namespace_name_from_url(path)
         key = create_namespace_name(namespace, shapename)
@@ -452,9 +509,9 @@ def getPrefixes(shacl_graph: Graph) -> dict:
 def process_graph(schema_namespace, schema_name, meta_data):
     config.JSON_OUT = defaultdict(list)
     # get shacl for asset
-    if schema_namespace in config.SHACLS:        
+    if schema_namespace.lower() in config.SHACLS:        
 
-        shacl_graph_data = config.SHACLS[schema_namespace]
+        shacl_graph_data = config.SHACLS[schema_namespace.lower()]
 
         config.JSON_OUT['@context'] = shacl_graph_data['prefixes']
         
@@ -466,13 +523,10 @@ def process_graph(schema_namespace, schema_name, meta_data):
             raise ValueError(f'did not found in extraced data!')
 
         # add type
-        name = get_name_from_url(schema_name)
-        name = name.replace('Shape', '')
-        shacl_namespace = 'manifest' if schema_namespace == ENVITEDX_NAME and name != 'Manifest' else schema_namespace
-        config.JSON_OUT['@type'] = create_namespace_name(shacl_namespace, name)
+        config.JSON_OUT['@type'] = create_namespace_name(schema_namespace.lower(), schema_namespace)
 
         # get first element of main shacl        
-        shape_value = get_shacl_shape(schema_namespace, schema_name)
+        shape_value = get_shacl_shape(schema_namespace.lower(), f'{schema_name}/{schema_namespace}Shape')
         if not shape_value:
             raise ValueError(f'did not found {schema_name} in shacl {schema_namespace}!')
 
@@ -484,12 +538,6 @@ def process_graph(schema_namespace, schema_name, meta_data):
                 logger.warning("non-transferring values:")
                 logger.warning(json.dumps(meta_data, indent=4, ensure_ascii=False))
 
-        # TODO: hmm, we get valdation errors for manifest if we have envited-x prefix
-        if ENVITEDX_NAME in config.JSON_OUT['@context']:
-            del config.JSON_OUT['@context'][ENVITEDX_NAME]  
-        # remove unused rfd prefix
-        if 'rdf' in config.JSON_OUT['@context']:
-            del config.JSON_OUT['@context']['rdf']        
     else:
         logger.error(f'Cannot find ontology {schema_namespace}')
 
@@ -504,16 +552,10 @@ def register_shacl(url_path : str, shacl_name: str, shacls):
             graph = Graph()
             graph = graph.parse(local_file_path, format='turtle')
             
-            is_gaiax_ontology = True if str(url_path).startswith(f"{GITHUB_RAW_URL}{GAIAX_ONTOLOGY_PART}") else False
-
             graph_data = {}
             graph_data['graph'] = graph
-            graph_data['dict'] = convert_graph_to_dict(graph, is_gaiax_ontology)        
+            graph_data['dict'] = convert_graph_to_dict(graph, not str(url_path).startswith("http://www.w3.org/ns"))        
             graph_data['prefixes'] = getPrefixes(graph)
-
-            # DEBUG write as json
-            debug_json_file = local_file_path.with_suffix(".json")
-            write_json(debug_json_file, graph_data['dict'])
 
             shacls[shacl_name] = graph_data
     except:
@@ -542,22 +584,23 @@ def main():
         shacl_folder = Path(SHACL_FOLDER_NAME)
         if shacl_folder.exists():
             shutil.rmtree(shacl_folder)
-    shacl_namespace, shacl_name = get_namespace(claim_data['shacl_type'])    
-    del claim_data['shacl_type']
+    shacl_namespace = claim_data['shacl_schema']
+    shacl_url = claim_data['shacl_url']
+    #shacl_namespace, shacl_name = get_namespace(claim_data['shacl_type'])    
+    del claim_data['shacl_schema']
+    del claim_data['shacl_url']
 
     ontology_path = args.ontology + '/'
     ontology_path = ontology_path.format(schema=shacl_namespace)
     shacl_definitions = {}
-    url_path = f'{ontology_path}{shacl_namespace}/'
-    new_url_path = get_url_for_download(url_path)
-    register_shacl(new_url_path, shacl_namespace, shacl_definitions)
+    new_url_path = get_url_for_download(ontology_path)
+    register_shacl(new_url_path, shacl_namespace.lower(), shacl_definitions)
 
     # get gaiaX/envited prefixes
-    shacl_data = shacl_definitions[shacl_namespace]
+    shacl_data = shacl_definitions[shacl_namespace.lower()]
     prefixes = get_prefixes(shacl_data['graph'])
     # add special prefixes
     prefixes["sh"] = SHACL_NS
-    prefixes["gx"] = GAIAX_TRUST_NS
 
     # and download additional shacls
     for key, value in prefixes.items():
@@ -568,12 +611,13 @@ def main():
     
     # fill data in shacl structure
     try:
-        process_graph(shacl_namespace, shacl_name, claim_data)
+        process_graph(shacl_namespace, shacl_url, claim_data)
     except:
         raise Exception(f'Could not convert to json')
         
     # write claims as json id to output    
     output_path = Path(args.out)
+    config.JSON_OUT['@context']["gx"] = GX_NS
     write_json(output_path, config.JSON_OUT, indentValue= 2)
     logger.info(f'write json ld to {output_path}')
 

@@ -5,13 +5,11 @@ from datetime import datetime
 from typing import Tuple
 from ..extractor import get_adress_from_osm, proj4_to_epsg, convert_to_LatLon
 from utils.ids import create_uuid
-from utils.constants import ENVITEDX_URL
+from utils.constants import ENVITED_URL, ENVITEDX_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION, ODR_SCHEMA_VERSION
 
 import logging
 
 logger = logging.getLogger(__name__)
-
-ODR_SCHEMA_VERSION = 'v4'
 
 # convert container to str
 def container_in_str(data: any) -> str:
@@ -92,11 +90,8 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     # read xml and create a list with all lengths
     list_of_lengths = [float(road.attrib['length']) for road in root.findall('.//road')] if check_data(root,".//road","length") else default_value
 
-    # search for needed information
-    #meta_data_dict['vendor_name'] = data['header']['vendor'] if check_data(root, ".//header","vendor") else default_value
-    # convert to datetime object
-    hasDataResource_dict = dict()
-    #general_data_dict = dict()
+    # fill data resource
+    hasResourceDescription_dict = dict()
 
     
     # parse string of georeference
@@ -162,8 +157,8 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     # constant meta data
 
     # if it is a xodr file it describes road network    
-    hasDataResource_dict['gx:name'] = file_path.name.replace('.xodr', '')
-    hasDataResource_dict['gx:description'] = "road network"
+    hasResourceDescription_dict['gx:name'] = file_path.name.replace('.xodr', '')
+    hasResourceDescription_dict['gx:description'] = "road network"
 
     # bounding
     georeference_dict = dict()
@@ -207,15 +202,17 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     #meta_data_dict['range_of_modeling'] = 0.0 #"Wie ermittelt man das?"
     # TODO get from traffic rule
     #content_dict['hdmap:trafficDirection'] = ""
-    #content_dict['hdmap:levelOfDetail'] = ""
+    
     #projection_location_dict['georeference:relationOrArea'] = ""
     #projection_location_dict['georeference:relationOrArea'] = ""
     
     
     meta_data_dict = dict()
     meta_data_dict['did'] = 'did:web:registry.gaia-x.eu:HdMap:' + create_uuid()
-    meta_data_dict['shacl_type'] = f'{get_schema_name().lower()}::{get_namespace()}#{get_schema_name()}Shape'
-    meta_data_dict[f'{get_schema_name().lower()}:hasDataResource'] = hasDataResource_dict    
+    meta_data_dict['shacl_schema'] = get_schema_name()
+    #meta_data_dict['shacl_url'] = f'{get_schema_name().lower()}::{get_namespace()}/{get_schema_name()}Shape'
+    meta_data_dict['shacl_url'] = get_namespace()
+    meta_data_dict[f'{get_schema_name().lower()}:hasResourceDescription'] = hasResourceDescription_dict
 
     try:        
         supported_date_syntax = [
@@ -231,28 +228,28 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     except:
         logger.error('cannot extract date')    
 
-    hasDataResourceExtension_dict = dict()
-    hasDataResourceExtension_dict[f'{get_schema_name().lower()}:hasFormat'] = format_dict
-    hasDataResourceExtension_dict[f'{get_schema_name().lower()}:hasContent'] = content_dict
-    hasDataResourceExtension_dict[f'{get_schema_name().lower()}:hasQuantity'] = quantity_dict
-    hasDataResourceExtension_dict[f'{get_schema_name().lower()}:hasQuality'] = {}
-    hasDataResourceExtension_dict[f'{get_schema_name().lower()}:hasDataSource'] = {}
-    hasDataResourceExtension_dict[f'{get_schema_name().lower()}:hasGeoreference'] = georeference_dict    
-    meta_data_dict[f'{get_schema_name().lower()}:hasDataResourceExtension'] = hasDataResourceExtension_dict
+    hasDomainSpecification_dict = dict()
+    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasFormat'] = format_dict
+    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasContent'] = content_dict
+    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasQuantity'] = quantity_dict
+    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasQuality'] = {}
+    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasDataSource'] = {}
+    if geo_reference:
+        hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasGeoreference'] = georeference_dict    
+    meta_data_dict[f'{get_schema_name().lower()}:hasDomainSpecification'] = hasDomainSpecification_dict
 
-    hasManifest_dict = dict() # TODO
+    hasManifest_dict = dict()
     hasManifest_dict['manifest:hasAccessRole'] = 'envited-x:isPublic'
     hasManifest_dict['manifest:hasCategory'] = 'envited-x:isManifest'
-    hasManifest_dict['manifest:hasFileMetadata'] = { # TODO
-        "manifest:filename": "manifest_reference.json",
-        "manifest:filePath": "./manifest_reference.json",
+    hasManifest_dict['manifest:hasFileMetadata'] = {
+        "manifest:filePath": "./base-references/hdmap_manifest_reference.json",
         "manifest:mimeType": "application/ld+json"
     }
-    hasManifest_dict['manifest:iri'] = 'did:web:registry.gaia-x.eu:Manifest:uuid'
+    hasManifest_dict['manifest:iri'] = 'did:web:test.fixture.net:Manifest:test_hdmap_manifest_reference'
     hasManifest_dict['skos:note'] = 'Ensure that manifest_reference.json contains all required categories: simulationData, documentation, metadata, media.'
     hasManifest_dict['sh:conformsTo'] = [
-        "https://ontologies.envited-x.net/envited-x/v2/ontology#",
-        "https://ontologies.envited-x.net/manifest/v5/ontology#"
+        f"https://w3id.org/ascs-ev/envited-x/envited-x/{ENVITEDX_SCHEMA_VERSION}/",
+        f"https://w3id.org/ascs-ev/envited-x/manifest/{MANIFEST_SCHEMA_VERSION}/"
     ]
     meta_data_dict[f'{get_schema_name().lower()}:hasManifest'] = hasManifest_dict
 
@@ -438,4 +435,4 @@ def get_schema_name() -> str:
     return 'HdMap'
 
 def get_namespace() -> str:
-    return f'{ENVITEDX_URL}{get_schema_name().lower()}/{ODR_SCHEMA_VERSION}/ontology'
+    return f'{ENVITED_URL}{get_schema_name().lower()}/{ODR_SCHEMA_VERSION}'

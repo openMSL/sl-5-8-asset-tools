@@ -8,7 +8,7 @@ from utils.http import url_from_path
 from utils.ids import create_uuid
 from utils.http import is_url, download_or_get_file
 from utils.json import write_json
-from utils.constants import ENVITEDX_URL, ENVITEDX_NAME, GITHUB_RAW_URL, GAIAX_ONTOLOGY_PART, DID_ADRESS
+from utils.constants import ENVITED_URL, ENVITEDX_NAME, GITHUB_RAW_URL, GAIAX_ONTOLOGY_PART, DID_ADRESS
 
 import argparse
 import json
@@ -322,7 +322,7 @@ def register_folder(data: list, user_data: dict, path: Path, abs_data_path: Path
         if category == 'isMetadata':
             file_entry['manifest:iri'] = asset_info['did']
             file_entry['skos:note'] = f'This is the domain metadata for a {asset_data["type"]}.'
-            file_entry['sh:conformsTo'] = [f'{ENVITEDX_URL}{asset_data["classname"]}/{SCHEMA_MANIFEST_VERSION}/ontology']
+            file_entry['sh:conformsTo'] = [f'{ENVITED_URL}{asset_data["classname"]}/{SCHEMA_MANIFEST_VERSION}/ontology']
                      
         data.append(file_entry)
 
@@ -525,7 +525,7 @@ def main():
     # create json file for jsonLD creator
     data = {}
     data['did'] = DID_ADRESS + manifest_uuid
-    data['shacl_type'] = f'{ENVITEDX_NAME}::{ENVITEDX_URL}{ENVITEDX_NAME}/{SCHEMA_MANIFEST_VERSION}/ontology#ManifestShape'
+    data['shacl_type'] = f'{ENVITEDX_NAME}::{ENVITED_URL}{ENVITEDX_NAME}/{SCHEMA_MANIFEST_VERSION}/ontology#ManifestShape'
     data_group = []
     data['manifest:hasArtifacts'] = data_group
     for sub_folder in data_path.iterdir():

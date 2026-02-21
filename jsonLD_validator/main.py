@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 
 # validate jsonld against shacl schema
 def validate_jsonld_against_shacl(data_graph : Graph, shacl_graph : Graph, json_LD_file: Path):
-    conforms, v_graph, v_text = validate(data_graph, shacl_graph=shacl_graph, 
+    conforms, v_graph, v_text = validate(data_graph, shacl_graph=shacl_graph,
+                                         data_graph_format="json-ld",
+                                         shacl_graph_format="turtle",
                                          inference='rdfs', 
                                          abort_on_first=False,
                                          advanced=True,  # enahced validation behavior
