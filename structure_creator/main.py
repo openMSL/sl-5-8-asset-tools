@@ -518,7 +518,7 @@ def main():
         # copy        
         shutil.copy(source, dest)
 
-        if 'license_type' in file:
+        if category == 'isLicense':
             license_data = {}
             license_data = file
 
@@ -540,11 +540,8 @@ def main():
     #license_file = Path('https://www.mozilla.org/en-US/MPL/2.0/')
     if license_data is not None:
         licence_group = {}        
-        licence_group['gx:license'] = license_data['license_type']
         data['manifest:hasLicense'] = licence_group
-        hasLink_group = {}
-        licence_group['manifest:hasLink'] = hasLink_group
-        register_asset(hasLink_group, Path(license_data['filename']), data_path, 'isLicense', 'isPublic')        
+        register_asset(licence_group, Path(license_data['filename']), data_path, 'isLicense', 'isPublic')        
         
     # register manifest
     manifest_group = {}
