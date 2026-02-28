@@ -111,18 +111,39 @@ def download_file(url_path: str, out_path: Path, filename: str) -> Path:
     return filepath
 
 
+from pathlib import Path
+import requests
+
 def download_shacl(url_path: str, shacl_name: str) -> Path:
-    """Download SHACL file from URL into local shacls folder if missing."""
-    
+    """Download a SHACL file from URL into local shacls folder if missing."""
+
     filename = f"{shacl_name}{SHACLE_NAME}"
     local_filepath = Path(f"{SHACL_FOLDER_NAME}/{filename}")
 
-    if not local_filepath.exists():
-        response = requests.get(url_path, timeout=30)
-        if not response:
-            raise RuntimeError(f"No shacl files found in url: {url_path}")
+    if local_filepath.exists():
+        return local_filepath
 
-        Path(SHACL_FOLDER_NAME).mkdir(parents=True, exist_ok=True)
-        local_filepath.write_bytes(response.content)
+    # Use a session for better connection reuse and consistent headers
+    with requests.Session() as s:
+        r = s.get(
+            url_path,
+            timeout=30,
+            allow_redirects=True,
+            headers={
+                # Some servers behave differently without a UA; harmless and helps debugging
+                "User-Agent": "shacl-downloader/1.0",
+                "Accept": "text/turtle,application/x-turtle,text/plain,*/*",
+            },
+        )
 
+        try:
+            r.raise_for_status()
+        except requests.HTTPError as e:
+            # Include final URL after redirects for easier diagnosis
+            raise RuntimeError(
+                f"SHACL download failed: {r.status_code} for {r.url}"
+            ) from e
+
+    Path(SHACL_FOLDER_NAME).mkdir(parents=True, exist_ok=True)
+    local_filepath.write_bytes(r.content)
     return local_filepath
