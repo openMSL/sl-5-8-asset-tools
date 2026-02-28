@@ -2,11 +2,12 @@ from sympy import symbols, solveset
 from lxml import etree
 from pathlib import Path
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, Optional, Sequence
 from ..extractor import get_adress_from_osm, proj4_to_epsg, convert_to_LatLon
 from utils.ids import create_uuid
 from utils.constants import ENVITED_URL, ENVITEDX_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION, ODR_SCHEMA_VERSION
 
+import os
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,92 @@ def convert_date_time(date_string : str, supported_syntax : list[str]) -> str:
             continue
     return None
 
+def _proj_search_dirs() -> list[Path]:
+    """Build a list of directories where PROJ grid files are commonly stored."""
+    dirs: list[Path] = [Path.cwd()]
+
+    # Environment variables used by PROJ / pyproj
+    for var in ("PROJ_DATA", "PROJ_LIB"):
+        val = os.environ.get(var, "")
+        if val:
+            for part in val.split(os.pathsep):
+                if part.strip():
+                    dirs.append(Path(part))
+
+    # pyproj's bundled/provided data directory (if available)
+    try:
+        from pyproj.datadir import get_data_dir  # type: ignore
+
+        data_dir = get_data_dir()
+        if data_dir:
+            dirs.append(Path(data_dir))
+    except Exception:
+        # If pyproj isn't available or get_data_dir fails, just skip it.
+        pass
+
+    # De-duplicate while preserving order
+    seen = set()
+    unique: list[Path] = []
+    for d in dirs:
+        try:
+            resolved = d.resolve()
+        except Exception:
+            resolved = d
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(d)
+    return unique
+
+
+def _find_grid_file(filename: str, search_dirs: Sequence[Path]) -> Optional[Path]:
+    """Try to locate a grid file by checking absolute/relative and common PROJ data dirs."""
+    name = filename.strip()
+    if not name or name.lower() in {"null", "none"}:
+        return None
+
+    p = Path(name)
+
+    # Absolute path (or relative as given)
+    if p.is_absolute() and p.exists():
+        return p
+    if p.exists():
+        return p
+
+    # Search in known dirs
+    for d in search_dirs:
+        candidate = d / name
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
+def strip_missing_geoidgrids(proj4: str) -> str:
+    """
+    Remove '+geoidgrids=...' from a PROJ string if referenced .gtx (or other grid) files
+    are not available on disk.
+    """
+    tokens = proj4.split()
+    idx = next((i for i, t in enumerate(tokens) if t.startswith("+geoidgrids=")), None)
+    if idx is None:
+        return proj4
+
+    value = tokens[idx].split("=", 1)[1].strip()
+    if not value:
+        # Empty geoidgrids -> remove it
+        del tokens[idx]
+        return " ".join(tokens)
+
+    grids = [g.strip() for g in value.split(",") if g.strip()]
+    search_dirs = _proj_search_dirs()
+
+    # If any referenced grid is missing, drop the whole parameter (as requested)
+    missing = [g for g in grids if _find_grid_file(g, search_dirs) is None]
+    if missing:
+        del tokens[idx]
+        return " ".join(tokens)
+
+    return proj4
 
 
 #######################################################################################################################
@@ -163,6 +250,7 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     # bounding
     georeference_dict = dict()
     if geo_reference:
+        geo_reference_cleaned = strip_missing_geoidgrids(geo_reference)
         projection_location_dict = dict()
         georeference_dict['georeference:hasProjectLocation'] = projection_location_dict
         bounding_dict = dict()
@@ -170,8 +258,8 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
         bounding_dict['xMax'] = float(root.find('.//header').attrib['east']) if check_data(root, ".//header", "east") else unknown_unit
         bounding_dict['yMin'] = float(root.find('.//header').attrib['south']) if check_data(root, ".//header", "south") else unknown_unit
         bounding_dict['yMax'] = float(root.find('.//header').attrib['north']) if check_data(root, ".//header", "north") else unknown_unit    
-        bounding_dict['yMin'], bounding_dict['xMin'] = convert_to_LatLon(bounding_dict['xMin'], bounding_dict['yMin'], geo_reference)
-        bounding_dict['yMax'], bounding_dict['xMax'] = convert_to_LatLon(bounding_dict['xMax'], bounding_dict['yMax'], geo_reference)
+        bounding_dict['yMin'], bounding_dict['xMin'] = convert_to_LatLon(bounding_dict['xMin'], bounding_dict['yMin'], geo_reference_cleaned)
+        bounding_dict['yMax'], bounding_dict['xMax'] = convert_to_LatLon(bounding_dict['xMax'], bounding_dict['yMax'], geo_reference_cleaned)
         bounding_data_dict = dict()
         bounding_data_dict['georeference:xMin'] = str(bounding_dict['xMin'])
         bounding_data_dict['georeference:yMin'] = str(bounding_dict['yMin'])
@@ -180,7 +268,7 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
         projection_location_dict['georeference:hasBoundingBox'] = bounding_data_dict
 
         # get 0,0 point in unit and convert to lat lon
-        lat, lon = convert_to_LatLon(0.0, 0.0, geo_reference)
+        lat, lon = convert_to_LatLon(0.0, 0.0, geo_reference_cleaned)
         origin_dict = dict()
         origin_dict['georeference:lat'] = str(lat)
         origin_dict['georeference:lon'] = str(lon)
