@@ -1341,8 +1341,10 @@ def get_quality_data(dictonary: dict, osc: OpenSCENARIO, file_path: Path, defaul
     # accuracyObjects
     # calibration
        
-def set_manifest_data(dictonary: dict):
+def set_manifest_data(dictonary: dict, osc: OpenSCENARIO,):
     hasManifest_dict = dict()
+    dictonary[f'{get_schema_name().lower()}:hasManifest'] = hasManifest_dict       
+
     hasManifest_dict['manifest:hasAccessRole'] = 'envited-x:isPublic'
     hasManifest_dict['manifest:hasCategory'] = 'envited-x:isManifest'
     hasManifest_dict['manifest:hasFileMetadata'] = {
@@ -1355,19 +1357,11 @@ def set_manifest_data(dictonary: dict):
         f"https://w3id.org/ascs-ev/envited-x/envited-x/{ENVITEDX_SCHEMA_VERSION}/",
         f"https://w3id.org/ascs-ev/envited-x/manifest/{MANIFEST_SCHEMA_VERSION}/"
     ]
-    dictonary[f'{get_schema_name().lower()}:hasManifest'] = hasManifest_dict       
 
-def get_general_meta_data(meta_data_dict: dict, osc: OpenSCENARIO, file_path: Path, default_value: str = "Unknown", unknown_unit: str = "Unknown Unit") -> dict:
-    
-    sc_header = osc.scenario_et.find('.//FileHeader')
+    return 
+    # TODO Write links to a separate file to add this to the manifest json
 
-    ### links
-    if f'{get_name_lower()}:hasContent' in meta_data_dict:
-        links_dic = meta_data_dict[f'{get_name_lower()}:hasContent']
-    else:
-        links_dic = dict()
-        meta_data_dict[f'{get_name_lower()}:hasContent'] = links_dic
-
+    # links
     # get catalog
     links = list()
     catalog_locations = osc.scenario_et.find('.//CatalogLocations')
@@ -1377,7 +1371,7 @@ def get_general_meta_data(meta_data_dict: dict, osc: OpenSCENARIO, file_path: Pa
             if len(path):
                 links.append(path)
     # register
-    register_links(links_dic, f'{get_name_lower()}:catalogs', links)
+    register_links(hasManifest_dict, f'{get_name_lower()}:catalogs', links)
     links.clear()
     
     # environment model
@@ -1385,7 +1379,7 @@ def get_general_meta_data(meta_data_dict: dict, osc: OpenSCENARIO, file_path: Pa
     if scene_graph_file is not None:
         links.append(scene_graph_file.attrib['filepath'])
     # register
-    register_links(links_dic, f'{get_name_lower()}:environmentModels', links)
+    register_links(hasManifest_dict, f'{get_name_lower()}:environmentModels', links)
     links.clear()
 
     # trafficSpace
@@ -1393,10 +1387,11 @@ def get_general_meta_data(meta_data_dict: dict, osc: OpenSCENARIO, file_path: Pa
     if road_network is not None:
         links.append(road_network.attrib['filepath'])
     # register
-    register_links(links_dic, f'{get_name_lower()}:trafficSpace', links)
+    register_links(hasManifest_dict, f'{get_name_lower()}:trafficSpace', links)
     links.clear()
 
     ### licence
+    sc_header = osc.scenario_et.find('.//FileHeader')
     if sc_header is not None:
         license = sc_header.find('.//License')
         if license is not None:
@@ -1406,9 +1401,7 @@ def get_general_meta_data(meta_data_dict: dict, osc: OpenSCENARIO, file_path: Pa
             #meta_data_dict['licence_type'] = license.attrib['name']
             if 'resource' in license.attrib:
                 link_data['manifest:url'] = license.attrib['resource']
-            links_data.append(link_data)
-            # not used yet -> should be defined in manifest file
-            # links_dic['general:media'] = link_data
+            links_data.append(link_data)    
 
 
 def convert_env_to_string(env: etree._Element) -> str:
@@ -1429,151 +1422,6 @@ def convert_env_to_string(env: etree._Element) -> str:
     return val
 
 
-def get_osc_meta_data(meta_data_dict: dict, osc: OpenSCENARIO, file_path: Path, default_value: str = "Unknown", unknown_unit: str = "Unknown Unit") -> dict:
-    vehicles = []
-    pedestrians = []
-    misc_objects = []
-    external_object_references = []
-    environ_actions = []
-    controllers = []
-    user_defined_actions = []
-    time_of_days = []
-    time_of_days.extend(osc.scenario_et.findall('.//TimeOfDay'))
-    controllers.extend(osc.scenario_et.findall('.//Controller'))
-    vehicles.extend(osc.scenario_et.findall('.//Vehicle'))
-    pedestrians.extend(osc.scenario_et.findall('.//Pedestrian'))
-    misc_objects.extend(osc.scenario_et.findall('.//MiscObject'))
-    external_object_references.extend(osc.scenario_et.findall('.//ExternalObjectReference'))
-    environ_actions.extend(osc.scenario_et.findall('.//EnvironmentAction'))
-    user_defined_actions.extend(osc.scenario_et.findall('.//UserDefinedAction'))
-    for catalogs in osc.catalogs.values():
-        for catalog in catalogs:
-            vehicles.extend(catalog.findall('.//Vehicle'))
-            pedestrians.extend(catalog.findall('.//Pedestrian'))
-            misc_objects.extend(catalog.findall('.//MiscObject'))
-            external_object_references.extend(catalog.findall('.//ExternalObjectReference'))    
-            environ_actions.extend(catalog.findall('.//EnvironmentAction'))
-            controllers.extend(catalog.findall('.//Controller'))    
-            time_of_days.extend(catalog.findall('.//TimeOfDay'))
-    
-    ### quantity 
-    # participants    
-    quantity_dict = dict()
-    meta_data_dict[f'{get_name_lower()}:hasQuantity'] = quantity_dict
-    number_traffic_objects = 0
-    number_traffic_objects += len(vehicles)
-    number_traffic_objects += len(pedestrians)
-    number_traffic_objects += len(misc_objects)
-    number_traffic_objects += len(external_object_references)
-    quantity_dict[f'{get_name_lower()}:numberTrafficObjects'] = str(number_traffic_objects)
-    #meta_data_dict['temporary_traffic_objects'] = default_value # TODO
-    #meta_data_dict['permanent_traffic_objects'] = default_value # TODO
-    traffic_participant_types = set()
-    if len(pedestrians)> 0:
-        traffic_participant_types.add('pedestrian')
-    for veh in vehicles:
-        traffic_participant_types.add(veh.attrib['vehicleCategory'])
-    #meta_data_dict['traffic_participant_types'] = ', '.join(map(str, traffic_participant_types))
-    #meta_data_dict['scenario:movementDescription'] = default_value
-    controller_names = set()
-    for controller in controllers:
-        if 'controllerType' in controller.attrib:
-            controller_names.add(f'{controller.attrib["controllerType"]}: {controller.attrib["name"]}')
-        else:
-            controller_names.add(controller.attrib['name'])
-    if controllers:            
-        quantity_dict[f'{get_name_lower()}:controllers'] = list(controller_names)
-    
-    
-    ##### content
-    if f'{get_name_lower()}:hasContent' in meta_data_dict:
-        content_dict = meta_data_dict[f'{get_name_lower()}:hasContent']
-    else:
-        content_dict = dict()
-        meta_data_dict[f'{get_name_lower()}:hasContent'] = content_dict
-
-    custom_commands = set()
-    for user_defined_action in user_defined_actions:
-        custom_commands.add(user_defined_action.attrib['type'])
-    if len(custom_commands):
-        content_dict[f'{get_name_lower()}:customCommands'] = ', '.join(map(str, custom_commands))
-
-    ### common data
-    if not file_path.name.endswith('.xosc'): # OpenSCENARIO DSL
-        content_dict[f'{get_name_lower()}:abstractionLevel'] = 'Functional'
-    if osc.scenario_et.find('.//ParameterValueDistributionDefinition') is not None:
-        content_dict[f'{get_name_lower()}:abstractionLevel'] = 'Logical'
-    elif osc.scenario_et.find('.//ScenarioDefinition') is not None:
-        content_dict[f'{get_name_lower()}:abstractionLevel'] = 'Concrete'
-    #else: 
-    #    common_dict['scenario:abstractionLevel'] = default_value
-
-    time_date = default_value
-    if time_of_days is not None and len(time_of_days) > 0:
-        time_date = ''
-        separator = ', '
-        for time_of_day in time_of_days:
-            time_date += time_of_day.attrib['dateTime'] + separator
-        if time_date.endswith(separator):
-            time_date = time_date[:-len(separator)]
-        content_dict[f'{get_name_lower()}:timeDate'] = time_date
-    osc_tags = set()
-    for el in osc.scenario_et.findall('.//'):
-        osc_tags.add(el.tag)
-    content_dict[f'{get_name_lower()}:usedStandardFunctions'] = ', '.join(map(str, osc_tags))
-    #content_dict['scenario:aim'] = default_value      
-
-    # environmental
-    if len(environ_actions) > 0:
-        separator = ', '
-        environment_conditions = set()
-        sun_elevation = set()
-        sun_azimuth = set()
-        wetness = set()
-        for environ_action in environ_actions:
-            env = environ_action.find('.//Environment')
-            if env is not None:
-                environment_conditions += convert_env_to_string + separator
-                sun = env.find('.//Sun')
-                if sun is not None:
-                    sun_elevation.add(sun.attrib['elevation'])
-                    sun_azimuth.add(sun.attrib['azimuth'])
-                precipitation = env.find('.//Precipitation')
-                if precipitation is not None:
-                    wetness.add(precipitation.attrib['precipitationType'])
-        #meta_data_dict['environment_conditions'] = ', '.join(map(str, environment_conditions))
-        #meta_data_dict['sun_elevation'] = ', '.join(map(str, sun_elevation))
-        content_dict[f'{get_name_lower()}:sunAzimuth'] = ', '.join(map(str, sun_azimuth))
-        #meta_data_dict['wetness'] = ', '.join(map(str, wetness))
-
-    # traffic
-    country_specific_sign = set()
-    if osc.map_et is not None:
-        roads = osc.map_et.findall('.//road')
-        if len(roads) > 0:
-            rules = set()
-            for road in roads:
-                if 'rule' in road.attrib:
-                    rules.add(road.attrib['rule'])
-            #meta_data_dict['rule_of_the_road'] = ', '.join(map(str, rules))
-        for signal in osc.map_et.findall('.//signal'):
-            if signal.attrib['country'] != 'OpenDRIVE':
-                country_specific_sign.add(f'{signal.attrib["country"]}:{signal.attrib["type"]}')
-
-    misc_objects = osc.scenario_et.findall('.//MiscObject')
-    country_specific_tp = set()
-    for misc_object in misc_objects:
-        country_specific_tp.add(misc_object.attrib['name'])
-    if len(country_specific_tp):
-        content_dict[f'{get_name_lower()}:countrySpecificTrafficParticipants'] = ', '.join(map(str, country_specific_tp))
-
-    if len(country_specific_sign):
-        content_dict[f'{get_name_lower()}:countrySpecificSign'] = ', '.join(map(str, country_specific_sign))
-
-    ### Data_Sources
-    #meta_data_dict['data_source'] = default_value
-
-
 def get_meta_data(osc: OpenSCENARIO, file_path: Path, default_value: str = "Unknown", unknown_unit: str = "Unknown Unit") -> dict:
     
     meta_data_dict = dict()
@@ -1589,10 +1437,7 @@ def get_meta_data(osc: OpenSCENARIO, file_path: Path, default_value: str = "Unkn
     get_quantity_data(domain_specific_dict, osc, file_path, default_value)
     get_quality_data(domain_specific_dict, osc, file_path, default_value) # TODO currently empty
     # TODO DataSource with sourceType, sourceDescription
-    set_manifest_data(meta_data_dict)
-
-    #get_general_meta_data(meta_data_dict, osc, file_path, default_value, unknown_unit)
-    #get_osc_meta_data(meta_data_dict, osc, file_path, default_value, unknown_unit)
+    set_manifest_data(meta_data_dict, osc)
 
     return meta_data_dict
 
