@@ -10,7 +10,7 @@
 
 
 from datetime import datetime
-from rdflib.namespace import SH
+from rdflib.namespace import SH, XSD
 from rdflib import Graph, URIRef
 from collections import defaultdict
 from pathlib import Path
@@ -18,13 +18,18 @@ from typing import Any, Tuple, Union, Dict, List
 from utils.rdf import get_prefixes, convert_graph_to_dict
 from utils.http import get_url_for_download, download_shacl
 from utils.json import write_json
-from utils.constants import ENVITEDX_URL, GAIAX_TRUST_NS, SHACL_NS, GITHUB_RAW_URL, GAIAX_ONTOLOGY_PART, ENVITEDX_NAME, SHACL_FOLDER_NAME
+from utils.constants import SHACL_NS, SHACL_FOLDER_NAME, GX_NS
 
 import shutil
 import json
 import logging
 import argparse
 import operator
+
+#logging.basicConfig(
+#    level=logging.DEBUG,
+#    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+#)
 
 logger = logging.getLogger(__name__)
 
@@ -62,26 +67,20 @@ def is_required_property(shacl_data):
     return check
 
 
-# check if can have more entries
-# max count <= 1 or min count > 1 or min count 0
 def is_list_property(shacl_data):
-    test = get_value('minCount',shacl_data)
-    if test is not None and test == '0':
-        test = 0 
-    check = check_min_max(shacl_data, f'{SH}qualifiedMaxCount', 1, operator.le)
-    if check is None:
-        check = check_min_max(shacl_data, f'{SH}maxCount', 1, operator.le)
-    if check:
-        return not check
-    
-    check = check_min_max(shacl_data, f'{SH}qualifiedMinCount', 1, operator.ge)
-    if check is None:
-        check = check_min_max(shacl_data, f'{SH}minCount', 1, operator.gt) or check_min_max(shacl_data, f'{SH}minCount', 0, operator.eq)
+    """Return True if the property can have multiple values (i.e., should be represented as a list)."""
 
-    if check is None:
-        return False    
+    # If maxCount/qualifiedMaxCount is explicitly 1, it's NOT a list
+    qmax = get_value("qualifiedMaxCount", shacl_data)
+    if qmax is not None:
+        return int(qmax) != 1
 
-    return check
+    maxc = get_value("maxCount", shacl_data)
+    if maxc is not None:
+        return int(maxc) != 1
+
+    # If no maxCount is defined, SHACL allows multiple values by default -> treat as list
+    return True
 
 
 # get named value
@@ -92,40 +91,60 @@ def get_value(name, values):
             return data
     return None
 
-# Recursively collect all values under the keys 'node' and 'class' and all nested lists/dicts under 'and', 'or' and 'qualifiedValueShape'
-def collect_nodes(shape: Any) -> List[str]:
-    
-    nodes = []
+def collect_nodes(shape: Any, visited: set | None = None) -> List[str]:
+    """Recursively collect all values under sh:node and sh:class and expand referenced shapes."""
+    if visited is None:
+        visited = set()
+
+    nodes: List[str] = []
+
     if isinstance(shape, dict):
         for k, v in shape.items():
+
             # SHACL-node / SHACL-class
             if k.endswith(f"{SHACL_NS}node"):
                 if isinstance(v, str):
                     nodes.append(v)
-                else:
-                    nodes.extend(collect_nodes(v))
 
-            # qualifiedValueShape enthält verschachtelte Shapes
+                    # Try to resolve referenced NodeShape further (e.g., ContentOrOddSceneryShape -> sh:or -> ...)
+                    if v not in visited:
+                        visited.add(v)
+                        ns, _ = get_namespace_name_from_url(v)
+                        if ns:
+                            sh = get_shacl_shape(ns, v)
+                            if sh is not None:
+                                nodes.extend(collect_nodes(sh, visited))
+
+                else:
+                    nodes.extend(collect_nodes(v, visited))
+
+            # qualifiedValueShape contain nested Shapes
             elif k.endswith(f"{SHACL_NS}qualifiedValueShape"):
-                nodes.extend(collect_nodes(v))
+                nodes.extend(collect_nodes(v, visited))
 
             # sh:and / sh:or
             elif k.endswith(f"{SHACL_NS}and") or k.endswith(f"{SHACL_NS}or"):
                 if isinstance(v, list):
                     for item in v:
-                        nodes.extend(collect_nodes(item))
+                        nodes.extend(collect_nodes(item, visited))
+                else:
+                    nodes.extend(collect_nodes(v, visited))
 
-            # property-Array: dort können wiederum qualifiedValueShape o.ä. stehen
+            # property-Array
             elif k.endswith(f"{SHACL_NS}property"):
                 if isinstance(v, list):
                     for prop in v:
-                        nodes.extend(collect_nodes(prop))
+                        nodes.extend(collect_nodes(prop, visited))
+                else:
+                    nodes.extend(collect_nodes(v, visited))
 
     elif isinstance(shape, list):
         for item in shape:
-            nodes.extend(collect_nodes(item))
+            nodes.extend(collect_nodes(item, visited))
+
     elif isinstance(shape, str):
         nodes.append(shape)
+
     return nodes
 
 
@@ -143,17 +162,22 @@ def get_node_data(values: Dict[str, Any]) -> Tuple[str, List[str]]:
 def get_value_type(key : str, shacl_values : dict) -> str:
     literal_constraints = [
         "datatype", "pattern", "in",
-        "minLength", "maxLength",
-        "length",
+        "minLength", "maxLength", "length",
         "minInclusive", "maxInclusive",
         "minExclusive", "maxExclusive",
         "languageIn"
     ]
+
+    # Explizit: sh:nodeKind sh:IRI → @id
+    node_kind = get_value("nodeKind", shacl_values)
+    if node_kind and str(node_kind).endswith("IRI"):
+        return "@id"
+        
     value_key = (
         "@value"
         if any(get_value(name, shacl_values) for name in literal_constraints)
         else "@id"
-    )    
+    )  
 
     # set value_key
     if key == 'gx:license' and value_key != "@value":
@@ -175,40 +199,59 @@ def get_value_type(key : str, shacl_values : dict) -> str:
 #      "@type": "manifest:AccessRole",
 #      "@id": "envited-x:isPublic"
 # }
-def create_property(namespace : str, property_name : str, value, datatype: str, name: str, jsonLD_dict: dict, shacl_values : dict, level : int):
+def create_property(namespace: str, property_name: str, value, datatype, name, 
+                    jsonLD_dict: dict, shacl_values: dict, level: int):
+    """
+    Creates a JSON-LD property. Handles xsd:string specifically to avoid 
+    validation mismatches with SHACL 'sh:in' lists.
+    """
     key = create_namespace_name(namespace, property_name)
-    # debug
-    if key == 'manifest:filename':
-        test = 0
-
     value_key = get_value_type(key, shacl_values)
+
+    # Resolve class type from SHACL if not explicitly provided
+    if not name:
+        name = class_types_from_shacl(shacl_values)
+
+    assigned_type = name[0] if isinstance(name, list) and len(name) > 0 else name
 
     if isinstance(value, list):
         if value_key == '@id':
             properties = []
             for list_value in value:
-                properties.append({ value_key : list_value})
+                item = {value_key: list_value}
+                if assigned_type:
+                    item["@type"] = assigned_type
+                properties.append(item)
             jsonLD_dict[key] = properties
-        else: 
+        else:
+            # For simple lists of literals
             jsonLD_dict[key] = value
     else:
+        # Handle single values
         if datatype:
-            if datatype == 'string':
+            # Check if it is a standard string type
+            is_string = datatype in ["string", "xsd:string", str(XSD.string)]
+            
+            if is_string:
+                # IMPORTANT: Use a plain value for strings. 
+                # This matches the 'sh:in' literals in SHACL and avoids the InConstraintComponent error.
                 jsonLD_dict[key] = value
-            else: # literal
-                jsonLD_dict[key] = {
-                    '@type' : f'xsd:{datatype}', 
-                    value_key : value} # value
-        elif name: # id-Property
-            jsonLD_dict[key] = {
-                '@type' : name, 
-                value_key : value} # id       
+            else:
+                # Use explicit @type for non-string types (float, int, etc.)
+                dtype = f"xsd:{datatype}" if ":" not in datatype else datatype
+                jsonLD_dict[key] = {"@type": dtype, value_key: value}
+        
+        elif assigned_type and value_key == "@id":
+            # Set @type for IRI references (to satisfy sh:class)
+            jsonLD_dict[key] = {"@type": assigned_type, value_key: value}
+        
         else:
-            jsonLD_dict[key] = {value_key : value}
-            class_value = get_value('class', shacl_values)
-            if class_value:
-                jsonLD_dict[key]['@type'] = f'{namespace}:{get_name_from_url(class_value)}'
-       
+            # Default fallback: plain value or simple IRI object
+            if value_key == "@id" and isinstance(value, str):
+                 jsonLD_dict[key] = {value_key: value}
+            else:
+                 jsonLD_dict[key] = value
+
     logger.debug(f'{" " * level * 3}add prop {key}')
 
 
@@ -262,10 +305,6 @@ def create_node(namespace : str, shapename : str, type: str, lsonLD: Union[Dict,
 
     key = create_namespace_name(namespace, shapename)
 
-    # debug
-    if key == 'hdmap:hasManifest':
-        test = 0
-
     if is_list:
         lsonLD.append(node)
     else:
@@ -290,47 +329,142 @@ def get_shacl_shape(namespace : str, shapename : str) -> list:
             return shacl_graph_data['dict'][shapename]
     
     return None
+# --- Add this helper near register_key (e.g., above it) ---
+def _inject_manifest_mapping_candidates(nodes: list | None) -> list:
+    """Add richer Link shapes for mapping hasManifest fields (even if not required by the sh:or)."""
+    if nodes is None:
+        nodes = []
+    # Ensure list
+    if not isinstance(nodes, list):
+        nodes = list(nodes)
 
-# register key + value to json ld
-def register_key(key : str, values : dict, meta_data: dict, nodes : list, namespace: str, shapename: str, path: str, is_required: bool, lsonLD_dict: dict, level : int):
+    # These URIs exist in your loaded SHACL set (manifest + envited-x)
+    extra = [
+        "https://w3id.org/ascs-ev/envited-x/manifest/v5/LinkShape",
+        "https://w3id.org/ascs-ev/envited-x/envited-x/v3/ExtendedLinkShape",
+    ]
+
+    # Avoid duplicates
+    for uri in extra:
+        if uri not in nodes:
+            nodes.append(uri)
+
+    return nodes
+
+def class_types_from_shacl(shacl_values: dict) -> Union[str, None]:
+    """
+    Extracts the expected rdf:class from the SHACL property definition.
+    Used to populate the @type field for IRI references.
+    """
+    class_iri = get_value("class", shacl_values)
+    if class_iri:
+        ns, name = get_namespace_name_from_url(class_iri)
+        return create_namespace_name(ns, name)
+    return None
+
+
+def node_uri(node: Any) -> str:
+    """Extract the URI from a node candidate (str or dict wrapper)."""
+    if isinstance(node, dict):
+        return list(node.keys())[0]
+    return str(node)
+
+def node_shape_priority(node: Any) -> int:
+    """Higher value = process earlier. Prefer rich shapes like manifest:LinkShape."""
+    u = node_uri(node)
+
+    if u.endswith("/LinkShape") or u.endswith("LinkShape"):
+        return 100
+    if u.endswith("ManifestLinkReferenceShape"):
+        return 80
+    if u.endswith("ExtendedLinkShape"):
+        return 10
+    return 50
+def score_shape_match(shape_properties: list, data_dict: dict) -> int:
+    """
+    Calculates how well a SHACL shape matches the provided data.
+    Counts the number of keys in the data that are defined as properties in the shape.
+    """
+    if not isinstance(data_dict, dict):
+        return 0
+    
+    score = 0
+    data_keys = set(data_dict.keys())
+    
+    for prop in shape_properties:
+        path = get_value("path", prop)
+        if path:
+            ns, ln = get_namespace_name_from_url(path)
+            # Create the key as it appears in the source JSON (e.g., "gx:name")
+            prop_key = create_namespace_name(ns, ln)
+            if prop_key in data_keys:
+                score += 1
+    return score
+
+def register_key(key: str, values: dict, meta_data: dict, nodes: list, namespace: str, 
+                 shapename: str, path: str, is_required: bool, jsonLD_dict: dict, level: int):
+    """
+    Registers a key and processes its content based on SHACL shapes.
+    Includes logic to select the best matching shape for 'sh:or' constraints.
+    """
     if key in meta_data:
         if nodes is None:
-            # register as property
+            # Handle leaf properties (literals or simple IRIs)
             namespace_sub, name_subtype = get_namespace_name_from_url(path)
             type_url = get_value("datatype", values)
+            
             if type_url:
-                namespace_type, type = get_namespace_name_from_url(type_url)
-                create_property(namespace, shapename, meta_data[key], type, None, lsonLD_dict, values, level)
-                del meta_data[key]
+                namespace_type, dt = get_namespace_name_from_url(type_url)
+                create_property(namespace, shapename, meta_data[key], dt, None, jsonLD_dict, values, level)
             else:
-                name_url = get_value("name", values)
-                name = get_name_from_url(name_url) if name_url else None
-                property_name = create_namespace_name(namespace, name) if name is not None else None
-                create_property(namespace, shapename, meta_data[key], None, property_name, lsonLD_dict, values, level)
-                del meta_data[key]
+                # Get class hints from sh:class if available
+                type_hints = class_types_from_shacl(values)
+                create_property(namespace, shapename, meta_data[key], None, type_hints, jsonLD_dict, values, level)
+            
+            del meta_data[key]
         else:
-            created_node = None
+            # Handle nested objects (Nodes)
+            if key == "hdmap:hasManifest":
+                nodes = _inject_manifest_mapping_candidates(nodes)
+
+            best_node = None
+            max_score = -1
+            
+            # Evaluate all possible shapes to find the best match for the input data
             for node in nodes:
-                if key not in meta_data:
-                    continue # already filled
-                ulr = node if isinstance(node, str) else list(node)[0]
-                namespace_sub, type = get_namespace_name_from_url(ulr)
-                shape_value_sub = get_shacl_shape(namespace_sub, str(ulr))
-                if shape_value_sub is None:
-                    continue
+                uri = node if isinstance(node, str) else list(node)[0]
+                ns_sub, type_name = get_namespace_name_from_url(uri)
+                shape_val = get_shacl_shape(ns_sub, str(uri))
                 
-                if created_node is None:
-                    used_namespace, name_subtype = get_namespace_name_from_url(path)
-                    type_without_shape = type.replace('Shape', '')
-                    type_str = create_namespace_name(namespace_sub, 'Link' if shapename == 'hasManifest' else type_without_shape) # HACK to support "@type": "manifest:Link",
-                    created_node = create_node(used_namespace, shapename, type_str, lsonLD_dict, False, level)
-                # only subnodes / properties of further nodes are registered
+                if shape_val:
+                    # Score based on property match
+                    match_score = score_shape_match(shape_val, meta_data[key])
+                    # Secondary priority based on configuration
+                    priority = node_shape_priority(uri)
+                    
+                    # Combined score (higher match count wins, then priority)
+                    final_score = (match_score * 1000) + priority
+                    
+                    if final_score > max_score:
+                        max_score = final_score
+                        best_node = (uri, ns_sub, type_name, shape_val)
 
-                # go deeper
-                nodes_sub = list(node.values())[0] if isinstance(node, dict) else None
-                lsonLD_node = created_node
+            if best_node:
+                uri, ns_sub, type_name, shape_val = best_node
+                used_ns, _ = get_namespace_name_from_url(path)
+                
+                # Determine the LD-type string (e.g., manifest:Link or hdmap:ResourceDescription)
+                type_without_shape = type_name.replace('Shape', '')
+                # Special handling for Link typing
+                if "Link" in type_name:
+                    type_str = "manifest:Link" if "manifest" in config.JSON_OUT["@context"] else "envited-x:Link"
+                else:
+                    type_str = create_namespace_name(ns_sub, type_without_shape)
 
-                process_node(shape_value_sub, meta_data[key], nodes_sub, lsonLD_node, level + 1)
+                created_node = create_node(used_ns, shapename, type_str, jsonLD_dict, False, level)
+                # Recursively process the nested structure
+                process_node(shape_val, meta_data[key], None, created_node, level + 1)
+                
                 if not meta_data[key]:
                     del meta_data[key]
 
@@ -339,10 +473,14 @@ def register_key(key : str, values : dict, meta_data: dict, nodes : list, namesp
         test = 0
 
 # register list of key + value to json ld
-def register_list(key : str, values : dict, meta_data: dict, nodes : list, namespace: str, shapename: str, path: str, is_required: bool, lsonLD_dict: dict, level : int):
+def register_list(key: str, values: dict, meta_data: dict, nodes: list,
+                  namespace: str, shapename: str, path: str,
+                  is_required: bool, lsonLD_dict: dict, level: int):
+
     if key in meta_data:
+        # Normalize single objects to a list of one element
         if not isinstance(meta_data[key], list):
-            raise ValueError(f'meta_data of {key} should be a list!')
+            meta_data[key] = [meta_data[key]]
 
         created_nodes = []
         for sub_meta_data in meta_data[key]:
@@ -353,20 +491,19 @@ def register_list(key : str, values : dict, meta_data: dict, nodes : list, names
                     shape_value_sub = get_shacl_shape(namespace_sub, str(node))
                     if shape_value_sub is None:
                         continue
-                    
+
                     if created_node is None:
                         type_without_shape = type.replace('Shape', '')
                         type_str = create_namespace_name(namespace_sub, type_without_shape)
                         created_node = create_node(namespace_sub, shapename, type_str, created_nodes, True, level)
                     # only subnodes / properties of further nodes are registered
-
-                    # go deeper
-                    process_node(shape_value_sub, sub_meta_data, None, created_node, level + 1)   
+                    # Go deeper
+                    process_node(shape_value_sub, sub_meta_data, None, created_node, level + 1)
             else:
-                # register as property
-                register_key(key, values, meta_data, None, namespace, shapename, path, is_required, lsonLD_dict, level) 
+                # Register as property (list of literals case)
+                register_key(key, values, meta_data, None, namespace, shapename, path, is_required, lsonLD_dict, level)
 
-        if key in meta_data and all(not elem for elem in meta_data[key]):   
+        if key in meta_data and all(not elem for elem in meta_data[key]):
             del meta_data[key]
 
         if created_nodes:
@@ -374,18 +511,77 @@ def register_list(key : str, values : dict, meta_data: dict, nodes : list, names
 
     elif is_required:
         # TODO write empty node
-        test = 0        
+        test = 0   
+
+# Comments in English as requested
+def merge_property_constraints(shape_value: list[dict]) -> list[dict]:
+    """Merge multiple SHACL property constraints that share the same sh:path into one dict."""
+    by_path: dict[str, dict] = {}
+
+    for prop in shape_value:
+        path = get_value("path", prop)
+        if path is None:
+            continue
+
+        if path not in by_path:
+            by_path[path] = dict(prop)
+            continue
+
+        merged = by_path[path]
+
+        # Merge minCount/maxCount: keep the most restrictive when present
+        for k in ["minCount", "maxCount", "qualifiedMaxCount", "qualifiedMinCount"]:
+            v_new = get_value(k.replace("Count", ""), prop) if False else prop.get(f"{SHACL_NS}{k}") or prop.get(k)  # keep simple if your keys are full URIs
+            v_old = merged.get(f"{SHACL_NS}{k}") or merged.get(k)
+
+            # Prefer defined values; for minCount take max, for maxCount take min
+            if v_new is None:
+                continue
+            if v_old is None:
+                merged[f"{SHACL_NS}{k}"] = v_new
+            else:
+                try:
+                    if k.endswith("minCount"):
+                        merged[f"{SHACL_NS}{k}"] = str(max(int(v_old), int(v_new)))
+                    elif k.endswith("maxCount"):
+                        merged[f"{SHACL_NS}{k}"] = str(min(int(v_old), int(v_new)))
+                    else:
+                        merged[f"{SHACL_NS}{k}"] = v_old
+                except Exception:
+                    merged[f"{SHACL_NS}{k}"] = v_old
+
+        # Merge sh:class: keep the more specific one if you can, otherwise keep both
+        # Easiest safe behavior: if there are two, store as list (AND semantics)
+        cls_old = merged.get(str(SH["class"]))
+        cls_new = prop.get(str(SH["class"]))
+        if cls_new:
+            if not cls_old:
+                merged[str(SH["class"])] = cls_new
+            else:
+                # Normalize to list
+                if not isinstance(cls_old, list):
+                    cls_old = [cls_old]
+                if cls_new not in cls_old:
+                    cls_old.append(cls_new)
+                merged[str(SH["class"])] = cls_old
+
+    return list(by_path.values())
 
 # process node with all props and sub nodes
 def process_node(shape_value: list, meta_data: Union[Dict, List], nodes_in: list, lsonLD_dict: dict, level : int):
     if not isinstance(shape_value, list):
-        raise ValueError(f'shape_value should be a list!')
-    
+        raise ValueError('shape_value should be a list!')
+        
+    # Merge duplicate constraints that share the same sh:path (e.g., hasCategory, iri)
+    shape_value = merge_property_constraints(shape_value)
+            
     handle_node =[]
     for values in shape_value:
         path_data = get_value("path", values)     
-        if path_data == f'{ENVITEDX_URL}/manifest/v5/ontology#hasArtifacts':
-            test = 0
+        # Skip shape-level constraints that do not represent a property (no sh:path)
+        if path_data is None:
+            continue
+
         path, nodes = get_node_data(values)           
         namespace, shapename = get_namespace_name_from_url(path)
         key = create_namespace_name(namespace, shapename)
@@ -399,6 +595,11 @@ def process_node(shape_value: list, meta_data: Union[Dict, List], nodes_in: list
 
         is_required = is_required_property(values)
         is_list = is_list_property(values)
+        # If the input value is NOT a list, serialize it as a single value
+        # even if SHACL allows multiple values (maxCount missing).
+        if key in meta_data and not isinstance(meta_data[key], list):
+            is_list = False
+            
         if is_list:
             if not key in handle_node: # register key only one time : e.g hasArtifacts exist for multiple types via sh:hasValue envited-x:isSimulationData
                 register_list(key, values, meta_data, nodes, namespace, shapename, path, is_required, lsonLD_dict, level)
@@ -452,9 +653,9 @@ def getPrefixes(shacl_graph: Graph) -> dict:
 def process_graph(schema_namespace, schema_name, meta_data):
     config.JSON_OUT = defaultdict(list)
     # get shacl for asset
-    if schema_namespace in config.SHACLS:        
+    if schema_namespace.lower() in config.SHACLS:        
 
-        shacl_graph_data = config.SHACLS[schema_namespace]
+        shacl_graph_data = config.SHACLS[schema_namespace.lower()]
 
         config.JSON_OUT['@context'] = shacl_graph_data['prefixes']
         
@@ -466,13 +667,10 @@ def process_graph(schema_namespace, schema_name, meta_data):
             raise ValueError(f'did not found in extraced data!')
 
         # add type
-        name = get_name_from_url(schema_name)
-        name = name.replace('Shape', '')
-        shacl_namespace = 'manifest' if schema_namespace == ENVITEDX_NAME and name != 'Manifest' else schema_namespace
-        config.JSON_OUT['@type'] = create_namespace_name(shacl_namespace, name)
+        config.JSON_OUT['@type'] = create_namespace_name(schema_namespace.lower(), schema_namespace)
 
         # get first element of main shacl        
-        shape_value = get_shacl_shape(schema_namespace, schema_name)
+        shape_value = get_shacl_shape(schema_namespace.lower(), f'{schema_name}/{schema_namespace}Shape')
         if not shape_value:
             raise ValueError(f'did not found {schema_name} in shacl {schema_namespace}!')
 
@@ -484,12 +682,6 @@ def process_graph(schema_namespace, schema_name, meta_data):
                 logger.warning("non-transferring values:")
                 logger.warning(json.dumps(meta_data, indent=4, ensure_ascii=False))
 
-        # TODO: hmm, we get valdation errors for manifest if we have envited-x prefix
-        if ENVITEDX_NAME in config.JSON_OUT['@context']:
-            del config.JSON_OUT['@context'][ENVITEDX_NAME]  
-        # remove unused rfd prefix
-        if 'rdf' in config.JSON_OUT['@context']:
-            del config.JSON_OUT['@context']['rdf']        
     else:
         logger.error(f'Cannot find ontology {schema_namespace}')
 
@@ -504,16 +696,10 @@ def register_shacl(url_path : str, shacl_name: str, shacls):
             graph = Graph()
             graph = graph.parse(local_file_path, format='turtle')
             
-            is_gaiax_ontology = True if str(url_path).startswith(f"{GITHUB_RAW_URL}{GAIAX_ONTOLOGY_PART}") else False
-
             graph_data = {}
             graph_data['graph'] = graph
-            graph_data['dict'] = convert_graph_to_dict(graph, is_gaiax_ontology)        
+            graph_data['dict'] = convert_graph_to_dict(graph, not str(url_path).startswith("http://www.w3.org/ns"))        
             graph_data['prefixes'] = getPrefixes(graph)
-
-            # DEBUG write as json
-            debug_json_file = local_file_path.with_suffix(".json")
-            write_json(debug_json_file, graph_data['dict'])
 
             shacls[shacl_name] = graph_data
     except:
@@ -542,22 +728,22 @@ def main():
         shacl_folder = Path(SHACL_FOLDER_NAME)
         if shacl_folder.exists():
             shutil.rmtree(shacl_folder)
-    shacl_namespace, shacl_name = get_namespace(claim_data['shacl_type'])    
-    del claim_data['shacl_type']
+    shacl_namespace = claim_data['shacl_schema']
+    shacl_url = claim_data['shacl_url'] 
+    del claim_data['shacl_schema']
+    del claim_data['shacl_url']
 
     ontology_path = args.ontology + '/'
-    ontology_path = ontology_path.format(schema=shacl_namespace)
+    ontology_path = ontology_path.format(schema=shacl_namespace.lower())
     shacl_definitions = {}
-    url_path = f'{ontology_path}{shacl_namespace}/'
-    new_url_path = get_url_for_download(url_path)
-    register_shacl(new_url_path, shacl_namespace, shacl_definitions)
+    new_url_path = get_url_for_download(ontology_path)
+    register_shacl(new_url_path, shacl_namespace.lower(), shacl_definitions)
 
     # get gaiaX/envited prefixes
-    shacl_data = shacl_definitions[shacl_namespace]
+    shacl_data = shacl_definitions[shacl_namespace.lower()]
     prefixes = get_prefixes(shacl_data['graph'])
     # add special prefixes
     prefixes["sh"] = SHACL_NS
-    prefixes["gx"] = GAIAX_TRUST_NS
 
     # and download additional shacls
     for key, value in prefixes.items():
@@ -568,12 +754,13 @@ def main():
     
     # fill data in shacl structure
     try:
-        process_graph(shacl_namespace, shacl_name, claim_data)
+        process_graph(shacl_namespace, shacl_url, claim_data)
     except:
         raise Exception(f'Could not convert to json')
         
     # write claims as json id to output    
     output_path = Path(args.out)
+    config.JSON_OUT['@context']["gx"] = GX_NS
     write_json(output_path, config.JSON_OUT, indentValue= 2)
     logger.info(f'write json ld to {output_path}')
 

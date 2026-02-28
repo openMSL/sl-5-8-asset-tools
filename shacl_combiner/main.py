@@ -1,6 +1,6 @@
 from pathlib import Path
 from utils.rdf import load_jsonld_file, get_shacl_from_json_graph
-from utils.constants import ENVITEDX_URL, ENVITEDX_NAME
+from utils.constants import ENVITED_URL, ENVITEDX_NAME
 
 import argparse
 import logging
@@ -18,7 +18,7 @@ def main():
     data_graph = load_jsonld_file(json_LD_file)  
 
     # load shacls
-    prefixes_to_add = {ENVITEDX_NAME : f'{ENVITEDX_URL}{ENVITEDX_NAME}/v2/ontology#'}
+    prefixes_to_add = {ENVITEDX_NAME : f'{ENVITED_URL}{ENVITEDX_NAME}/v2/ontology#'}
     shacl_graph = get_shacl_from_json_graph(data_graph, prefixes_to_add)
 
     output_path = Path(args.out)

@@ -2,16 +2,15 @@ from sympy import symbols, solveset
 from lxml import etree
 from pathlib import Path
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, Optional, Sequence
 from ..extractor import get_adress_from_osm, proj4_to_epsg, convert_to_LatLon
 from utils.ids import create_uuid
-from utils.constants import ENVITEDX_URL
+from utils.constants import ENVITED_URL, ENVITEDX_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION, ODR_SCHEMA_VERSION
 
+import os
 import logging
 
 logger = logging.getLogger(__name__)
-
-ODR_SCHEMA_VERSION = 'v4'
 
 # convert container to str
 def container_in_str(data: any) -> str:
@@ -31,6 +30,92 @@ def convert_date_time(date_string : str, supported_syntax : list[str]) -> str:
             continue
     return None
 
+def _proj_search_dirs() -> list[Path]:
+    """Build a list of directories where PROJ grid files are commonly stored."""
+    dirs: list[Path] = [Path.cwd()]
+
+    # Environment variables used by PROJ / pyproj
+    for var in ("PROJ_DATA", "PROJ_LIB"):
+        val = os.environ.get(var, "")
+        if val:
+            for part in val.split(os.pathsep):
+                if part.strip():
+                    dirs.append(Path(part))
+
+    # pyproj's bundled/provided data directory (if available)
+    try:
+        from pyproj.datadir import get_data_dir  # type: ignore
+
+        data_dir = get_data_dir()
+        if data_dir:
+            dirs.append(Path(data_dir))
+    except Exception:
+        # If pyproj isn't available or get_data_dir fails, just skip it.
+        pass
+
+    # De-duplicate while preserving order
+    seen = set()
+    unique: list[Path] = []
+    for d in dirs:
+        try:
+            resolved = d.resolve()
+        except Exception:
+            resolved = d
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(d)
+    return unique
+
+
+def _find_grid_file(filename: str, search_dirs: Sequence[Path]) -> Optional[Path]:
+    """Try to locate a grid file by checking absolute/relative and common PROJ data dirs."""
+    name = filename.strip()
+    if not name or name.lower() in {"null", "none"}:
+        return None
+
+    p = Path(name)
+
+    # Absolute path (or relative as given)
+    if p.is_absolute() and p.exists():
+        return p
+    if p.exists():
+        return p
+
+    # Search in known dirs
+    for d in search_dirs:
+        candidate = d / name
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
+def strip_missing_geoidgrids(proj4: str) -> str:
+    """
+    Remove '+geoidgrids=...' from a PROJ string if referenced .gtx (or other grid) files
+    are not available on disk.
+    """
+    tokens = proj4.split()
+    idx = next((i for i, t in enumerate(tokens) if t.startswith("+geoidgrids=")), None)
+    if idx is None:
+        return proj4
+
+    value = tokens[idx].split("=", 1)[1].strip()
+    if not value:
+        # Empty geoidgrids -> remove it
+        del tokens[idx]
+        return " ".join(tokens)
+
+    grids = [g.strip() for g in value.split(",") if g.strip()]
+    search_dirs = _proj_search_dirs()
+
+    # If any referenced grid is missing, drop the whole parameter (as requested)
+    missing = [g for g in grids if _find_grid_file(g, search_dirs) is None]
+    if missing:
+        del tokens[idx]
+        return " ".join(tokens)
+
+    return proj4
 
 
 #######################################################################################################################
@@ -92,11 +177,8 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     # read xml and create a list with all lengths
     list_of_lengths = [float(road.attrib['length']) for road in root.findall('.//road')] if check_data(root,".//road","length") else default_value
 
-    # search for needed information
-    #meta_data_dict['vendor_name'] = data['header']['vendor'] if check_data(root, ".//header","vendor") else default_value
-    # convert to datetime object
-    hasDataResource_dict = dict()
-    #general_data_dict = dict()
+    # fill data resource
+    hasResourceDescription_dict = dict()
 
     
     # parse string of georeference
@@ -162,12 +244,13 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     # constant meta data
 
     # if it is a xodr file it describes road network    
-    hasDataResource_dict['gx:name'] = file_path.name.replace('.xodr', '')
-    hasDataResource_dict['gx:description'] = "road network"
+    hasResourceDescription_dict['gx:name'] = file_path.name.replace('.xodr', '')
+    hasResourceDescription_dict['gx:description'] = "road network"
 
     # bounding
     georeference_dict = dict()
     if geo_reference:
+        geo_reference_cleaned = strip_missing_geoidgrids(geo_reference)
         projection_location_dict = dict()
         georeference_dict['georeference:hasProjectLocation'] = projection_location_dict
         bounding_dict = dict()
@@ -175,8 +258,8 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
         bounding_dict['xMax'] = float(root.find('.//header').attrib['east']) if check_data(root, ".//header", "east") else unknown_unit
         bounding_dict['yMin'] = float(root.find('.//header').attrib['south']) if check_data(root, ".//header", "south") else unknown_unit
         bounding_dict['yMax'] = float(root.find('.//header').attrib['north']) if check_data(root, ".//header", "north") else unknown_unit    
-        bounding_dict['yMin'], bounding_dict['xMin'] = convert_to_LatLon(bounding_dict['xMin'], bounding_dict['yMin'], geo_reference)
-        bounding_dict['yMax'], bounding_dict['xMax'] = convert_to_LatLon(bounding_dict['xMax'], bounding_dict['yMax'], geo_reference)
+        bounding_dict['yMin'], bounding_dict['xMin'] = convert_to_LatLon(bounding_dict['xMin'], bounding_dict['yMin'], geo_reference_cleaned)
+        bounding_dict['yMax'], bounding_dict['xMax'] = convert_to_LatLon(bounding_dict['xMax'], bounding_dict['yMax'], geo_reference_cleaned)
         bounding_data_dict = dict()
         bounding_data_dict['georeference:xMin'] = str(bounding_dict['xMin'])
         bounding_data_dict['georeference:yMin'] = str(bounding_dict['yMin'])
@@ -185,7 +268,7 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
         projection_location_dict['georeference:hasBoundingBox'] = bounding_data_dict
 
         # get 0,0 point in unit and convert to lat lon
-        lat, lon = convert_to_LatLon(0.0, 0.0, geo_reference)
+        lat, lon = convert_to_LatLon(0.0, 0.0, geo_reference_cleaned)
         origin_dict = dict()
         origin_dict['georeference:lat'] = str(lat)
         origin_dict['georeference:lon'] = str(lon)
@@ -207,15 +290,16 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     #meta_data_dict['range_of_modeling'] = 0.0 #"Wie ermittelt man das?"
     # TODO get from traffic rule
     #content_dict['hdmap:trafficDirection'] = ""
-    #content_dict['hdmap:levelOfDetail'] = ""
+    
     #projection_location_dict['georeference:relationOrArea'] = ""
     #projection_location_dict['georeference:relationOrArea'] = ""
     
     
     meta_data_dict = dict()
     meta_data_dict['did'] = 'did:web:registry.gaia-x.eu:HdMap:' + create_uuid()
-    meta_data_dict['shacl_type'] = f'{get_schema_name().lower()}::{get_namespace()}#{get_schema_name()}Shape'
-    meta_data_dict[f'{get_schema_name().lower()}:hasDataResource'] = hasDataResource_dict    
+    meta_data_dict['shacl_schema'] = get_schema_name()
+    meta_data_dict['shacl_url'] = get_namespace()
+    meta_data_dict[f'{get_schema_name().lower()}:hasResourceDescription'] = hasResourceDescription_dict
 
     try:        
         supported_date_syntax = [
@@ -231,28 +315,28 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     except:
         logger.error('cannot extract date')    
 
-    hasDataResourceExtension_dict = dict()
-    hasDataResourceExtension_dict[f'{get_schema_name().lower()}:hasFormat'] = format_dict
-    hasDataResourceExtension_dict[f'{get_schema_name().lower()}:hasContent'] = content_dict
-    hasDataResourceExtension_dict[f'{get_schema_name().lower()}:hasQuantity'] = quantity_dict
-    hasDataResourceExtension_dict[f'{get_schema_name().lower()}:hasQuality'] = {}
-    hasDataResourceExtension_dict[f'{get_schema_name().lower()}:hasDataSource'] = {}
-    hasDataResourceExtension_dict[f'{get_schema_name().lower()}:hasGeoreference'] = georeference_dict    
-    meta_data_dict[f'{get_schema_name().lower()}:hasDataResourceExtension'] = hasDataResourceExtension_dict
+    hasDomainSpecification_dict = dict()
+    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasFormat'] = format_dict
+    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasContent'] = content_dict
+    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasQuantity'] = quantity_dict
+    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasQuality'] = {}
+    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasDataSource'] = {}
+    if geo_reference:
+        hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasGeoreference'] = georeference_dict    
+    meta_data_dict[f'{get_schema_name().lower()}:hasDomainSpecification'] = hasDomainSpecification_dict
 
-    hasManifest_dict = dict() # TODO
+    hasManifest_dict = dict()
     hasManifest_dict['manifest:hasAccessRole'] = 'envited-x:isPublic'
     hasManifest_dict['manifest:hasCategory'] = 'envited-x:isManifest'
-    hasManifest_dict['manifest:hasFileMetadata'] = { # TODO
-        "manifest:filename": "manifest_reference.json",
-        "manifest:filePath": "./manifest_reference.json",
+    hasManifest_dict['manifest:hasFileMetadata'] = {
+        "manifest:filePath": "./base-references/hdmap_manifest_reference.json",
         "manifest:mimeType": "application/ld+json"
     }
-    hasManifest_dict['manifest:iri'] = 'did:web:registry.gaia-x.eu:Manifest:uuid'
+    hasManifest_dict['manifest:iri'] = 'did:web:test.fixture.net:Manifest:test_hdmap_manifest_reference'
     hasManifest_dict['skos:note'] = 'Ensure that manifest_reference.json contains all required categories: simulationData, documentation, metadata, media.'
     hasManifest_dict['sh:conformsTo'] = [
-        "https://ontologies.envited-x.net/envited-x/v2/ontology#",
-        "https://ontologies.envited-x.net/manifest/v5/ontology#"
+        f"https://w3id.org/ascs-ev/envited-x/envited-x/{ENVITEDX_SCHEMA_VERSION}/",
+        f"https://w3id.org/ascs-ev/envited-x/manifest/{MANIFEST_SCHEMA_VERSION}/"
     ]
     meta_data_dict[f'{get_schema_name().lower()}:hasManifest'] = hasManifest_dict
 
@@ -438,4 +522,4 @@ def get_schema_name() -> str:
     return 'HdMap'
 
 def get_namespace() -> str:
-    return f'{ENVITEDX_URL}{get_schema_name().lower()}/{ODR_SCHEMA_VERSION}/ontology'
+    return f'{ENVITED_URL}{get_schema_name().lower()}/{ODR_SCHEMA_VERSION}'

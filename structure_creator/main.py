@@ -8,7 +8,7 @@ from utils.http import url_from_path
 from utils.ids import create_uuid
 from utils.http import is_url, download_or_get_file
 from utils.json import write_json
-from utils.constants import ENVITEDX_URL, ENVITEDX_NAME, GITHUB_RAW_URL, GAIAX_ONTOLOGY_PART, DID_ADRESS
+from utils.constants import ENVITED_URL, MANIFEST_SCHEMA_VERSION, GITHUB_RAW_URL, GAIAX_ONTOLOGY_PART, DID_ADRESS
 
 import argparse
 import json
@@ -234,8 +234,7 @@ def create_file_data(filename: Path, abs_data_path: Path, data_type: str, role: 
         file_meta_data['manifest:filePath'] = url_from_path(filename)
         file_meta_data['manifest:mimeType'] = get_mime_type(data_type, '')
     else:        
-        relative_path = filename.relative_to(abs_data_path)        
-        file_meta_data['manifest:filename'] = relative_path.name            
+        relative_path = filename.relative_to(abs_data_path)         
 
         if os.path.exists(filename) and data_type != 'isManifest':
             file_meta_data['manifest:fileSize'] =  os.path.getsize(filename.as_posix()) 
@@ -322,7 +321,7 @@ def register_folder(data: list, user_data: dict, path: Path, abs_data_path: Path
         if category == 'isMetadata':
             file_entry['manifest:iri'] = asset_info['did']
             file_entry['skos:note'] = f'This is the domain metadata for a {asset_data["type"]}.'
-            file_entry['sh:conformsTo'] = [f'{ENVITEDX_URL}{asset_data["classname"]}/{SCHEMA_MANIFEST_VERSION}/ontology']
+            file_entry['sh:conformsTo'] = [f'{ENVITED_URL}{asset_data["classname"]}/{SCHEMA_MANIFEST_VERSION}/ontology']
                      
         data.append(file_entry)
 
@@ -392,12 +391,13 @@ def get_name_description_from_domainMetadata(filename, type):
     with open(filename, "r", encoding="utf-8") as file:
         data = json.load(file)
 
-    name = safe_get(data, [f"{type}:hasDataResource", "gx:name"])
+    name = safe_get(data, [f"{type}:hasResourceDescription", "gx:name"])
     if not name:
-        logger.error(f'name : {type}:hasDataResource -> gx:name not exists in {filename}')
-    description = safe_get(data, [f"{type}:hasDataResource", "gx:description"])
+        logger.error(f'name : {type}:hasResourceDescription -> gx:name not exists in {filename}')
+        
+    description = safe_get(data, [f"{type}:hasResourceDescription", "gx:description"])
     if not description:
-        logger.error(f'description: {type}:hasDataResource -> gx:description not exists in {filename}')
+        logger.error(f'description: {type}:hasResourceDescription -> gx:description not exists in {filename}')
 
     return name, description
 
@@ -518,14 +518,15 @@ def main():
         # copy        
         shutil.copy(source, dest)
 
-        if 'license_type' in file:
+        if category == 'isLicense':
             license_data = {}
             license_data = file
 
     # create json file for jsonLD creator
     data = {}
     data['did'] = DID_ADRESS + manifest_uuid
-    data['shacl_type'] = f'{ENVITEDX_NAME}::{ENVITEDX_URL}{ENVITEDX_NAME}/{SCHEMA_MANIFEST_VERSION}/ontology#ManifestShape'
+    data['shacl_schema'] = 'Manifest'
+    data['shacl_url'] = f'{ENVITED_URL}manifest/{MANIFEST_SCHEMA_VERSION}'
     data_group = []
     data['manifest:hasArtifacts'] = data_group
     for sub_folder in data_path.iterdir():
@@ -539,11 +540,8 @@ def main():
     #license_file = Path('https://www.mozilla.org/en-US/MPL/2.0/')
     if license_data is not None:
         licence_group = {}        
-        licence_group['gx:license'] = license_data['license_type']
         data['manifest:hasLicense'] = licence_group
-        hasLink_group = {}
-        licence_group['manifest:hasLink'] = hasLink_group
-        register_asset(hasLink_group, Path(license_data['filename']), data_path, 'isLicense', 'isPublic')        
+        register_asset(licence_group, Path(license_data['filename']), data_path, 'isLicense', 'isPublic')        
         
     # register manifest
     manifest_group = {}

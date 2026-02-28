@@ -6,7 +6,7 @@ from rdflib import Graph, BNode
 from rdflib.namespace import SH, RDF
 from rdflib.collection import Collection
 from utils.http import download_shacl, get_url_for_download
-from utils.constants import ENVITEDX_URL
+from utils.constants import ENVITED_URL
 
 import json
 import logging
@@ -19,7 +19,7 @@ def get_prefixes(graph: Graph) -> Dict[str, str]:
     prefixes = {
         prefix: str(namespace) 
         for prefix, namespace in graph.namespace_manager.namespaces() 
-        if str(namespace).startswith(ENVITEDX_URL)
+            if str(namespace).startswith(ENVITED_URL)
     }   
     return prefixes 
 
@@ -61,30 +61,21 @@ def get_shacl_from_json_graph(data_graph : Graph, prefixes_to_add : Optional[dic
 
 
 def resolve_value(graph: Graph, value: Any) -> Any:
-    """Recursive function to “resolve” a value."""
-    """If it is a blank node, it is checked whether it is an RDF list."""
-    """Otherwise, an attempt is made to convert the blank node into a dict."""
+    """Resolve a value; expand blank nodes and RDF lists recursively."""
     if isinstance(value, BNode):
-        # Check whether it is an RDF list
+        # Detect RDF list via rdf:first
         if (value, RDF.first, None) in graph:
-            try:
-                items = list(Collection(graph, value))
-                return [resolve_value(graph, it) for it in items]
-            except Exception as e:
-                # Fallback: recursive conversion of the BNode into a dict
-                return convert_bnode_to_dict(graph, value)
-        else:
-            # If not as a list, then try to convert the BNode into a dict.
-            return convert_bnode_to_dict(graph, value)
-    else:
-        # For URIs or literals, simply return as a string
-        return str(value)
+            items = list(Collection(graph, value))
+            return [resolve_value(graph, it) for it in items]
+        return convert_bnode_to_dict(graph, value)
+
+    # For URIs or literals, return as string
+    return str(value)
 
 
-def convert_bnode_to_dict(graph: Graph, bnode: BNode) -> Any:
-    """convert blank node recursive to dict"""
-
-    result = {}
+def convert_bnode_to_dict(graph: Graph, bnode: BNode) -> Dict[str, Any]:
+    """Convert a blank node recursively to dict."""
+    result: Dict[str, Any] = {}
     for pred, obj in graph.predicate_objects(bnode):
         result[str(pred)] = resolve_value(graph, obj)
     return result
@@ -95,16 +86,30 @@ def convert_graph_to_dict(graph: Graph, search_node_shape: bool) -> Dict[str, An
 
     graph_dict = {}
     type_to_search = SH.NodeShape if search_node_shape else SH.NodeKind
+
     for node_shape in graph.subjects(RDF.type, type_to_search):
 
         prop_list = []
-        for prop in graph.objects(node_shape, SH.property):    
 
+        # Collect shape-level constraints (e.g., sh:or, sh:message) in a single dict
+        shape_level: Dict[str, Any] = {}
+        for pred, obj in graph.predicate_objects(node_shape):
+            if pred in (RDF.type, SH.property):
+                continue
+            shape_level[str(pred)] = resolve_value(graph, obj)
+
+        # Collect property shapes (your existing behavior)
+        for prop in graph.objects(node_shape, SH.property):
             values_dict = {}
             for detail, value in graph.predicate_objects(prop):
                 values_dict[str(detail)] = resolve_value(graph, value)
-
             prop_list.append(values_dict)
+
+        # Keep the original output type: List[Dict]
+        # Add shape-level dict only if it exists (and especially helpful for shapes with no sh:property)
+        if shape_level:
+            prop_list.insert(0, shape_level)
+
         graph_dict[str(node_shape)] = prop_list
 
     return graph_dict
