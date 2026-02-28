@@ -10,14 +10,17 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-def download_or_get_file(filename : Path, out_path: Path) -> Path:
+
+def download_or_get_file(filename: Path, out_path: Path) -> Path:
     """get filename, if url download file first and get local filename"""
 
     if is_url(filename):
-        filename = Path(download_file(normalize_url(str(filename)), out_path, filename.name))
+        filename = Path(download_file(normalize_url(
+            str(filename)), out_path, filename.name))
 
     filename = filename.resolve()
     return filename
+
 
 def is_url(url: Path) -> bool:
     """Return True if the given string/path looks like a URL."""
@@ -26,6 +29,7 @@ def is_url(url: Path) -> bool:
     parsed = urlparse(url)
     # A URL usually has a scheme (e.g. “http”, “https”) and a “netloc” (e.g. “www.example.com”)
     return parsed.scheme in ('http', 'https') and bool(parsed.netloc)
+
 
 def url_from_path(path: Path) -> str:
     s = path.as_posix()
@@ -38,13 +42,14 @@ def url_from_path(path: Path) -> str:
     )
     return s
 
+
 def github_to_raw(url: str) -> str:
     """Convert GitHub blob URL to raw URL if needed."""
 
     org_url = url
     if "github.com" in url and "/blob/" in url:
         url = url.replace(GITHUB_URL, GITHUB_RAW_URL).replace("/blob/", "/")
-    
+
     # old
     old_url = org_url.strip()
     p = urlparse(old_url)
@@ -62,10 +67,10 @@ def github_to_raw(url: str) -> str:
         org, repo, ref = parts[0], parts[1], parts[3]
         file_path = "/".join(parts[4:])
         old_url = f"https://raw.githubusercontent.com/{org}/{repo}/{ref}/{file_path}"
-    
+
     if old_url != url:
         print("not equal")
-    
+
     return url
 
 
@@ -77,24 +82,16 @@ def normalize_url(url: str) -> str:
     url = re.sub(r"^(https?):/+", r"\1://", url)
     return url
 
+
 def get_url_for_download(url: str) -> str:
     """replace url with raw.githubusercontent.com"""
-    
-    if url.startswith(ENVITED_URL):
-        # remove wi3d part
-        rel = url.removeprefix(ENVITED_URL)
 
-        # Split the path into individual segments (empty parts are removed)
-        segments = [seg for seg in rel.split("/") if seg]
-        
-        if segments:
-            schema_name = segments[0]            
-            new_url = urljoin(ENVITED_DOWNLOAD_URL, rel)
-            new_url = f'{new_url}{schema_name}{SHACLE_NAME}'
-            return new_url
-    else:
+    if not url.startswith(ENVITED_URL):
         # If no path segments were found, return the new server
         return url.replace('#', '.ttl')
+    else:
+        return url
+
 
 def download_file(url_path: str, out_path: Path, filename: str) -> Path:
     """Download file from url to out_path."""
@@ -111,39 +108,29 @@ def download_file(url_path: str, out_path: Path, filename: str) -> Path:
     return filepath
 
 
-from pathlib import Path
-import requests
-
 def download_shacl(url_path: str, shacl_name: str) -> Path:
     """Download a SHACL file from URL into local shacls folder if missing."""
 
     filename = f"{shacl_name}{SHACLE_NAME}"
-    local_filepath = Path(f"{SHACL_FOLDER_NAME}/{filename}")
+    local_path = Path(f"{SHACL_FOLDER_NAME}")
+    local_filepath = local_path/filename
 
     if local_filepath.exists():
         return local_filepath
+    
+    if not url_path.endswith("ttl"):
+        url_path = url_path + "shapes"
 
-    # Use a session for better connection reuse and consistent headers
-    with requests.Session() as s:
-        r = s.get(
-            url_path,
-            timeout=30,
-            allow_redirects=True,
-            headers={
-                # Some servers behave differently without a UA; harmless and helps debugging
-                "User-Agent": "shacl-downloader/1.0",
-                "Accept": "text/turtle,application/x-turtle,text/plain,*/*",
-            },
-        )
-
-        try:
-            r.raise_for_status()
-        except requests.HTTPError as e:
-            # Include final URL after redirects for easier diagnosis
-            raise RuntimeError(
-                f"SHACL download failed: {r.status_code} for {r.url}"
-            ) from e
-
-    Path(SHACL_FOLDER_NAME).mkdir(parents=True, exist_ok=True)
-    local_filepath.write_bytes(r.content)
+    resp = requests.get(
+        url_path,
+        headers={"Accept": "text/turtle", "User-Agent": "python-requests (envited-x downloader)"},
+        allow_redirects = True,
+        timeout = 30,
+    )
+    resp.raise_for_status()    
+    local_path.mkdir(parents=True, exist_ok=True)
+    with local_filepath.open("wb") as f:
+        for chunk in resp.iter_content(chunk_size=1024 * 1024):
+            if chunk:
+                f.write(chunk)
     return local_filepath
