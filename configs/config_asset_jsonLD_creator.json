@@ -7,7 +7,7 @@
 		"input" : {"" : "{path}/temp/{name}_extractor.json"},
 		"output" : {"-out" : "{path}/temp/{asset_type}_instance.json"},
 		"additional" : {
-        "-ontology" : "https://w3id.org/ascs-ev/envited-x/{schema}/v5"
+        "-ontology" : "https://w3id.org/ascs-ev/envited-x/{schema}/v6"
 		}		
 	}
 }

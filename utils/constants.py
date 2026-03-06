@@ -23,6 +23,6 @@ DID_ADRESS: str = 'did:web:registry.gaia-x.eu:Manifest:'
 # schema version
 ENVITEDX_SCHEMA_VERSION: str  = 'v3'
 MANIFEST_SCHEMA_VERSION: str  = 'v5'
-ODR_SCHEMA_VERSION: str  = 'v5'
-OSC_SCHEMA_VERSION: str = 'v5'
+ODR_SCHEMA_VERSION: str  = 'v6'
+OSC_SCHEMA_VERSION: str = 'v6'
 MODEL_SCHEMA_VERSION: str  = 'v5'
