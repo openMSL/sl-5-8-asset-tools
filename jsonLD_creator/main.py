@@ -18,7 +18,7 @@ from typing import Any, Tuple, Union, Dict, List
 from utils.rdf import get_prefixes, convert_graph_to_dict
 from utils.http import get_url_for_download, download_shacl
 from utils.json import write_json
-from utils.constants import SHACL_NS, SHACL_FOLDER_NAME, GX_NS
+from utils.constants import SHACL_NS, SHACL_FOLDER_NAME, GX_NS, ENVITED_URL
 
 import shutil
 import json
@@ -189,6 +189,65 @@ def get_value_type(key : str, shacl_values : dict) -> str:
     return value_key
 
 
+def create_property_key(namespace: str, property_name: str) -> str:
+    """Create a JSON-LD property key and remove ENVITED prefixes for leaf properties."""
+    namespace_url = config.JSON_OUT["@context"].get(namespace)
+
+    if namespace_url and ENVITED_URL in str(namespace_url):
+        return property_name
+    if namespace == "sh" and property_name == "conformsTo": # special case
+        return property_name
+
+    return create_namespace_name(namespace, property_name)
+
+# Comments in English as requested
+INLINE_XSD_TYPES = {
+    "string",
+    "boolean",
+    "decimal",
+    "float",
+    "double",
+    "integer",
+    "nonPositiveInteger",
+    "negativeInteger",
+    "long",
+    "int",
+    "short",
+    "byte",
+    "nonNegativeInteger",
+    "unsignedLong",
+    "unsignedInt",
+    "unsignedShort",
+    "unsignedByte",
+    "positiveInteger",
+    "anyURI",
+}
+
+
+# Comments in English as requested
+def normalize_xsd_datatype(datatype: str) -> str:
+    """Normalize datatype strings like 'xsd:float' or full XSD URIs to the local XSD name."""
+    if datatype is None:
+        return None
+
+    dtype = str(datatype)
+
+    if dtype.startswith("xsd:"):
+        return dtype.split(":", 1)[1]
+
+    xsd_prefix = "http://www.w3.org/2001/XMLSchema#"
+    if dtype.startswith(xsd_prefix):
+        return dtype[len(xsd_prefix):]
+
+    return dtype
+
+
+# Comments in English as requested
+def should_inline_literal(datatype: str) -> bool:
+    """Return True if the datatype should be written as a plain JSON literal/string."""
+    dtype = normalize_xsd_datatype(datatype)
+    return dtype in INLINE_XSD_TYPES
+
 # create property like
 # "hdmap:elevationRange": {
 #       "@value": "5.6",
@@ -202,11 +261,13 @@ def get_value_type(key : str, shacl_values : dict) -> str:
 def create_property(namespace: str, property_name: str, value, datatype, name, 
                     jsonLD_dict: dict, shacl_values: dict, level: int):
     """
-    Creates a JSON-LD property. Handles xsd:string specifically to avoid 
-    validation mismatches with SHACL 'sh:in' lists.
+    Create a JSON-LD property.
+    Inline standard XSD scalar/string/URI values as plain JSON values.
+    Keep typed objects only where they are semantically needed.
     """
-    key = create_namespace_name(namespace, property_name)
-    value_key = get_value_type(key, shacl_values)
+    key = create_property_key(namespace, property_name)
+    full_key = create_namespace_name(namespace, property_name)
+    value_key = get_value_type(full_key, shacl_values)
 
     # Resolve class type from SHACL if not explicitly provided
     if not name:
@@ -214,43 +275,44 @@ def create_property(namespace: str, property_name: str, value, datatype, name,
 
     assigned_type = name[0] if isinstance(name, list) and len(name) > 0 else name
 
+    # Handle lists
     if isinstance(value, list):
-        if value_key == '@id':
-            properties = []
-            for list_value in value:
-                item = {value_key: list_value}
-                if assigned_type:
-                    item["@type"] = assigned_type
-                properties.append(item)
-            jsonLD_dict[key] = properties
-        else:
-            # For simple lists of literals
-            jsonLD_dict[key] = value
-    else:
-        # Handle single values
-        if datatype:
-            # Check if it is a standard string type
-            is_string = datatype in ["string", "xsd:string", str(XSD.string)]
-            
-            if is_string:
-                # IMPORTANT: Use a plain value for strings. 
-                # This matches the 'sh:in' literals in SHACL and avoids the InConstraintComponent error.
+        if value_key == "@id":
+            # Keep typed IRI objects only if a class is required
+            if assigned_type:
+                jsonLD_dict[key] = [
+                    {"@type": assigned_type, "@id": list_value}
+                    for list_value in value
+                ]
+            else:
                 jsonLD_dict[key] = value
-            else:
-                # Use explicit @type for non-string types (float, int, etc.)
-                dtype = f"xsd:{datatype}" if ":" not in datatype else datatype
-                jsonLD_dict[key] = {"@type": dtype, value_key: value}
-        
-        elif assigned_type and value_key == "@id":
-            # Set @type for IRI references (to satisfy sh:class)
-            jsonLD_dict[key] = {"@type": assigned_type, value_key: value}
-        
         else:
-            # Default fallback: plain value or simple IRI object
-            if value_key == "@id" and isinstance(value, str):
-                 jsonLD_dict[key] = {value_key: value}
-            else:
-                 jsonLD_dict[key] = value
+            # Lists of literals can stay as plain JSON values
+            jsonLD_dict[key] = value
+
+        logger.debug(f'{" " * level * 3}add prop {key}')
+        return
+
+    # Handle single values
+    if datatype:
+        dtype_local = normalize_xsd_datatype(datatype)
+
+        # Inline standard XSD literals such as string, float, integer, boolean, anyURI
+        if should_inline_literal(dtype_local):
+            jsonLD_dict[key] = value
+        else:
+            dtype = f"xsd:{dtype_local}" if ":" not in str(datatype) else str(datatype)
+            jsonLD_dict[key] = {"@type": dtype, value_key: value}
+
+    elif value_key == "@id":
+        # Keep typed IRI objects only if a class is required
+        if assigned_type:
+            jsonLD_dict[key] = {"@type": assigned_type, "@id": value}
+        else:
+            jsonLD_dict[key] = value
+
+    else:
+        jsonLD_dict[key] = value
 
     logger.debug(f'{" " * level * 3}add prop {key}')
 
@@ -706,6 +768,79 @@ def register_shacl(url_path : str, shacl_name: str, shacls):
         raise FileNotFoundError(f'cannot read turtle file: {local_file_path}')
 
 
+def convert_context_for_output(context: dict) -> list:
+    """Convert prefix map to JSON-LD context list."""
+
+    direct_urls = []
+    other_prefixes = {}
+    seen_urls = set()
+
+    for prefix, url in context.items():
+        url = str(url)
+
+        # Put ENVITED contexts directly into the list
+        if ENVITED_URL in url:
+            if url not in seen_urls:
+                direct_urls.append(url)
+                seen_urls.add(url)
+        else:
+            other_prefixes[prefix] = url
+
+    # Append remaining prefixes as one mapping block
+    if other_prefixes:
+        direct_urls.append(other_prefixes)
+
+    return direct_urls
+
+
+def strip_envited_prefixes_from_keys(data: Any, context: dict) -> Any:
+    """Remove prefixes from keys when the prefix namespace is an ENVITED URL."""
+
+    removable_prefixes = {
+        prefix
+        for prefix, url in context.items()
+        if ENVITED_URL in str(url)
+    }
+
+    def transform(node: Any) -> Any:
+        if isinstance(node, dict):
+            result = {}
+
+            for key, value in node.items():
+                # Keep JSON-LD keywords unchanged
+                if isinstance(key, str) and key.startswith("@"):
+                    result[key] = value
+                    continue
+
+                new_key = key
+                if isinstance(key, str) and ":" in key:
+                    prefix, local_name = key.split(":", 1)
+
+                    # Remove only ENVITED prefixes from property keys
+                    if prefix in removable_prefixes:
+                        new_key = local_name
+
+                # Transform nested values recursively
+                transformed_value = transform(value)
+
+                # Detect collisions after prefix removal
+                if new_key in result and new_key != key:
+                    raise ValueError(
+                        f"Key collision while stripping prefixes: '{key}' -> '{new_key}'"
+                    )
+
+                result[new_key] = transformed_value
+
+            return result
+
+        if isinstance(node, list):
+            return [transform(item) for item in node]
+
+        return node
+
+    return transform(data)
+
+
 def main():
     # parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='creates a jsonLD from an attribute table of the meta data extractors')
@@ -760,7 +895,12 @@ def main():
         
     # write claims as json id to output    
     output_path = Path(args.out)
+
+    # convert json output with reduced namespaces
     config.JSON_OUT['@context']["gx"] = GX_NS
+    # Convert @context to the final output format
+    config.JSON_OUT["@context"] = convert_context_for_output(config.JSON_OUT["@context"])
+
     write_json(output_path, config.JSON_OUT, indentValue= 2)
     logger.info(f'write json ld to {output_path}')
 
