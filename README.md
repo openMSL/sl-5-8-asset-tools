@@ -246,7 +246,7 @@ __Python 3.12__ or higher is required for the scripts.
    git submodule update --init --recursive
 
    # Create a venv for python
-   python -m venv .venv
+   python3 -m venv .venv
 
    # Activate the venv
    source .venv/bin/activate
