@@ -25,7 +25,7 @@
 		},
 		{
 			"enable" : true,
-			"filename": "config_jsonLD_validator.json"	
+			"filename": "config_jsonLD_validator_omb.json"	
 		},
 		{
 			"enable" : true,
@@ -67,7 +67,7 @@
 		},	
 		{
 			"enable" : true,
-			"filename": "config_structure_jsonLD_validator.json"
+			"filename": "config_structure_jsonLD_validator_omb.json"
 		}										
 	]
 }

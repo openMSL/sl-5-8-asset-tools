@@ -4,12 +4,15 @@
 """
 
 from __future__ import annotations
-
 from pathlib import Path
+from utils.log_config import handle_output
+
+import sys
+import os
 import logging
 import subprocess
 
-from utils.log_config import handle_output
+
 
 
 logger = logging.getLogger(__name__)
@@ -21,6 +24,19 @@ def run_command(cmd: list[str], name: str, cwd: Path | None = None) -> None:
     # Raises CalledProcessError on failures.
     """
     try:
+
+        # Ensure all command parts are strings (Path objects can be problematic on Windows)
+        cmd = [str(c) for c in cmd]
+
+        # Always use the current interpreter (venv) instead of relying on PATH resolving "python"
+        if cmd and cmd[0] == "python":
+            cmd[0] = sys.executable        
+
+        # Force UTF-8 for the child process output
+        env = os.environ.copy()
+        env.setdefault("PYTHONUTF8", "1")
+        env.setdefault("PYTHONIOENCODING", "utf-8")
+        
         logger.info(">>>    start command %s", name)
         logger.info(cmd)
         result = subprocess.run(
@@ -28,7 +44,10 @@ def run_command(cmd: list[str], name: str, cwd: Path | None = None) -> None:
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",      # Decode as UTF-8 instead of cp1252
+            errors="replace",      # Never crash on undecodable bytes            
             cwd=str(cwd) if cwd else None,
+            env=env,
         )
         handle_output(result, name)
         logger.info("   <<< end command %s", name)

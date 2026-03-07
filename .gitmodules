@@ -1,0 +1,3 @@
+[submodule "external/ontology-management-base"]
+	path = external/ontology-management-base
+	url = https://github.com/ASCS-eV/ontology-management-base.git

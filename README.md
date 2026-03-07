@@ -75,6 +75,9 @@ The following modules are executed in the pipeline in the order specified here:
 
     Input
     - JSON LD file
+
+    *The jsonLD validator has now been __replaced__ by the validation suite from 
+[ontology-management-base](https://github.com/ASCS-eV/ontology-management-base), as this also includes OWL files in the validation process. Ontology-management-base Is integrated here as a submodule.*
   
 - **[qualitychecker_caller](https://github.com/openMSL/sl-5-8-asset-tools/blob/main/qualitychecker_caller/README.md)**
 
@@ -177,7 +180,7 @@ The [Configuration files](https://github.com/openMSL/sl-5-8-asset-tools/tree/mai
 
     - path: Path of the input file
     - sub_path: Path to the specified data folder
-    - name: name of asset dile
+    - name: name of asset file
     - asset_path: path of asset file
     - asset_type: typ of the asset
 
@@ -200,30 +203,70 @@ The [Configuration files](https://github.com/openMSL/sl-5-8-asset-tools/tree/mai
 
 ### Build Instructions
 
-Python 3.11 or higher is required for the scripts.
+__Python 3.12__ or higher is required for the scripts.
 
 1. [asset_extraction](https://github.com/openMSL/sl-5-8-asset-tools/tree/main/asset_extraction/README.md)
    
-   To install the entire pipeline for generating the asset archive, go to the asset_extraction folder and run:
+   To install the entire pipeline for generating the asset archive,gGo to the sl-5-8-asset-tools folder and run the following command in the console:
 
+   Windows CMD/PowerShell
    ```bash
-   pip install -r requirements.txt` 
-   ```      
-   or 
+   # clone repository 
+   git clone https://github.com/openMSL/sl-5-8-asset-tools.git
+   cd sl-5-8-asset-tools
+
+   # Ensure submodules are present (recommended)
+   git submodule update --init --recursive
+
+   # Create a venv for python
+   py -m venv .venv
+
+   # Activate the venv (Powershell)
+   .\.venv\Scripts\Activate.ps1
+   # or (CMD)
+   .\.venv\Scripts\Activate.bat
+
+   # Upgrade pip
+   python -m pip install --upgrade pip
+
+   # Install sl-5-8-asset-tools dependencies
+   python -m pip install -r requirements.txt
+
+   # Install ontology-management-base from your submodule
+   python -m pip install -e .\external\ontology-management-base
+   ```   
+
+   Linux / macOS / Git Bash   
    ```bash
-   python -m pip install -r requirements.txt`    
-    ```  
+   # clone repository 
+   git clone https://github.com/openMSL/sl-5-8-asset-tools.git
+   cd sl-5-8-asset-tools
+
+   # Ensure submodules are present (recommended)
+   git submodule update --init --recursive
+
+   # Create a venv for python
+   python -m venv .venv
+
+   # Activate the venv
+   source .venv/bin/activate
+
+   # Upgrade pip
+   python -m pip install --upgrade pip
+
+   # Install sl-5-8-asset-tools dependencies
+   python -m pip install -r requirements.txt
+
+   # Install ontology-management-base from your submodule
+   python -m pip install -e ./external/ontology-management-base   
+   ``` 
 
 2. Installation of the individual modules  
 
    To install a single module, go to its folder and run:
 
    ```bash
-   pip install -r requirements.txt` 
-   ```      
-   or 
-   ```bash
-   python -m pip install -r requirements.txt`    
+   python -m pip install -r requirements.txt    
     ```    
 
 
@@ -232,10 +275,7 @@ Python 3.11 or higher is required for the scripts.
 The entire pipeline (as it is also called from the [Asset Service](https://github.com/openMSL/sl-5-7-asset-services/blob/main/asset_extractor/README.md) ) is called as follows:
 
 ```bash
-python.exe -m asset_extraction.main 
-    'data_file.json' 
-    -config 'config_folder' 
-    -out 'ouput_folder'
+python -m asset_extraction.main "data_file.json" -config "config_folder" -out "output_folder"
 ```    
 
 To find out how to call up the individual sub-scripts, please refer to the README.md file in the corresponding script folder.
@@ -249,22 +289,18 @@ In the ‘examples’ folder, you will find sample data for calling the asset ex
     For this example, the file [StraightRoad_NCAP_Roadmarks.xodr](https://github.com/vectorgrp/OSC-NCAP-scenarios/blob/main/OpenDRIVE/NCAP/StraightRoad_NCAP_Roadmarks.xodr) is used.
 
 ```bash
-python.exe -m asset_extraction.main 
-    './examples/OpenDRIVE/uploadedFiles.json' 
-    -config './configs' 
-    -out './examples/OpenDRIVE/output'
+python -m asset_extraction.main "./examples/OpenDRIVE/uploadedFiles.json" -config "./configs" -out "./examples/OpenDRIVE/output"
 ```    
+The subfolder in examples/OpenDRIVE/output contains the generated data and the asset.zip file for the marketplace.
+
 - OpenSCENARIO
 
     For this example, the file [NCAP_AEB_C2C_CCFhol_2023.xosc](https://raw.githubusercontent.com/vectorgrp/OSC-NCAP-scenarios/main/OpenSCENARIO/NCAP/AEB_C2C_2023/NCAP_AEB_C2C_CCFhol_2023.xosc) is used.
 ```bash
-python.exe -m asset_extraction.main 
-    './examples/OpenSCENARIO/uploadedFiles.json' 
-    -config './configs' 
-    -out './examples/OpenSCENARIO/output'
+python -m asset_extraction.main "./examples/OpenSCENARIO/uploadedFiles.json" -config "./configs" -out "./examples/OpenSCENARIO/output"
 ```    
 
-*The generation of the jsonLD file for OpenSCENARIO is currently failing because it is not compatible with the current Shacl file!*
+The subfolder in examples/OpenSCENARIO/output contains the generated data and the asset.zip file for the marketplace.
 
 #### JSON File Definition
 - This file is generated by the front end of the [Asset Extractor Service](https://github.com/openMSL/sl-5-7-asset-services/tree/main/asset_extractor).
