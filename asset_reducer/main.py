@@ -10,25 +10,26 @@ logger = logging.getLogger(__name__)
 
 ASSET_TYPE: str = "OpenDRIVE"
 
+
 # calc min,max of values
 def calcExtrema(element, nodename) -> dict | None:
     if element is None:
         return None
-    
-    min_value = float('inf')
-    max_value = float('-inf')
-    
+
+    min_value = float("inf")
+    max_value = float("-inf")
+
     children = element.findall(nodename)
     if not children:
         return {}
-    
+
     for child in children:
-        value = float(child.get('a', 0))
+        value = float(child.get("a", 0))
         if value < min_value:
             min_value = value
         if value > max_value:
             max_value = value
-    return {'min': min_value, 'max': max_value}
+    return {"min": min_value, "max": max_value}
 
 
 # get only extractable attributes
@@ -40,11 +41,12 @@ def extract_attributes(element, attributes) -> dict | None:
             attribs[attr] = element_attr
     return attribs
 
+
 # process element and get min, max and attributes
 def process_element(element, mapping):
     tag = element.tag
     node_data = {}
-        
+
     # extract attributes
     tag_exist = False
     if tag in mapping:
@@ -54,8 +56,8 @@ def process_element(element, mapping):
             attres = extract_attributes(element, tag_mapping["attributes"])
             node_data.update(attres)
         if "function" in tag_mapping:
-            func_name = tag_mapping['function']
-            if func_name[0] == 'calcExtrema':
+            func_name = tag_mapping["function"]
+            if func_name[0] == "calcExtrema":
                 values = calcExtrema(element, func_name[1])
                 if values:
                     node_data.update(values)
@@ -70,22 +72,24 @@ def process_element(element, mapping):
                     if key not in node_data:
                         node_data[key] = []
                     node_data[key].append(value)
-    
+
     if tag == "geoReference" and element.getparent().tag == "header":
-        node_data.update({'proj4_str': element.text})  
-    
-    if node_data or tag_exist: #tag_exist aber node_data is empty
+        node_data.update({"proj4_str": element.text})
+
+    if node_data or tag_exist:  # tag_exist aber node_data is empty
         return {tag: node_data}
     else:
-        return None     
-    
+        return None
+
+
 # load mapping table
-def load_mapping_table(mapping_file : Path):
+def load_mapping_table(mapping_file: Path):
     if not Path(mapping_file).exists():
         raise FileNotFoundError(f"file '{mapping_file}' not exist.")
-    with open(mapping_file, 'r') as f:
+    with open(mapping_file, "r") as f:
         node_mapping = json.load(f)
     return node_mapping
+
 
 # convert, parse json attrib and child to xml
 def json_to_xml_add_attributes_and_children(parent, data):
@@ -98,6 +102,7 @@ def json_to_xml_add_attributes_and_children(parent, data):
         else:
             parent.set(key, str(value))
 
+
 # convert, parse json list to xml
 def json_to_xml_handle_list(parent, key, data_list):
     for item in data_list:
@@ -106,6 +111,7 @@ def json_to_xml_handle_list(parent, key, data_list):
             json_to_xml_add_attributes_and_children(element, item)
         else:
             element.text = str(item)
+
 
 # convert json to xml
 def json_to_xml(json_data):
@@ -126,15 +132,20 @@ def json_to_xml(json_data):
 
 def main():
     # parse argument
-    parser = argparse.ArgumentParser(prog='main.py', description='reduces the original xml to relevant nodes and attributes (see mapping_tables) and writes a binary json for the extended search.')   
-    parser.add_argument('filename', type=str,help='filename of asset in xml format.')
-    parser.add_argument('-out', type=str, required=True, help='output filname for reduced file.')
+    parser = argparse.ArgumentParser(
+        prog="main.py",
+        description="reduces the original xml to relevant nodes and attributes (see mapping_tables) and writes a binary json for the extended search.",
+    )
+    parser.add_argument("filename", type=str, help="filename of asset in xml format.")
+    parser.add_argument(
+        "-out", type=str, required=True, help="output filname for reduced file."
+    )
     args = parser.parse_args()
 
     # Path to the XML file
     xml_file_path = Path(args.filename)
     if not xml_file_path.exists():
-        raise FileNotFoundError(f'json file {xml_file_path} not exists')
+        raise FileNotFoundError(f"json file {xml_file_path} not exists")
 
     # Target JSON file
     output_json_file = Path(args.out)
@@ -143,16 +154,16 @@ def main():
         output_json_path.mkdir(parents=True, exist_ok=True)
 
     # read mapping table
-    asset_type = xml_file_path.suffix.lstrip('.') # Get file extension without the dot
-    mapping_name = f'mapping_tables/mapping_{asset_type}.json'
+    asset_type = xml_file_path.suffix.lstrip(".")  # Get file extension without the dot
+    mapping_name = f"mapping_tables/mapping_{asset_type}.json"
     script_dir = Path(__file__).parent.resolve()
     mapping_file = script_dir / mapping_name
     node_mapping = load_mapping_table(mapping_file)
 
-    # read xml 
+    # read xml
     tree = etree.parse(xml_file_path)
     root = tree.getroot()
-    
+
     # convert to json dictonary
     json_data = []
     for child in root:
@@ -171,17 +182,19 @@ def main():
         json_read_data = read_json(output_json_file, binary)
         # convert to xml
         root_read = json_to_xml(json_read_data)
-        
+
         # write as xml
-        xml_str = etree.tostring(root_read, pretty_print=True, encoding='utf-8', xml_declaration=True)
+        xml_str = etree.tostring(
+            root_read, pretty_print=True, encoding="utf-8", xml_declaration=True
+        )
         with open(output_json_file, "wb") as f:
             f.write(xml_str)
-        
-        #find node
-        header = root_read.find('./header')
+
+        # find node
+        header = root_read.find("./header")
         if header is not None:
-            logger.info('header found')
-        
-        
-if __name__ == '__main__':
+            logger.info("header found")
+
+
+if __name__ == "__main__":
     main()

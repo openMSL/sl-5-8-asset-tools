@@ -7,18 +7,25 @@ from typing import Optional, List, Tuple
 from .geometry import Vec2D
 
 
-def parse_planview(file_path: Path | str) -> tuple[Optional[str], Vec2D, List[List[Tuple[float, float, float, float]]]]:
+def parse_planview(
+    file_path: Path | str,
+) -> tuple[Optional[str], Vec2D, List[List[Tuple[float, float, float, float]]]]:
     """Parse an OpenDRIVE file and extract geoReference proj4, offset and planView geometries."""
     tree = ET.parse(str(file_path))
     root = tree.getroot()
 
     georef = root.find(".//geoReference")
-    proj4_str: Optional[str] = georef.text.strip() if (georef is not None and georef.text) else None
+    proj4_str: Optional[str] = (
+        georef.text.strip() if (georef is not None and georef.text) else None
+    )
 
     offset_node = root.find(".//offset")
     offset = Vec2D(0, 0)
     if offset_node is not None:
-        offset = Vec2D(float(offset_node.attrib.get("x", 0.0)), float(offset_node.attrib.get("y", 0.0)))
+        offset = Vec2D(
+            float(offset_node.attrib.get("x", 0.0)),
+            float(offset_node.attrib.get("y", 0.0)),
+        )
 
     lines: List[List[Tuple[float, float, float, float]]] = []
     for line in root.findall(".//planView"):

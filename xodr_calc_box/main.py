@@ -6,6 +6,7 @@ from utils.xodr import parse_planview
 
 logger = logging.getLogger(__name__)
 
+
 # calc box from line data
 def calcBox(lines: list, offset: Vec2D) -> Box2D:
     bounding_box = Box2D()
@@ -23,26 +24,31 @@ def calcBox(lines: list, offset: Vec2D) -> Box2D:
 
 def main():
     #  parse arguments
-    parser = argparse.ArgumentParser(prog='main.py', description='calculates the bounding box of the road data in the OpenDRIVE and outputs the lat/lon box as a print.')   
-    parser.add_argument('filename', help='OpenDRIVE filename')
+    parser = argparse.ArgumentParser(
+        prog="main.py",
+        description="calculates the bounding box of the road data in the OpenDRIVE and outputs the lat/lon box as a print.",
+    )
+    parser.add_argument("filename", help="OpenDRIVE filename")
     args = parser.parse_args()
 
     xodr_file = args.filename
-    if not xodr_file.exists():        
-        raise FileNotFoundError(f'{xodr_file} not found')
-    
+    if not xodr_file.exists():
+        raise FileNotFoundError(f"{xodr_file} not found")
+
     # Parse the XML file and extract coordinates
     projection, offset, lines = parse_planview(xodr_file)
-    
+
     if lines is None:
-        raise ValueError(f"no line data found!")    
+        raise ValueError(f"no line data found!")
 
     # calculate box from coordinates
     bounding_box = calcBox(lines, offset)
-    
+
     # print box
-    logger.info(f"box : {bounding_box.x_min}, {bounding_box.x_max} - {bounding_box.y_min}, {bounding_box.y_max}")
+    logger.info(
+        f"box : {bounding_box.x_min}, {bounding_box.x_max} - {bounding_box.y_min}, {bounding_box.y_max}"
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

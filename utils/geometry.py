@@ -4,13 +4,13 @@ from dataclasses import dataclass
 from typing import Iterable, Iterator, Sequence, Tuple, Union, Optional
 import math
 
-
 Number = Union[int, float]
 
 
 @dataclass(frozen=True, slots=True)
 class Vec2D:
     """Small 2D vector helper used across xodr tools."""
+
     x: float
     y: float
 
@@ -45,12 +45,12 @@ class Vec2D:
         c = math.cos(radians)
         s = math.sin(radians)
         return Vec2D(self.x * c - self.y * s, self.x * s + self.y * c)
-    
+
     def end_position(self, heading: float, length: float) -> "Vec2D":
         # Calculate end position from this start position, heading and length.
         end_x = self.x + math.cos(heading) * float(length)
         end_y = self.y + math.sin(heading) * float(length)
-        return Vec2D(end_x, end_y)    
+        return Vec2D(end_x, end_y)
 
 
 class Box2D:
@@ -168,7 +168,9 @@ class Box2D:
         return self._y_max - self._y_min
 
     def center(self) -> Vec2D:
-        return Vec2D((self._x_min + self._x_max) * 0.5, (self._y_min + self._y_max) * 0.5)
+        return Vec2D(
+            (self._x_min + self._x_max) * 0.5, (self._y_min + self._y_max) * 0.5
+        )
 
     def to_tuple(self) -> Tuple[float, float, float, float]:
         return (self._x_min, self._y_min, self._x_max, self._y_max)
@@ -180,8 +182,12 @@ class Box2D:
 
     def intersects(self, other: "Box2D") -> bool:
         # True if rectangles overlap with positive area.
-        x_overlap = max(0.0, min(self._x_max, other._x_max) - max(self._x_min, other._x_min))
-        y_overlap = max(0.0, min(self._y_max, other._y_max) - max(self._y_min, other._y_min))
+        x_overlap = max(
+            0.0, min(self._x_max, other._x_max) - max(self._x_min, other._x_min)
+        )
+        y_overlap = max(
+            0.0, min(self._y_max, other._y_max) - max(self._y_min, other._y_min)
+        )
         return x_overlap > 0.0 and y_overlap > 0.0
 
     # Backwards-compatible name used in xodr_trim_to_box
@@ -198,7 +204,7 @@ class Box2D:
         if box_expand._y_max > self._y_max:
             self._y_max = box_expand._y_max
 
-    def expand_by_pos(self, pos : Vec2D) -> None:
+    def expand_by_pos(self, pos: Vec2D) -> None:
         if pos.x < self._x_min:
             self._x_min = pos.x
         if pos.x > self._x_max:

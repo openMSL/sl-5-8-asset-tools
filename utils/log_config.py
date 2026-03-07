@@ -3,6 +3,7 @@
 import logging
 from colorlog import ColoredFormatter
 
+
 def setup_logging(level=logging.DEBUG):
     """
     # Set up root logger with colored output.
@@ -16,20 +17,23 @@ def setup_logging(level=logging.DEBUG):
 
     # Create console handler with colored formatter
     handler = logging.StreamHandler()
-    handler.setFormatter(ColoredFormatter(
-        "%(log_color)s%(levelname)s - %(name)s - %(message)s",
-        log_colors={
-            'DEBUG':    'cyan',
-            'INFO':     'green',
-            'WARNING':  'yellow',
-            'ERROR':    'red',
-            'CRITICAL': 'red,bg_white',
-            "EXCEPTION" : 'white, bg_red'
-        }
-    ))
+    handler.setFormatter(
+        ColoredFormatter(
+            "%(log_color)s%(levelname)s - %(name)s - %(message)s",
+            log_colors={
+                "DEBUG": "cyan",
+                "INFO": "green",
+                "WARNING": "yellow",
+                "ERROR": "red",
+                "CRITICAL": "red,bg_white",
+                "EXCEPTION": "white, bg_red",
+            },
+        )
+    )
 
     root.setLevel(level)
     root.addHandler(handler)
+
 
 def handle_output(result, name):
     rc = result.returncode
@@ -51,7 +55,7 @@ def handle_output(result, name):
         # split lines and detect keyword "warning"
         for line in result.stderr.splitlines():
             # If the line itself mentions 'warning', treat as warning
-            if 'warning' in line.lower():
+            if "warning" in line.lower():
                 root.warning("=== %s warning === %s", name, line)
             else:
                 # otherwise still log as info or error?
@@ -59,4 +63,4 @@ def handle_output(result, name):
 
     # 3) Everything that came on stdout remains info (green)
     if result.stdout:
-        root.info("=== %s stdout ===\n%s", name, result.stdout.rstrip())    
+        root.info("=== %s stdout ===\n%s", name, result.stdout.rstrip())

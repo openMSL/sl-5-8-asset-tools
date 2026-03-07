@@ -5,23 +5,30 @@ from datetime import datetime
 from typing import Tuple, Optional, Sequence
 from ..extractor import get_adress_from_osm, proj4_to_epsg, convert_to_LatLon
 from utils.ids import create_uuid
-from utils.constants import ENVITED_URL, ENVITEDX_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION, ODR_SCHEMA_VERSION
+from utils.constants import (
+    ENVITED_URL,
+    ENVITEDX_SCHEMA_VERSION,
+    MANIFEST_SCHEMA_VERSION,
+    ODR_SCHEMA_VERSION,
+)
 
 import os
 import logging
 
 logger = logging.getLogger(__name__)
 
+
 # convert container to str
 def container_in_str(data: any) -> str:
-    string = ''
+    string = ""
     for value in data:
         if value is not None:
-            string = string + f' {value}'
+            string = string + f" {value}"
     return string
 
+
 # convert data and time to str
-def convert_date_time(date_string : str, supported_syntax : list[str]) -> str:
+def convert_date_time(date_string: str, supported_syntax: list[str]) -> str:
     for syntax in supported_syntax:
         try:
             date = datetime.strptime(date_string, syntax)
@@ -29,6 +36,7 @@ def convert_date_time(date_string : str, supported_syntax : list[str]) -> str:
         except ValueError:
             continue
     return None
+
 
 def _proj_search_dirs() -> list[Path]:
     """Build a list of directories where PROJ grid files are commonly stored."""
@@ -132,176 +140,256 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     quantity_dict = dict()
 
     # read xml and extract header data
-    data['header'] = root.find('.//header').attrib if check_data(root, ".//header") else None
-    if check_data(root,".//header//geoReference"):
-        data['header']['geoReference'] = root.find('.//header//geoReference').text
+    data["header"] = (
+        root.find(".//header").attrib if check_data(root, ".//header") else None
+    )
+    if check_data(root, ".//header//geoReference"):
+        data["header"]["geoReference"] = root.find(".//header//geoReference").text
 
     # read xml and extract all elevation data
-    data['elevation'] = [elevation.attrib for elevation in root.findall('.//elevation')]
+    data["elevation"] = [elevation.attrib for elevation in root.findall(".//elevation")]
 
     # read xml and extract object data
-    data['object'] = [obj.attrib for obj in root.findall('.//object')] if check_data(root, ".//object") else None
+    data["object"] = (
+        [obj.attrib for obj in root.findall(".//object")]
+        if check_data(root, ".//object")
+        else None
+    )
 
     # readable meta data
     # read xml and search for CRG and read the element file         # TODO Testing
-    data_links = container_in_str(set([crg.attrib['file'] for crg in root.findall('.//CRG')])) if check_data(root, ".//CRG","file") else ''# default_value
-    #if data_links:
+    data_links = (
+        container_in_str(set([crg.attrib["file"] for crg in root.findall(".//CRG")]))
+        if check_data(root, ".//CRG", "file")
+        else ""
+    )  # default_value
+    # if data_links:
     #    meta_data_dict['data_link'] = {}
 
     # read xml and search for speed and the element max --> then sort by max and create a set --> set == unique values
-    speedlimit_range = sorted(set((max.attrib['max'] for max in root.findall('.//speed')))) if check_data(root, ".//speed","max") else [0, 50]
+    speedlimit_range = (
+        sorted(set((max.attrib["max"] for max in root.findall(".//speed"))))
+        if check_data(root, ".//speed", "max")
+        else [0, 50]
+    )
     speedlimit_range_dict = {}
-    speedlimit_range_dict['hdmap:min'] = float(speedlimit_range[0])
-    speedlimit_range_dict['hdmap:max'] = float(speedlimit_range[-1])
-    quantity_dict['hdmap:speedLimit'] = speedlimit_range_dict
+    speedlimit_range_dict["hdmap:min"] = float(speedlimit_range[0])
+    speedlimit_range_dict["hdmap:max"] = float(speedlimit_range[-1])
+    quantity_dict["hdmap:speedLimit"] = speedlimit_range_dict
 
     # read xml and check if lane and its element type exists --> take all information of lane type and make them unique
-    lane_types = set([lane.attrib['type'] for lane in root.findall('.//lane')]) if check_data(root, ".//lane","type") else None
+    lane_types = (
+        set([lane.attrib["type"] for lane in root.findall(".//lane")])
+        if check_data(root, ".//lane", "type")
+        else None
+    )
     if lane_types:
-        content_dict['hdmap:laneTypes'] = list(sorted(lane_types))
+        content_dict["hdmap:laneTypes"] = list(sorted(lane_types))
 
-    # read xml and check if road and its element type exists --> take all information of road type and make them unique 
-    road_types = set([road_type.attrib['type'] for road_type in root.findall('./road/type')]) if check_data(root,"./road/type","type") else None
+    # read xml and check if road and its element type exists --> take all information of road type and make them unique
+    road_types = (
+        set([road_type.attrib["type"] for road_type in root.findall("./road/type")])
+        if check_data(root, "./road/type", "type")
+        else None
+    )
     if road_types:
-        content_dict['hdmap:roadTypes'] = list(sorted(road_types))
+        content_dict["hdmap:roadTypes"] = list(sorted(road_types))
 
     # create a unique list of object type if it exists
-    objects = set([obj['type'] for obj in data['object']]) if check_data(root, ".//object", "type") else None
+    objects = (
+        set([obj["type"] for obj in data["object"]])
+        if check_data(root, ".//object", "type")
+        else None
+    )
     if objects:
-        content_dict['hdmap:levelOfDetail'] = list(objects)
+        content_dict["hdmap:levelOfDetail"] = list(objects)
 
     # search for revMajor and revMinor and create the format_version string
-    format_dict['hdmap:version'] = str(data['header']['revMajor']) + '.' + str(data['header']['revMinor']) if check_data(root, ".//header", "revMajor", "revMinor") else default_value
-    format_dict['hdmap:formatType'] = 'ASAM OpenDRIVE'
+    format_dict["hdmap:version"] = (
+        str(data["header"]["revMajor"]) + "." + str(data["header"]["revMinor"])
+        if check_data(root, ".//header", "revMajor", "revMinor")
+        else default_value
+    )
+    format_dict["hdmap:formatType"] = "ASAM OpenDRIVE"
 
     # read xml and create a list with all lengths
-    list_of_lengths = [float(road.attrib['length']) for road in root.findall('.//road')] if check_data(root,".//road","length") else default_value
+    list_of_lengths = (
+        [float(road.attrib["length"]) for road in root.findall(".//road")]
+        if check_data(root, ".//road", "length")
+        else default_value
+    )
 
     # fill data resource
     hasResourceDescription_dict = dict()
 
-    
     # parse string of georeference
     # set all values to default
     geo_reference = None
-    if 'header' in data and 'geoReference' in data['header']:
-        geo_reference = data['header']['geoReference']
+    if "header" in data and "geoReference" in data["header"]:
+        geo_reference = data["header"]["geoReference"]
 
     if geo_reference:
         geodetic_ref_system_dict = dict()
-        geo_data = geo_reference.split(' ')
+        geo_data = geo_reference.split(" ")
 
         # go through the string and parse data if available
         local_data_dict = dict()
-        local_data_dict['projection_type'] = ''
+        local_data_dict["projection_type"] = ""
         for information in geo_data:
             if information.startswith("+proj="):
-                local_data_dict['projection_type'] = local_data_dict['projection_type'] + (information.split("+proj=")[1])
+                local_data_dict["projection_type"] = local_data_dict[
+                    "projection_type"
+                ] + (information.split("+proj=")[1])
             elif information.startswith("+grids="):
-                geodetic_ref_system_dict['georeference:heightSystem'] = information.split("+grids=")[1]
+                geodetic_ref_system_dict["georeference:heightSystem"] = (
+                    information.split("+grids=")[1]
+                )
             elif information.startswith("+datum="):
-                local_data_dict['geodetic_datum'] = information.split("+datum=")[1]
+                local_data_dict["geodetic_datum"] = information.split("+datum=")[1]
             elif information.startswith("+units="):
-                local_data_dict['geodetic_unit'] = information.split("+units=")[1]
-            #elif information.startswith("+lat_0="):
+                local_data_dict["geodetic_unit"] = information.split("+units=")[1]
+            # elif information.startswith("+lat_0="):
             #    lat = information.split("+lat_0=")[1]
-            #elif information.startswith("+lon_0="):
+            # elif information.startswith("+lon_0="):
             #    lon = information.split("+lon_0=")[1]
 
         epsg_code = proj4_to_epsg(geo_reference)
         if epsg_code:
-            geodetic_ref_system_dict['georeference:coordinateSystem'] = epsg_code
+            geodetic_ref_system_dict["georeference:coordinateSystem"] = epsg_code
         else:
-            geodetic_ref_system_dict['georeference:coordinateSystemName'] = local_data_dict['projection_type']
+            geodetic_ref_system_dict["georeference:coordinateSystemName"] = (
+                local_data_dict["projection_type"]
+            )
 
     ###################################################################################################################
     # calculated meta data
 
     # read xml and count the amount of junctions/intersection
-    quantity_dict['hdmap:numberIntersections'] = len(root.findall('.//junction')) if check_data(root,".//junction") else 0
+    quantity_dict["hdmap:numberIntersections"] = (
+        len(root.findall(".//junction")) if check_data(root, ".//junction") else 0
+    )
 
     # read xml and count the amount of outlines
-    quantity_dict['hdmap:numberOutlines'] = len(root.findall('.//outline')) if check_data(root, ".//outline") else 0
+    quantity_dict["hdmap:numberOutlines"] = (
+        len(root.findall(".//outline")) if check_data(root, ".//outline") else 0
+    )
 
     # add all lengths /1000 -->from meters to kilometers
-    quantity_dict['hdmap:length'] = float(sum(list_of_lengths) / 1000) if len(list_of_lengths) else 0.0
-    #meta_data_dict['length_unit'] = 'km'
+    quantity_dict["hdmap:length"] = (
+        float(sum(list_of_lengths) / 1000) if len(list_of_lengths) else 0.0
+    )
+    # meta_data_dict['length_unit'] = 'km'
 
     # call function get_elevation_range with elevation data
-    quantity_dict['hdmap:elevationRange'] = float(get_elevation_range(root, data['elevation'], list_of_lengths))
-    #meta_data_dict['elevation_range_unit'] = 'm'
+    quantity_dict["hdmap:elevationRange"] = float(
+        get_elevation_range(root, data["elevation"], list_of_lengths)
+    )
+    # meta_data_dict['elevation_range_unit'] = 'm'
 
     # count the amount of objects
-    quantity_dict['hdmap:numberObjects'] = len(data['object']) if data['object'] is not None else 0
+    quantity_dict["hdmap:numberObjects"] = (
+        len(data["object"]) if data["object"] is not None else 0
+    )
 
     # check if object has the element subtype and count the amount of subtype == trafficLight
-    quantity_dict['hdmap:numberTrafficLights'] = len([obj for obj in data['object'] if obj['subtype'] == 'trafficLight']) if check_data(root, './/object','subtype') else 0
+    quantity_dict["hdmap:numberTrafficLights"] = (
+        len([obj for obj in data["object"] if obj["subtype"] == "trafficLight"])
+        if check_data(root, ".//object", "subtype")
+        else 0
+    )
 
     # check if object has the element subtype and count the amount of subtype == trafficSign
-    quantity_dict['hdmap:numberTrafficSigns'] = len([obj for obj in data['object'] if obj['subtype'] == 'trafficSign']) if check_data(root, './/object','subtype') else 0
+    quantity_dict["hdmap:numberTrafficSigns"] = (
+        len([obj for obj in data["object"] if obj["subtype"] == "trafficSign"])
+        if check_data(root, ".//object", "subtype")
+        else 0
+    )
 
     ###################################################################################################################
     # constant meta data
 
-    # if it is a xodr file it describes road network    
-    hasResourceDescription_dict['gx:name'] = file_path.name.replace('.xodr', '')
-    hasResourceDescription_dict['gx:description'] = "road network"
+    # if it is a xodr file it describes road network
+    hasResourceDescription_dict["gx:name"] = file_path.name.replace(".xodr", "")
+    hasResourceDescription_dict["gx:description"] = "road network"
 
     # bounding
     georeference_dict = dict()
     if geo_reference:
         geo_reference_cleaned = strip_missing_geoidgrids(geo_reference)
         projection_location_dict = dict()
-        georeference_dict['georeference:hasProjectLocation'] = projection_location_dict
+        georeference_dict["georeference:hasProjectLocation"] = projection_location_dict
         bounding_dict = dict()
-        bounding_dict['xMin'] = float(root.find('.//header').attrib['west']) if check_data(root, ".//header", "west") else unknown_unit
-        bounding_dict['xMax'] = float(root.find('.//header').attrib['east']) if check_data(root, ".//header", "east") else unknown_unit
-        bounding_dict['yMin'] = float(root.find('.//header').attrib['south']) if check_data(root, ".//header", "south") else unknown_unit
-        bounding_dict['yMax'] = float(root.find('.//header').attrib['north']) if check_data(root, ".//header", "north") else unknown_unit    
-        bounding_dict['yMin'], bounding_dict['xMin'] = convert_to_LatLon(bounding_dict['xMin'], bounding_dict['yMin'], geo_reference_cleaned)
-        bounding_dict['yMax'], bounding_dict['xMax'] = convert_to_LatLon(bounding_dict['xMax'], bounding_dict['yMax'], geo_reference_cleaned)
+        bounding_dict["xMin"] = (
+            float(root.find(".//header").attrib["west"])
+            if check_data(root, ".//header", "west")
+            else unknown_unit
+        )
+        bounding_dict["xMax"] = (
+            float(root.find(".//header").attrib["east"])
+            if check_data(root, ".//header", "east")
+            else unknown_unit
+        )
+        bounding_dict["yMin"] = (
+            float(root.find(".//header").attrib["south"])
+            if check_data(root, ".//header", "south")
+            else unknown_unit
+        )
+        bounding_dict["yMax"] = (
+            float(root.find(".//header").attrib["north"])
+            if check_data(root, ".//header", "north")
+            else unknown_unit
+        )
+        bounding_dict["yMin"], bounding_dict["xMin"] = convert_to_LatLon(
+            bounding_dict["xMin"], bounding_dict["yMin"], geo_reference_cleaned
+        )
+        bounding_dict["yMax"], bounding_dict["xMax"] = convert_to_LatLon(
+            bounding_dict["xMax"], bounding_dict["yMax"], geo_reference_cleaned
+        )
         bounding_data_dict = dict()
-        bounding_data_dict['georeference:xMin'] = str(bounding_dict['xMin'])
-        bounding_data_dict['georeference:yMin'] = str(bounding_dict['yMin'])
-        bounding_data_dict['georeference:xMax'] = str(bounding_dict['xMax'])
-        bounding_data_dict['georeference:yMax'] = str(bounding_dict['yMax'])
-        projection_location_dict['georeference:hasBoundingBox'] = bounding_data_dict
+        bounding_data_dict["georeference:xMin"] = str(bounding_dict["xMin"])
+        bounding_data_dict["georeference:yMin"] = str(bounding_dict["yMin"])
+        bounding_data_dict["georeference:xMax"] = str(bounding_dict["xMax"])
+        bounding_data_dict["georeference:yMax"] = str(bounding_dict["yMax"])
+        projection_location_dict["georeference:hasBoundingBox"] = bounding_data_dict
 
         # get 0,0 point in unit and convert to lat lon
         lat, lon = convert_to_LatLon(0.0, 0.0, geo_reference_cleaned)
         origin_dict = dict()
-        origin_dict['georeference:lat'] = str(lat)
-        origin_dict['georeference:lon'] = str(lon)
-        geodetic_ref_system_dict['georeference:hasOrigin'] = origin_dict
+        origin_dict["georeference:lat"] = str(lat)
+        origin_dict["georeference:lon"] = str(lon)
+        geodetic_ref_system_dict["georeference:hasOrigin"] = origin_dict
 
         # get country, state, town from OSM
-        center_lon = (bounding_dict['xMin'] + bounding_dict['xMax']) * 0.5
-        center_lat = (bounding_dict['yMin'] + bounding_dict['yMax']) * 0.5
+        center_lon = (bounding_dict["xMin"] + bounding_dict["xMax"]) * 0.5
+        center_lat = (bounding_dict["yMin"] + bounding_dict["yMax"]) * 0.5
         get_adress_from_osm(projection_location_dict, center_lat, center_lon)
         viewpoint_dict = dict()
-        viewpoint_dict['georeference:lat'] = str(center_lat)
-        viewpoint_dict['georeference:lon'] = str(center_lon)
-        geodetic_ref_system_dict['georeference:hasViewPoint'] = viewpoint_dict  
-        georeference_dict['georeference:hasGeodeticReferenceSystem'] = geodetic_ref_system_dict
+        viewpoint_dict["georeference:lat"] = str(center_lat)
+        viewpoint_dict["georeference:lon"] = str(center_lon)
+        geodetic_ref_system_dict["georeference:hasViewPoint"] = viewpoint_dict
+        georeference_dict["georeference:hasGeodeticReferenceSystem"] = (
+            geodetic_ref_system_dict
+        )
 
     ###################################################################################################################
     # unfinished meta data
-    
-    #meta_data_dict['range_of_modeling'] = 0.0 #"Wie ermittelt man das?"
-    # TODO get from traffic rule
-    #content_dict['hdmap:trafficDirection'] = ""
-    
-    #projection_location_dict['georeference:relationOrArea'] = ""
-    #projection_location_dict['georeference:relationOrArea'] = ""
-    
-    
-    meta_data_dict = dict()
-    meta_data_dict['did'] = 'did:web:registry.gaia-x.eu:HdMap:' + create_uuid()
-    meta_data_dict['shacl_schema'] = get_schema_name()
-    meta_data_dict['shacl_url'] = get_namespace()
-    meta_data_dict[f'{get_schema_name().lower()}:hasResourceDescription'] = hasResourceDescription_dict
 
-    try:        
+    # meta_data_dict['range_of_modeling'] = 0.0 #"Wie ermittelt man das?"
+    # TODO get from traffic rule
+    # content_dict['hdmap:trafficDirection'] = ""
+
+    # projection_location_dict['georeference:relationOrArea'] = ""
+    # projection_location_dict['georeference:relationOrArea'] = ""
+
+    meta_data_dict = dict()
+    meta_data_dict["did"] = "did:web:registry.gaia-x.eu:HdMap:" + create_uuid()
+    meta_data_dict["shacl_schema"] = get_schema_name()
+    meta_data_dict["shacl_url"] = get_namespace()
+    meta_data_dict[f"{get_schema_name().lower()}:hasResourceDescription"] = (
+        hasResourceDescription_dict
+    )
+
+    try:
         supported_date_syntax = [
             "%Y-%m-%d",
             "%d-%m-%Y",
@@ -311,34 +399,50 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
             "%m/%d/%Y",
             "%Y-%m-%dT%H:%M:%S",  # 2023-01-09T14:51:51
         ]
-        meta_data_dict['recordingTime'] = convert_date_time(data['header']['date'], supported_date_syntax) if check_data(root,".//header","date") else default_value
+        meta_data_dict["recordingTime"] = (
+            convert_date_time(data["header"]["date"], supported_date_syntax)
+            if check_data(root, ".//header", "date")
+            else default_value
+        )
     except:
-        logger.error('cannot extract date')    
+        logger.error("cannot extract date")
 
     hasDomainSpecification_dict = dict()
-    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasFormat'] = format_dict
-    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasContent'] = content_dict
-    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasQuantity'] = quantity_dict
-    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasQuality'] = {}
-    hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasDataSource'] = {}
+    hasDomainSpecification_dict[f"{get_schema_name().lower()}:hasFormat"] = format_dict
+    hasDomainSpecification_dict[f"{get_schema_name().lower()}:hasContent"] = (
+        content_dict
+    )
+    hasDomainSpecification_dict[f"{get_schema_name().lower()}:hasQuantity"] = (
+        quantity_dict
+    )
+    hasDomainSpecification_dict[f"{get_schema_name().lower()}:hasQuality"] = {}
+    hasDomainSpecification_dict[f"{get_schema_name().lower()}:hasDataSource"] = {}
     if geo_reference:
-        hasDomainSpecification_dict[f'{get_schema_name().lower()}:hasGeoreference'] = georeference_dict    
-    meta_data_dict[f'{get_schema_name().lower()}:hasDomainSpecification'] = hasDomainSpecification_dict
+        hasDomainSpecification_dict[f"{get_schema_name().lower()}:hasGeoreference"] = (
+            georeference_dict
+        )
+    meta_data_dict[f"{get_schema_name().lower()}:hasDomainSpecification"] = (
+        hasDomainSpecification_dict
+    )
 
     hasManifest_dict = dict()
-    hasManifest_dict['manifest:hasAccessRole'] = 'envited-x:isPublic'
-    hasManifest_dict['manifest:hasCategory'] = 'envited-x:isManifest'
-    hasManifest_dict['manifest:hasFileMetadata'] = {
+    hasManifest_dict["manifest:hasAccessRole"] = "envited-x:isPublic"
+    hasManifest_dict["manifest:hasCategory"] = "envited-x:isManifest"
+    hasManifest_dict["manifest:hasFileMetadata"] = {
         "manifest:filePath": "./base-references/hdmap_manifest_reference.json",
-        "manifest:mimeType": "application/ld+json"
+        "manifest:mimeType": "application/ld+json",
     }
-    hasManifest_dict['manifest:iri'] = 'did:web:test.fixture.net:Manifest:test_hdmap_manifest_reference'
-    hasManifest_dict['skos:note'] = 'Ensure that manifest_reference.json contains all required categories: simulationData, documentation, metadata, media.'
-    hasManifest_dict['sh:conformsTo'] = [
+    hasManifest_dict["manifest:iri"] = (
+        "did:web:test.fixture.net:Manifest:test_hdmap_manifest_reference"
+    )
+    hasManifest_dict["skos:note"] = (
+        "Ensure that manifest_reference.json contains all required categories: simulationData, documentation, metadata, media."
+    )
+    hasManifest_dict["sh:conformsTo"] = [
         f"https://w3id.org/ascs-ev/envited-x/envited-x/{ENVITEDX_SCHEMA_VERSION}/",
-        f"https://w3id.org/ascs-ev/envited-x/manifest/{MANIFEST_SCHEMA_VERSION}/"
+        f"https://w3id.org/ascs-ev/envited-x/manifest/{MANIFEST_SCHEMA_VERSION}/",
     ]
-    meta_data_dict[f'{get_schema_name().lower()}:hasManifest'] = hasManifest_dict
+    meta_data_dict[f"{get_schema_name().lower()}:hasManifest"] = hasManifest_dict
 
     return meta_data_dict
 
@@ -360,7 +464,9 @@ def check_data(root, path: str, *elements) -> bool:
         if len(elements) != 0:
             # go through every element and try to reach it
             for element in elements:
-                entries.attrib[element]  # as we only want to reach it we don't need to store it
+                entries.attrib[
+                    element
+                ]  # as we only want to reach it we don't need to store it
         return True
 
     # if xpath is not in current xml file there will be a key error
@@ -382,7 +488,7 @@ def check_data(root, path: str, *elements) -> bool:
 # function to get all functions and differentiation of the elevations
 def get_elevation_functions(a, b, c, d, s):
     # declare x as a variable
-    x = symbols('x')
+    x = symbols("x")
 
     # build the function as described in opendrive --> elev(ds) = a + b*ds + c*ds² + d*ds³
     # link: https://releases.asam.net/OpenDRIVE/1.6.0/ASAM_OpenDRIVE_BS_V1-6-0.html#_methods_of_elevation
@@ -398,11 +504,11 @@ def get_elevation_functions(a, b, c, d, s):
 # function to get the max and min value of the certain section of the function
 def get_elevation_min_max(start, end, expr, diff):
     # declare x as a variable
-    x = symbols('x')
+    x = symbols("x")
     # use start as x to get the value of the front border
     start_value = expr.subs(x, 0)
     # use end as x to get the value of the back border
-    end_value = expr.subs(x, end-start)
+    end_value = expr.subs(x, end - start)
     # get the potential min and max value
     candidates = []
     # if diff is 0 do not search for results as 0 = 0
@@ -413,7 +519,7 @@ def get_elevation_min_max(start, end, expr, diff):
         for candidate in candidates:
 
             # check if the candidate is between the front and back border
-            if 0 <= candidate <= end-start:
+            if 0 <= candidate <= end - start:
                 # if so --> use candidate as x and get the value
                 candidate_value.append(expr.subs({x: candidate}))
 
@@ -424,7 +530,10 @@ def get_elevation_min_max(start, end, expr, diff):
             max_candidate = max(candidate_value)
 
             # return the min and max value of candidate, front and back border
-            return [min(start_value, end_value, min_candidate), max(start_value, end_value, max_candidate)]
+            return [
+                min(start_value, end_value, min_candidate),
+                max(start_value, end_value, max_candidate),
+            ]
         else:
             # if there are any candidates valid --> get the min and max from front and back border
             return [min(start_value, end_value), max(start_value, end_value)]
@@ -446,8 +555,14 @@ def get_elevation_range(root, elevations, list_of_lengths):
         # go through every elevation and get their functions
         for elevation in elevations:
             all_functions.append(
-                get_elevation_functions(float(elevation['a']), float(elevation['b']), float(elevation['c']),
-                                        float(elevation['d']), float(elevation['s'])))
+                get_elevation_functions(
+                    float(elevation["a"]),
+                    float(elevation["b"]),
+                    float(elevation["c"]),
+                    float(elevation["d"]),
+                    float(elevation["s"]),
+                )
+            )
 
         road_counter = 0
 
@@ -486,40 +601,41 @@ def get_elevation_range(root, elevations, list_of_lengths):
 
 #######################################################################################################################
 # open asset file, parse xml and extract meta data
-def extract_meta_data(file: Path) ->Tuple[bool, dict]:
+def extract_meta_data(file: Path) -> Tuple[bool, dict]:
     # read file
-    logger.debug(f'Loading input file {file.absolute()}')
-    try: 
-        with open(file, 'r') as f:
+    logger.debug(f"Loading input file {file.absolute()}")
+    try:
+        with open(file, "r") as f:
             _ = f.read()
     except:
-        logger.exception(f'Cannot read file {file.absolute()}')
+        logger.exception(f"Cannot read file {file.absolute()}")
         return False
-    
+
     # parse xml
-    try: 
+    try:
         root = etree.parse(str(file), etree.XMLParser(dtd_validation=False))
     except:
-        logger.exception(f'Cannot parse XML from file {file.absolute()}')
+        logger.exception(f"Cannot parse XML from file {file.absolute()}")
         return False
-    
+
     # ask in file dialog for file with given file extension -->close program if interrupted
     try:
         attributes = get_meta_data(file, "Unknown")
     except:
-        logger.exception(f'Cannot extract from file {file.absolute()}')
+        logger.exception(f"Cannot extract from file {file.absolute()}")
         return False
-    
-    logger.info(f'Extract from file {file}')
+
+    logger.info(f"Extract from file {file}")
     return True, attributes
-    
+
 
 def get_description() -> str:
-    return 'extract OpenDRIVE'
+    return "extract OpenDRIVE"
 
 
 def get_schema_name() -> str:
-    return 'HdMap'
+    return "HdMap"
+
 
 def get_namespace() -> str:
-    return f'{ENVITED_URL}{get_schema_name().lower()}/{ODR_SCHEMA_VERSION}'
+    return f"{ENVITED_URL}{get_schema_name().lower()}/{ODR_SCHEMA_VERSION}"

@@ -13,39 +13,44 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def get_prefixes(graph: Graph) -> Dict[str, str]:
     """Extract prefixes from an RDF graph."""
 
     prefixes = {
-        prefix: str(namespace) 
-        for prefix, namespace in graph.namespace_manager.namespaces() 
-            if str(namespace).startswith(ENVITED_URL)
-    }   
-    return prefixes 
+        prefix: str(namespace)
+        for prefix, namespace in graph.namespace_manager.namespaces()
+        if str(namespace).startswith(ENVITED_URL)
+    }
+    return prefixes
+
 
 def load_jsonld_file(jsonld_file: Path) -> Graph:
     """Load JSON-LD into an rdflib graph."""
 
     if not jsonld_file.exists():
-        raise FileNotFoundError(f'JsonLD files not found: {jsonld_file}')
+        raise FileNotFoundError(f"JsonLD files not found: {jsonld_file}")
 
     data_graph = Graph()
-    logger.info(f'adding jsonld file to data graph: {jsonld_file}.')
+    logger.info(f"adding jsonld file to data graph: {jsonld_file}.")
     with open(jsonld_file) as f:
         data = json.load(f)
-    data_graph.parse(data=json.dumps(data), format='json-ld')
+    data_graph.parse(data=json.dumps(data), format="json-ld")
     return data_graph
+
 
 def load_shacl_files(shacl_files: list) -> Graph:
     """load shacl as rdf graph"""
 
     shacl_graph = Graph()
     for shacl_file in shacl_files:
-        shacl_graph.parse(shacl_file, format='turtle')
+        shacl_graph.parse(shacl_file, format="turtle")
     return shacl_graph
 
 
-def get_shacl_from_json_graph(data_graph : Graph, prefixes_to_add : Optional[dict] = None) ->Graph:
+def get_shacl_from_json_graph(
+    data_graph: Graph, prefixes_to_add: Optional[dict] = None
+) -> Graph:
     """load all shacls for jsonld and return as one graph"""
 
     prefixes = get_prefixes(data_graph)
@@ -56,7 +61,7 @@ def get_shacl_from_json_graph(data_graph : Graph, prefixes_to_add : Optional[dic
     for key, value in prefixes.items():
         new_url_path = get_url_for_download(value)
         shacl_files.append(download_shacl(new_url_path, key))
-    shacl_graph = load_shacl_files(shacl_files)    
+    shacl_graph = load_shacl_files(shacl_files)
     return shacl_graph
 
 

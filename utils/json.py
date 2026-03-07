@@ -12,36 +12,46 @@ import pickle
 
 def json_default(obj: Any) -> Any:
     """Default serializer for json.dumps/json.dump."""
-    
+
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
-def read_json(path: Path | str, binary : bool = False) -> Any:
+def read_json(path: Path | str, binary: bool = False) -> Any:
     """Read JSON from a file."""
     path = _normalize_path(path)
 
     if binary:
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             return pickle.load(f)
 
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def write_json(path: Path | str, data: Any, *, indentValue:int = 4, binary: bool = False, protocol: int = pickle.HIGHEST_PROTOCOL)  -> None:
+def write_json(
+    path: Path | str,
+    data: Any,
+    *,
+    indentValue: int = 4,
+    binary: bool = False,
+    protocol: int = pickle.HIGHEST_PROTOCOL,
+) -> None:
     """Write JSON to a file."""
     path = _normalize_path(path)
-    
+
     path.parent.mkdir(parents=True, exist_ok=True)
 
     if binary:
         # Write pickle in binary mode
         with path.open("wb") as f:
             pickle.dump(data, f, protocol=protocol)
-        return    
+        return
 
-    path.write_text(json.dumps(data, indent=indentValue, ensure_ascii=False, default=json_default), encoding="utf-8")
+    path.write_text(
+        json.dumps(data, indent=indentValue, ensure_ascii=False, default=json_default),
+        encoding="utf-8",
+    )
 
 
 def _normalize_path(path: Path | str) -> Path:
@@ -59,4 +69,3 @@ def _normalize_path(path: Path | str) -> Path:
             return Path(f"/mnt/{drive}/{rest}")
 
     return Path(path)
-    
