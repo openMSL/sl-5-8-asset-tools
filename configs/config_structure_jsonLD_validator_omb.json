@@ -1,0 +1,13 @@
+{
+	"name" : "jsonLD validator  from ontology-management-base",
+	"environment type" : "python",
+	"data folder" : "",
+	"params" : 	{
+		"call" : "src.tools.validators.validation_suite",
+		"input" : {"--data-paths" : "{path}/manifest_reference.json"},
+        "additional" : {
+            "--run" : "check-data-conformance",
+			"--artifacts" : "external/ontology-management-base/artifacts"
+		}	
+	}
+}
