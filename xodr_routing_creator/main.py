@@ -110,9 +110,9 @@ def main():
 
     output_file = Path(args.out)
     if not output_file.parent.exists():
-        output_file.parent.mkdir()
+        output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    extension = output_file.suffix
+    extension = output_file.suffix.lower()
 
     # Parse the XML file and extract coordinates
     projection, offset, lines = parse_planview(xodr_file)
@@ -131,8 +131,10 @@ def main():
         transformed_lines = reproject(lines, offset, None)
 
     # crate and write bounding box
-    output_file_box = args.box
+    output_file_box = Path(args.box) if args.box else None
     if output_file_box:
+        if not output_file_box.parent.exists():
+            output_file_box.parent.mkdir(parents=True, exist_ok=True)
         box = create_bounding_box(transformed_lines)
         coordinates = []
         coordinates.append((box.xMin,box.yMin))
@@ -142,13 +144,13 @@ def main():
         coordinates.append((box.xMin,box.yMin))
         boxes = []
         boxes.append(coordinates)
-        if extension == "geojson":
+        if extension == ".geojson":
             create_geojson(boxes, output_file_box, True)
         else:
             create_kml(boxes, output_file_box, True)
 
     # write line data 
-    if extension == "geojson":
+    if extension == ".geojson":
         create_geojson(transformed_lines, output_file, False)
     else:
         create_kml(transformed_lines, output_file, False)

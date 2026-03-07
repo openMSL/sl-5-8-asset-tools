@@ -65,8 +65,8 @@ def main():
 
     output_path = Path(args.out)         
 
-    enable = Path(args.enable)
-    if enable == 'true':
+    enable = str(args.enable).strip().lower() == "true"
+    if enable:
         # call sd wizrad in docker composed
         trigger_open_sd_wizard('http://localhost:3000/openSdWizard')
 

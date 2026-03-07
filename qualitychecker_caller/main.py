@@ -63,7 +63,7 @@ def main():
     # create config file from templates with input_file replacement
     output_file = Path(args.out)
     if not output_file.parent.exists():
-        output_file.parent.mkdir()   
+        output_file.parent.mkdir(parents=True, exist_ok=True)
 
     config_file_name = Path(args.config)
     if not config_file_name:
