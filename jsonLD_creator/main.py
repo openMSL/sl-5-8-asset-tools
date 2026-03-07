@@ -845,8 +845,8 @@ def main():
     # parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='creates a jsonLD from an attribute table of the meta data extractors')
     parser.add_argument('filename', type=str,help='filename of json attribute table.')
-    parser.add_argument('-ontology', type=str,help='githup path to ontologies')
-    parser.add_argument('-out', type=str, help='output filname for json LD file.')
+    parser.add_argument('-ontology', type=str, required=True, help='githup path to ontologies')
+    parser.add_argument('-out', type=str, required=True, help='output filname for json LD file.')
     parser.add_argument('-removeShacl', action="store_true", help='remove the downloaded folder shacl first')
     args = parser.parse_args()
 

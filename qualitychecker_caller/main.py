@@ -50,10 +50,10 @@ def main():
     # parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='setup and run quality checker')
     parser.add_argument('filename', type=str,help='ASAM OpenX file, e.g. xodr, xosc')
-    parser.add_argument('-out', type=str, help='output result file')
-    parser.add_argument('-config', type=str, help='name of config file in subfolder templates')    
-    parser.add_argument('-app', type=str, help='name of quality checker application')
-    parser.add_argument('-checkerbundle', type=str, help='name of checkerbundle')
+    parser.add_argument('-out', type=str, required=True, help='output result file')
+    parser.add_argument('-config', type=str, required=True, help='name of config file in subfolder templates')    
+    parser.add_argument('-app', type=str, required=True, help='name of quality checker application')
+    parser.add_argument('-checkerbundle', type=str, required=True, help='name of checkerbundle')
     args = parser.parse_args()
 
     input_file = Path(args.filename)

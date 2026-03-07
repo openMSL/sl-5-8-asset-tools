@@ -62,8 +62,8 @@ def create_geojson(elements: list, output_file: Path, isPolygon: bool):
             feature = {
             "type": "Feature",
             "geometry": {
-                "type": "MultiPolygon",
-                "coordinates": [(lon, lat) for lon, lat in element]
+                "type": "Polygon",
+                "coordinates": [[(lon, lat) for lon, lat in element]]
             },
             "properties": {}
         }
@@ -100,7 +100,7 @@ def create_bounding_box(elements: list) -> Box2D:
 def main():
     parser = argparse.ArgumentParser(prog='main.py', description='creates routing files (as geojson or kml) on OpenDRIVE files.')   
     parser.add_argument('filename', help='filename of OpenDRIVE file.')
-    parser.add_argument('-out', type=str,help='filename of exported geo file.')
+    parser.add_argument('-out', type=str, required=True, help='filename of exported geo file.')
     parser.add_argument('-box', type=str,help='filename for boundingbox geo file.')
     args = parser.parse_args()
 
@@ -144,7 +144,8 @@ def main():
         coordinates.append((box.xMin,box.yMin))
         boxes = []
         boxes.append(coordinates)
-        if extension == ".geojson":
+        box_extension = output_file_box.suffix.lower()
+        if box_extension == ".geojson":
             create_geojson(boxes, output_file_box, True)
         else:
             create_kml(boxes, output_file_box, True)
@@ -155,7 +156,7 @@ def main():
     else:
         create_kml(transformed_lines, output_file, False)
 
-    logger.info(f"KML file created: {output_file}")
+    logger.info(f"routing file created: {output_file}")
 
 if __name__ == '__main__':
     main()

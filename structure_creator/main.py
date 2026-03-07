@@ -442,10 +442,10 @@ def main():
     #  parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='the folder structure is completed from the user info and a metadata table is created for the manifest')   
     parser.add_argument('filename', help='filename of json file from frontend.')
-    parser.add_argument('-out', help='json file for manifest.')
-    parser.add_argument('-path', help='path to copy/parse data.')
-    parser.add_argument('-asset_json', help='filename to final asset json. Required for DID')
-    parser.add_argument('-asset_extractor', help='filename to temp asset json. Required for recording Time')
+    parser.add_argument('-out', required=True, help='json file for manifest.')
+    parser.add_argument('-path', required=True, help='path to copy/parse data.')
+    parser.add_argument('-asset_json', required=True, help='filename to final asset json. Required for DID')
+    parser.add_argument('-asset_extractor', required=True, help='filename to temp asset json. Required for recording Time')
     args = parser.parse_args()
 
     user_input_file = Path(args.filename)
@@ -509,7 +509,7 @@ def main():
         # destination filename
         dest = Path(data_path / cat_type_data["folder"])
         if not dest.exists():
-            dest.mkdir()
+            dest.mkdir(parents=True, exist_ok=True)
         dest = dest /  dest_name    
         dest = dest.resolve()    
         # source filename
@@ -550,7 +550,7 @@ def main():
 
     path = filename_out.parent    
     if not path.exists():
-        path.mkdir()
+        path.mkdir(parents=True, exist_ok=True)
 
     # create readme
     script_path = Path(__file__).resolve()
