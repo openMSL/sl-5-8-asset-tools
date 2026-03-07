@@ -50,9 +50,9 @@ def main():
     # parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='calls the sd creation wizard with json and merged shacl file to fill the non-extractable attributes from the user')
     parser.add_argument('filename', type=str, help='filename of json LD file')
-    parser.add_argument('-shacl', type=str, help='merged shacl file')
-    parser.add_argument('-enable', type=str, help='if true call wizard and copy file to out, if false copy input to out')
-    parser.add_argument('-out', type=str, help='output filename for enhanced json LD file')
+    parser.add_argument('-shacl', type=str, required=True, help='merged shacl file')
+    parser.add_argument('-enable', type=str, required=True, help='if true call wizard and copy file to out, if false copy input to out')
+    parser.add_argument('-out', type=str, required=True, help='output filename for enhanced json LD file')
     args = parser.parse_args()
 
     jsonLD_file = Path(args.filename)
@@ -65,8 +65,8 @@ def main():
 
     output_path = Path(args.out)         
 
-    enable = Path(args.enable)
-    if enable == 'true':
+    enable = str(args.enable).strip().lower() == "true"
+    if enable:
         # call sd wizrad in docker composed
         trigger_open_sd_wizard('http://localhost:3000/openSdWizard')
 

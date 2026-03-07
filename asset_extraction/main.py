@@ -188,8 +188,8 @@ def main():
     # parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='extracted from asset and user infos all extractor/creator scripts are called to create an asset archive.')
     parser.add_argument('filename', type=str,help='filename of uploadedFiles.json')
-    parser.add_argument('-config', type=str, help='config path for sub tools.')
-    parser.add_argument('-out', type=str, help='output path for asset archive.')
+    parser.add_argument('-config', type=str, required=True, help='config path for sub tools.')
+    parser.add_argument('-out', type=str, required=True, help='output path for asset archive.')
     args = parser.parse_args()
 
     output_dir = Path(args.out)

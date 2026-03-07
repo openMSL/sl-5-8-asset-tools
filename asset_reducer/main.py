@@ -128,7 +128,7 @@ def main():
     # parse argument
     parser = argparse.ArgumentParser(prog='main.py', description='reduces the original xml to relevant nodes and attributes (see mapping_tables) and writes a binary json for the extended search.')   
     parser.add_argument('filename', type=str,help='filename of asset in xml format.')
-    parser.add_argument('-out', type=str, help='output filname for reduced file.')
+    parser.add_argument('-out', type=str, required=True, help='output filname for reduced file.')
     args = parser.parse_args()
 
     # Path to the XML file

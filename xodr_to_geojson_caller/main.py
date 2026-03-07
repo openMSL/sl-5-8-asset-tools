@@ -14,8 +14,8 @@ ASAM_ODR_VERSION_URL: str = 'http://www.asam.de/ODR/16/'
 def main():
     parser = argparse.ArgumentParser(prog='main.py', description='Calls the java tool from VCS https://github.com/virtualcitySYSTEMS/opendriveconverter to convert an OpenDRIVE file into a geojson.')   
     parser.add_argument('filename', help='filename of OpenDRIVE file')
-    parser.add_argument('-out', help='geojson file')
-    parser.add_argument('-path', help='path to the temp folder for a temporary opendrive with customized header.')
+    parser.add_argument('-out', required=True, help='geojson file')
+    parser.add_argument('-path', required=True, help='path to the temp folder for a temporary opendrive with customized header.')
     args = parser.parse_args()
 
     xodr_file = Path(args.filename)

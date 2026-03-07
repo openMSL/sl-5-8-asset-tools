@@ -10,6 +10,24 @@ import sys
 
 logger = logging.getLogger(__name__)
 
+# add local fallback lib folders for Linux runtime dependencies (e.g. TextReport)
+def _apply_linux_textreport_library_fallback(script_path: Path) -> None:
+    if not sys.platform.startswith("linux"):
+        return
+
+    fallback_lib_dirs = [
+        Path("/tmp/textreport-libs/usr/lib/x86_64-linux-gnu"),
+        Path("/tmp/xerces-local/usr/lib/x86_64-linux-gnu"),
+        script_path.parent / "apps" / "libs",
+    ]
+    existing_dirs = [str(path) for path in fallback_lib_dirs if path.exists()]
+    if not existing_dirs:
+        return
+
+    current = os.environ.get("LD_LIBRARY_PATH", "")
+    prepend = ":".join(existing_dirs)
+    os.environ["LD_LIBRARY_PATH"] = f"{prepend}:{current}" if current else prepend
+
 # update config file and replace input, output file and bundle name
 def update_config_file(template_file: Path, checkerbundle_name: str, input_file: Path, result_file: Path, config_file: Path) -> Path:
     # Parse the XML file
@@ -50,10 +68,10 @@ def main():
     # parse arguments
     parser = argparse.ArgumentParser(prog='main.py', description='setup and run quality checker')
     parser.add_argument('filename', type=str,help='ASAM OpenX file, e.g. xodr, xosc')
-    parser.add_argument('-out', type=str, help='output result file')
-    parser.add_argument('-config', type=str, help='name of config file in subfolder templates')    
-    parser.add_argument('-app', type=str, help='name of quality checker application')
-    parser.add_argument('-checkerbundle', type=str, help='name of checkerbundle')
+    parser.add_argument('-out', type=str, required=True, help='output result file')
+    parser.add_argument('-config', type=str, required=True, help='name of config file in subfolder templates')    
+    parser.add_argument('-app', type=str, required=True, help='name of quality checker application')
+    parser.add_argument('-checkerbundle', type=str, required=True, help='name of checkerbundle')
     args = parser.parse_args()
 
     input_file = Path(args.filename)
@@ -63,7 +81,7 @@ def main():
     # create config file from templates with input_file replacement
     output_file = Path(args.out)
     if not output_file.parent.exists():
-        output_file.parent.mkdir()   
+        output_file.parent.mkdir(parents=True, exist_ok=True)
 
     config_file_name = Path(args.config)
     if not config_file_name:
@@ -88,9 +106,11 @@ def main():
     run_command(cmd=script_call, name=app_name)
 
     # write als txt
+    output_file = output_file.resolve()
     os.chdir(output_file.parent) # change system path
     script_call = []
     script_path = Path(__file__).resolve()
+    _apply_linux_textreport_library_fallback(script_path)
     if sys.platform.startswith("win"):
         appname = Path('TextReport.exe')
     elif sys.platform.startswith("linux"):
@@ -99,7 +119,7 @@ def main():
         print(f"unknown system: {sys.platform}")
     text_report_executable_path = script_path.parent / 'apps' / appname
     script_call.append (f'{text_report_executable_path}') # call Textreport
-    script_call.append(f'{output_file}')
+    script_call.append(str(output_file))
 
     if sys.platform.startswith("linux") :
         os.chmod(text_report_executable_path, stat.S_IXUSR) #chmode +x TextReport (in docker i.e. the Docker )
