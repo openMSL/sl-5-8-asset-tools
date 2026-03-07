@@ -1,32 +1,30 @@
-# Description
-In order to fill in metadata in a standardized and simple way, metadata that is already contained directly in the data or calculated from it should be filled in automatically.
+# meta_data_extractor
 
-This script extracts the required metadata from the file and converts it into a JSON attribute table, 
-which is converted into valid JSON LD in JSONLD Creator. 
+## Description
+Extracts metadata from supported asset files and writes an attribute JSON used by `jsonLD_creator`.
 
-This Script supports the following formats:
-- [ASAM OpenDRIVE](https://www.asam.net/standards/detail/opendrive/)
-- [ASAM OpenSCENARI XML](https://www.asam.net/standards/detail/openscenario-xml/)
-- 3D Environment model (with metadata json input from [Trian3DBuilder](https://trian3dbuilder.de/))
+Supported formats:
+- ASAM OpenDRIVE (`.xodr`)
+- ASAM OpenSCENARIO XML (`.xosc`)
+- 3D environment model data
 
+## Usage
+```bash
+python -m meta_data_extractor.main <asset_file> -out <output.json> [-u]
+```
 
-Input
+## Arguments
+- `filename` (required): Input asset file.
+- `-out`, `--output` (required): Output metadata attribute JSON.
+- `-u`, `--user_input` (optional): Enables interactive prompts for non-extractable attributes.
+
+## Input
 - Asset file
 
-Output
-- JSON attribute file 
+## Output
+- Metadata attribute JSON
 
-# How to run
-- main.py with arguments
-    - [filename] : asset file to extract metadata - support xodr, xosc
-    - -out : filename to exported json dict 
-    - -u : Activates the user query via dialogues for non-extractable attributes - deprecated
-
-# Install
+## Install
 ```bash
-pip install -r requirements.txt` 
-```      
-or 
-```bash
-python -m pip install -r requirements.txt`    
-```       
+python -m pip install -r meta_data_extractor/requirements.txt
+```

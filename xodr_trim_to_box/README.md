@@ -1,23 +1,25 @@
-# Description
-It is often helpful to have only part of an OpenDRIVE file, e.g., for debugging purposes. This script reduces the original OpenDRIVE file to the specified bounding box data.
+# xodr_trim_to_box
 
-Input
+## Description
+Reduces an OpenDRIVE file to a specified bounding box and writes a `_reduced` output file.
+
+## Usage
+```bash
+python -m xodr_trim_to_box.main <file.xodr> --bbox <x_min> <y_min> <x_max> <y_max>
+```
+
+## Arguments
+- `filename` (required): OpenDRIVE input file.
+- `--bbox` (required): Bounding box values `x_min y_min x_max y_max`.
+
+## Input
 - OpenDRIVE file
-- bounding box
+- Bounding box coordinates
 
-Output
-- reduced OpenDRIVE file (with postif "_reduced")
+## Output
+- Reduced OpenDRIVE file with `_reduced` suffix
 
-# How to run
-- main.py with arguments
-    - [filename] : filename of OpenDRIVE file
-	- -bbox : bounding box as 4 values: x_min, y_min, x_max, y_max
-
-# Install
+## Install
 ```bash
-pip install -r requirements.txt` 
-```      
-or 
-```bash
-python -m pip install -r requirements.txt`    
-```    
+python -m pip install -r xodr_trim_to_box/requirements.txt
+```

@@ -1,15 +1,23 @@
-# Description
-Some OpenDRIVE files lack boundary specifications, so this script calculates the bounding box of the road data in OpenDRIVE and outputs the length/width box in the log.
+# xodr_calc_box
 
-# How to run
-- main.py with arguments
-    - [filename] : filename of OpenDRIVE file
+## Description
+Calculates a bounding box from OpenDRIVE road geometry and logs the result.
 
-# Install
+## Usage
 ```bash
-pip install -r requirements.txt` 
-```      
-or 
+python -m xodr_calc_box.main <file.xodr>
+```
+
+## Arguments
+- `filename` (required): OpenDRIVE input file.
+
+## Input
+- OpenDRIVE file
+
+## Output
+- Bounding box coordinates in logs
+
+## Install
 ```bash
-python -m pip install -r requirements.txt`    
-```     
+python -m pip install -r xodr_calc_box/requirements.txt
+```

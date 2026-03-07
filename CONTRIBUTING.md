@@ -39,6 +39,7 @@ PY
 - Add concise docstrings to new modules/functions with non-trivial behavior.
 - Keep comments focused on intent and constraints, not line-by-line narration.
 - Update `README.md` or module README files when behavior or runtime prerequisites change.
+- Follow the repository documentation standard in [`docs/STYLE.md`](docs/STYLE.md).
 
 # Licensing
 

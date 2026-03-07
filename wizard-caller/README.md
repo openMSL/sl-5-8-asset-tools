@@ -1,26 +1,30 @@
-# Description
-With the pre-filled jsonLD and the combined Shacl file, the [SD Creation Wizard](https://github.com/eclipse-xfsc/sd-creation-wizard-frontend) is called up for the user to complete.
+# wizard-caller
 
-*This module is currently __disabled__ in the pipeline because the SD Creation Wizard is not compatible with the latest Shacl version!*
+## Description
+Integrates with the SD Creation Wizard service to enrich JSON-LD with user-provided values.
 
-Input
-- JSON LD file
-- combined Shacl file  
-
-Output
-- extended JSON LD file 
-
-# How to run
-- main.py with arguments
-	- [filename] : filename of json LD file
-    - -shacl : merged shacl file
-    - -out : output filename for enhanced json LD file
-
-# Install
+## Usage
 ```bash
-pip install -r requirements.txt` 
-```      
-or 
+python -m wizard-caller.main <jsonld_file> -shacl <combined_shacl.ttl> -enable <true|false> -out <enhanced.json>
+```
+
+## Arguments
+- `filename` (required): Input JSON-LD file.
+- `-shacl` (required): Combined shacl file.
+- `-enable` (required): If `true`, call wizard endpoints; if `false`, copy input to output.
+- `-out` (required): Output JSON-LD file path.
+
+## Input
+- JSON-LD file
+- Combined shacl file
+
+## Output
+- Enhanced JSON-LD file
+
+## Install
 ```bash
-python -m pip install -r requirements.txt`    
-```     
+python -m pip install -r wizard-caller/requirements.txt
+```
+
+## Notes
+- This module is currently disabled in the default pipeline configuration.

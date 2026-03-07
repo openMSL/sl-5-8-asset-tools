@@ -1,22 +1,24 @@
-# Description
-Combines all necessary Shacl files of an asset type into a single Shalc for use in, for example, the SD Creation Wizard or Shalc Playgrounds.
+# shacl_combiner
 
-Input
-- JSON LD file
+## Description
+Collects all required shacl shapes referenced by a JSON-LD file and writes a combined turtle (`.ttl`) file.
 
-Output
-- combined Shacl file  
-  
-# How to run
-- main.py with arguments
-    - [filename] : json LD file
-    - -out : output path for combined shacl file
-
-# Install
+## Usage
 ```bash
-pip install -r requirements.txt` 
-```      
-or 
+python -m shacl_combiner.main <jsonld_file> -out <output_dir>
+```
+
+## Arguments
+- `filename` (required): Input JSON-LD file.
+- `-out` (required): Target directory for combined shacl output.
+
+## Input
+- JSON-LD file
+
+## Output
+- Combined shacl turtle file `<input_stem>.ttl`
+
+## Install
 ```bash
-python -m pip install -r requirements.txt`    
-```     
+python -m pip install -r shacl_combiner/requirements.txt
+```

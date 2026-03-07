@@ -1,30 +1,27 @@
-# Description
+# asset_extraction
 
-The main script, which calls the other scripts according to their configuration and exchanges the generated data. Creates the asset.zip archive at the end.
+## Description
+Main pipeline entrypoint. It executes configured extractor/creator modules and builds the final `asset.zip`.
 
-The goal is to have a process that is as automated as possible, which uses asset data (OpenDRIVE, OpenSCENARIO) to create an asset archive for use in marketplaces such as [Envited Marketplace](https://staging.envited-x.net/).
-
-Input
-- json file with uploaded files from frontend
-- Pipeline config file folder
-
-Output
-- Asset archive
-
-
-# How to run
-- main.py with arguments
-	- [filenname] : json file with uploaded files from frontend
-	- -config : config path for sub tools
-    - -out : output path for asset archive
-
-# Install
-To install the required libraries run
-    
+## Usage
 ```bash
-pip install -r requirements.txt` 
-```      
-or 
+python -m asset_extraction.main <uploaded_files.json> -config <config_dir> -out <output_dir>
+```
+
+## Arguments
+- `filename` (required): Path to the frontend `uploadedFiles.json`.
+- `-config` (required): Path to the pipeline/module configuration directory.
+- `-out` (required): Output directory where the asset subfolder and archive are created.
+
+## Input
+- Uploaded files metadata JSON (`uploadedFiles.json`)
+- Configuration directory (for example `./configs`)
+
+## Output
+- Asset working folder with generated artifacts
+- `asset.zip` inside the asset folder
+
+## Install
 ```bash
-python -m pip install -r requirements.txt`    
-```      
+python -m pip install -r asset_extraction/requirements.txt
+```

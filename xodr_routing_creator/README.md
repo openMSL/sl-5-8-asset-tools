@@ -1,26 +1,26 @@
-# Description
-A georeferenced vector format (Google KML or GeoJSON) is required for web display of the asset in order to show the route in a Google Map or OpenStreetMap view.
+# xodr_routing_creator
 
-This script parses all street lines and converts them into LatLon coordinates and outputs them as a georeferenced vector format such as Google KML or GeoJSON.
+## Description
+Parses OpenDRIVE plan view geometry, reprojects coordinates, and exports georeferenced route/bounding-box files in GeoJSON or KML.
 
-Input
-- Asset file
-
-Output
-- Georeferenced line geometry (in KML or GeoJSON)
-- Georeferenced bounding box geometry (in KML or GeoJSON)
-
-# How to run
-- main.py with arguments
-    - [filename] : filename of OpenDRIVE file
-    - -out : filename of exported file - use extension for format selection ('kml', 'geojson')
-	- -box : filename for boundingbox geo file - use extension for format selection ('kml', 'geojson')
-
-# Install
+## Usage
 ```bash
-pip install -r requirements.txt` 
-```      
-or 
+python -m xodr_routing_creator.main <file.xodr> -out <roadNetwork.geojson|kml> [-box <bbox.geojson|kml>]
+```
+
+## Arguments
+- `filename` (required): OpenDRIVE input file.
+- `-out` (required): Output route geometry file. Format is selected by file extension (`.geojson` or `.kml`).
+- `-box` (optional): Output bounding-box geometry file (`.geojson` or `.kml`).
+
+## Input
+- OpenDRIVE file
+
+## Output
+- Route geometry file
+- Optional bounding-box geometry file
+
+## Install
 ```bash
-python -m pip install -r requirements.txt`    
-```     
+python -m pip install -r xodr_routing_creator/requirements.txt
+```

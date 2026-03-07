@@ -1,25 +1,32 @@
-# Description
-Calls ASAM's Quality Checker bundles (for [OpenDRIVE](https://github.com/asam-ev/qc-opendrive) and [OpenSCENARIO](https://github.com/asam-ev/qc-openscenarioxml)) and OpenMSL Simulation Checker bundle for [OpenDRIVE](https://github.com/openMSL/sl-5-9-openmsl-qc-opendrive) to validate the ASAM OpenX formats.
+# qualitychecker_caller
 
-Input
-- Asset file
-- Default configuration file for QualityChecker (see [template](https://github.com/openMSL/sl-5-8-asset-tools/tree/main/qualitychecker_caller/templates) folder)
+## Description
+Runs ASAM/OpenMSL quality checker applications for OpenX files and converts generated `.xqar` reports to text reports.
 
-Output
-- validation files in xqar and txt   
-  
-# How to run
-- main.py with arguments
-    - [filename] : ASAM OpenX file, e.g. xodr, xosc
-    - -out : output result file
-    - -config : name of config file in subfolder templates
-    - -checkerbundle : name of checkerbundle
-
-# Install
+## Usage
 ```bash
-pip install -r requirements.txt` 
-```      
-or 
+python -m qualitychecker_caller.main <asset_file> -out <report.xqar> -config <template.xml> -app <checker_app> -checkerbundle <bundle_name>
+```
+
+## Arguments
+- `filename` (required): Input OpenX file (`.xodr` or `.xosc`).
+- `-out` (required): Target `.xqar` output file path.
+- `-config` (required): XML config template filename from `qualitychecker_caller/templates`.
+- `-app` (required): Checker executable name (for example `qc_opendrive`, `qc_openscenario`, `openmsl_qc_opendrive`).
+- `-checkerbundle` (required): Checker bundle name used in config.
+
+## Input
+- OpenX file
+- Checker config template
+
+## Output
+- `.xqar` validation report
+- `*_QCReport.txt` text report
+
+## Install
 ```bash
-python -m pip install -r requirements.txt`    
-```    
+python -m pip install -r qualitychecker_caller/requirements.txt
+```
+
+## Notes
+- On Linux, additional runtime libraries are required by `TextReport`.

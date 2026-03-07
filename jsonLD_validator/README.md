@@ -1,21 +1,27 @@
-# Description
-Validates a jsonLD file based on its ontology files. The idea is to have an automatic verification of the generated JSON-LD files for the pipeline.
+# jsonLD_validator
 
-Input
-- JSON LD file
+## Description
+Validates a JSON-LD file against derived shacl constraints.
 
-# How to run
-- main.py with arguments
-    - [filename] : json LD file
-    - -closed : Additional verification of the naming of properties in all NodeShapes
-
-# Install
-To install the required libraries run
-    
+## Usage
 ```bash
-pip install -r requirements.txt` 
-```      
-or 
+python -m jsonLD_validator.main <jsonld_file> [-closed]
+```
+
+## Arguments
+- `filename` (required): JSON-LD file to validate.
+- `-closed` (optional): Sets `sh:closed=true` on node shapes before validation to enforce stricter property checks.
+
+## Input
+- JSON-LD file
+
+## Output
+- Validation result in logs
+
+## Install
 ```bash
-python -m pip install -r requirements.txt`    
-```      
+python -m pip install -r jsonLD_validator/requirements.txt
+```
+
+## Notes
+- In the main pipeline this module is replaced by the ontology-management-base validation suite.
