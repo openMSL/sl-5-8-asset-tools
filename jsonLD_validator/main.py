@@ -1,3 +1,7 @@
+# DEPRECATED: This module is superseded by the OMB validation suite.
+# Use: python -m src.tools.validators.validation_suite --run check-data-conformance
+# See config_jsonLD_validator_omb.json for the active pipeline configuration.
+
 from pathlib import Path
 from pyshacl import validate
 from rdflib.namespace import SH, RDF

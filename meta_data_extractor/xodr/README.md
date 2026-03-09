@@ -14,23 +14,13 @@ We want to offer data providers a simple way to create metadata and also create 
     How to check current version on windows: ```py --version```
     How to check current version on macOS: ```python3 --version```
 
-3. **Install packages with pip**  
+3. **Install packages**
 
-    How to check current version on windows: ```py -m pip --version```
-    How to check current version on macOS: ```python3 -m pip --version```  
+    All dependencies are managed via the root `pyproject.toml`:
 
-    **Needed packages:**
-   
-| name            | used version | installation link for windows     | installation link for macOS            |
-|-----------------|--------------|-----------------------------------|----------------------------------------|
-| lxml            | 4.9.2        | py -m pip install lxml            | python3 -m pip install lxml            |
-| mpmath          | 1.2.1        | py -m pip install mpmath          | python3 -m pip install mpmath          |
-| numpy           | 1.24.2       | py -m pip install numpy           | python3 -m pip install numpy           |
-| pandas          | 1.5.3        | py -m pip install pandas          | python3 -m pip install pandas          |
-| python-dateutil | 2.8.2        | py -m pip install python-dateutil | python3 -m pip install python-dateutil |
-| pytz            | 2022.7.1     | py -m pip install pytz            | python3 -m pip install pytz            |
-| setuptools      | 65.5.1       | py -m pip install setuptools      | python3 -m pip install setuptools      |
-| sympy           | 1.11.1       | py -m pip install sympy           | python3 -m pip install sympy           |
+    ```bash
+    make install  # from repository root
+    ```
 
 # Development
 Used integrated development environment: PyCharm 2022.3.2

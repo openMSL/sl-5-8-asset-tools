@@ -2,3 +2,9 @@
 **/build
 **/*.egg-info
 **/.vscode
+.venv/
+shacls/
+qc_config.xml
+examples/*/output/
+examples/**/*.xodr
+examples/**/*.xosc

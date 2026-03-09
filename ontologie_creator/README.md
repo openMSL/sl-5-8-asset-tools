@@ -21,5 +21,5 @@ python -m ontologie_creator.main [-table <Metadata.xlsx>] [-out <ontologies/>] [
 
 ## Install
 ```bash
-python -m pip install -r ontologie_creator/requirements.txt
+make install  # from repository root
 ```

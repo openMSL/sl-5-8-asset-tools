@@ -26,5 +26,5 @@ python -m meta_data_extractor.main <asset_file> -out <output.json> [-u]
 
 ## Install
 ```bash
-python -m pip install -r meta_data_extractor/requirements.txt
+make install  # from repository root
 ```

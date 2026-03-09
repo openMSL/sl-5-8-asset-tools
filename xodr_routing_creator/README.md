@@ -22,5 +22,5 @@ python -m xodr_routing_creator.main <file.xodr> -out <roadNetwork.geojson|kml> [
 
 ## Install
 ```bash
-python -m pip install -r xodr_routing_creator/requirements.txt
+make install  # from repository root
 ```

@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-
 MODULE_REQUIRED = [
     "## Description",
     "## Usage",
@@ -35,7 +34,7 @@ def main() -> None:
     errors: list[str] = []
 
     for readme in sorted(Path(".").glob("*/README.md")):
-        if readme.parts[0] in {"external", "ontology-management-base"}:
+        if readme.parts[0] in {"submodules", "ontology-management-base"}:
             continue
         positions = section_positions(readme)
         missing = [section for section in MODULE_REQUIRED if section not in positions]

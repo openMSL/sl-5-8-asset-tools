@@ -20,5 +20,5 @@ python -m shacl_combiner.main <jsonld_file> -out <output_dir>
 
 ## Install
 ```bash
-python -m pip install -r shacl_combiner/requirements.txt
+make install  # from repository root
 ```

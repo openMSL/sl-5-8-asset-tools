@@ -25,5 +25,5 @@ python -m structure_creator.main <uploaded_files.json> -out <structure.json> -pa
 
 ## Install
 ```bash
-python -m pip install -r structure_creator/requirements.txt
+make install  # from repository root
 ```

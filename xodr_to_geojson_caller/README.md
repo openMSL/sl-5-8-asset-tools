@@ -21,7 +21,7 @@ python -m xodr_to_geojson_caller.main <file.xodr> -out <output.geojson> -path <t
 
 ## Install
 ```bash
-python -m pip install -r xodr_to_geojson_caller/requirements.txt
+make install  # from repository root
 ```
 
 ## Notes

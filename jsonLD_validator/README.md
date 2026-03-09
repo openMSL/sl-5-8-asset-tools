@@ -20,7 +20,7 @@ python -m jsonLD_validator.main <jsonld_file> [-closed]
 
 ## Install
 ```bash
-python -m pip install -r jsonLD_validator/requirements.txt
+make install  # from repository root
 ```
 
 ## Notes

@@ -21,5 +21,5 @@ python -m xodr_trim_to_box.main <file.xodr> --bbox <x_min> <y_min> <x_max> <y_ma
 
 ## Install
 ```bash
-python -m pip install -r xodr_trim_to_box/requirements.txt
+make install  # from repository root
 ```

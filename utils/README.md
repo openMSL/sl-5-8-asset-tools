@@ -30,5 +30,5 @@ python -c "import utils"
 
 ## Install
 ```bash
-python -m pip install -r utils/requirements.txt
+make install  # from repository root
 ```

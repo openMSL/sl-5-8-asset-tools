@@ -21,5 +21,5 @@ python -m asset_reducer.main <asset.xml> -out <output.bjson>
 
 ## Install
 ```bash
-python -m pip install -r asset_reducer/requirements.txt
+make install  # from repository root
 ```

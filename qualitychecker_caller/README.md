@@ -25,7 +25,7 @@ python -m qualitychecker_caller.main <asset_file> -out <report.xqar> -config <te
 
 ## Install
 ```bash
-python -m pip install -r qualitychecker_caller/requirements.txt
+make install  # from repository root
 ```
 
 ## Notes

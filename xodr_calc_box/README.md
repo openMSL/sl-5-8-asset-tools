@@ -19,5 +19,5 @@ python -m xodr_calc_box.main <file.xodr>
 
 ## Install
 ```bash
-python -m pip install -r xodr_calc_box/requirements.txt
+make install  # from repository root
 ```

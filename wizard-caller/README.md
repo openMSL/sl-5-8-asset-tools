@@ -23,7 +23,7 @@ python -m wizard-caller.main <jsonld_file> -shacl <combined_shacl.ttl> -enable <
 
 ## Install
 ```bash
-python -m pip install -r wizard-caller/requirements.txt
+make install  # from repository root
 ```
 
 ## Notes

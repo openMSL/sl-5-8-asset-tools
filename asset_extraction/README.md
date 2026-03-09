@@ -23,5 +23,5 @@ python -m asset_extraction.main <uploaded_files.json> -config <config_dir> -out 
 
 ## Install
 ```bash
-python -m pip install -r asset_extraction/requirements.txt
+make install  # from repository root
 ```

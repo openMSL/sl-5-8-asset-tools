@@ -17,6 +17,10 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+# Resolve OMB artifacts relative to this file's location
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+OMB_ARTIFACTS = _PROJECT_ROOT / "submodules" / "ontology-management-base" / "artifacts"
+
 
 def download_or_get_file(filename: Path, out_path: Path) -> Path:
     """get filename, if url download file first and get local filename"""
@@ -117,8 +121,21 @@ def download_file(url_path: str, out_path: Path, filename: str) -> Path:
 
 
 def download_shacl(url_path: str, shacl_name: str) -> Path:
-    """Download a SHACL file from URL into local shacls folder if missing."""
+    """Resolve a SHACL file from local OMB artifacts or download as fallback."""
 
+    # 1. Try local OMB artifacts (domain shapes)
+    omb_shacl = OMB_ARTIFACTS / shacl_name / f"{shacl_name}{SHACLE_NAME}"
+    if omb_shacl.exists():
+        logger.info(f"Using local OMB artifact: {omb_shacl}")
+        return omb_shacl
+
+    # 2. Try local OMB imports (W3C vocabularies like sh, rdf, owl)
+    omb_import = OMB_ARTIFACTS.parent / "imports" / shacl_name / f"{shacl_name}.owl.ttl"
+    if omb_import.exists():
+        logger.info(f"Using local OMB import: {omb_import}")
+        return omb_import
+
+    # 3. Try local cache (from a previous download)
     filename = f"{shacl_name}{SHACLE_NAME}"
     local_path = Path(f"{SHACL_FOLDER_NAME}")
     local_filepath = local_path / filename
@@ -126,6 +143,10 @@ def download_shacl(url_path: str, shacl_name: str) -> Path:
     if local_filepath.exists():
         return local_filepath
 
+    # 4. Fallback: download from remote URL
+    logger.warning(
+        f"SHACL '{shacl_name}' not found in OMB artifacts, downloading from {url_path}"
+    )
     if not url_path.endswith("ttl"):
         url_path = url_path + "shapes"
 

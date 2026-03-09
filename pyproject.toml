@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sl-5-8-asset-tools"
+version = "0.1.0"
+description = "Tools to analyze, transform, and package simulation asset data into EVES-003 conformant archives"
+readme = "README.md"
+license = {text = "EPL-2.0"}
+requires-python = ">=3.12"
+
+dependencies = [
+    "colorlog",
+    "geopy",
+    "lxml",
+    "multiformats",
+    "pandas",
+    "Pillow",
+    "pyproj",
+    "pyshacl>=0.31.0",
+    "rdflib>=7.5.0",
+    "requests",
+    "simplekml",
+    "sympy",
+]
+
+[project.optional-dependencies]
+qc = [
+    "asam-qc-baselib@git+https://github.com/asam-ev/qc-baselib-py@main",
+    "asam-qc-opendrive@git+https://github.com/asam-ev/qc-opendrive@main",
+    "asam-qc-openscenarioxml@git+https://github.com/asam-ev/qc-openscenarioxml@main",
+    "openmsl-qc-opendrive@git+https://github.com/openMSL/sl-5-9-openmsl-qc-opendrive@main",
+]
+dev = [
+    "black",
+    "flake8",
+    "isort",
+    "pre-commit",
+]
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[tool.setuptools.packages.find]
+include = [
+    "asset_extraction*",
+    "asset_reducer*",
+    "jsonLD_creator*",
+    "jsonLD_validator*",
+    "meta_data_extractor*",
+    "ontologie_creator*",
+    "qualitychecker_caller*",
+    "shacl_combiner*",
+    "structure_creator*",
+    "utils*",
+    "wizard-caller*",
+    "xodr_calc_box*",
+    "xodr_routing_creator*",
+    "xodr_to_geojson_caller*",
+    "xodr_trim_to_box*",
+]
