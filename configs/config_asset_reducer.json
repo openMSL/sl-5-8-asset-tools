@@ -1,7 +1,7 @@
 {
 	"name" : "asset_reducer",
 	"environment type" : "python",
-	"data folder" : "metadata",
+	"data folder" : "simulation-data",
 	"params" : 	{
 		"call" : "asset_reducer.main",
 		"output" : {"-out" : "{path}/{sub_path}/{name}.bjson"},

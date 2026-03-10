@@ -342,14 +342,7 @@ def register_folder(
 
 # fill mask element
 def fill_mask(filename: Path, file_data: dict, index: int) -> Path:
-    mask = file_data["mask"]
-    if (
-        file_data["type"] == "Document"
-        and filename.suffix == ".pdf"
-        and not filename.stem.endswith("_Documentation")
-    ):
-        mask = mask + "_Documentation"
-    return mask
+    return file_data["mask"]
 
 
 # create filename
@@ -362,7 +355,7 @@ def create_filename(
 
     if "{name}" in mask and "{file}" in mask:
         common_prefix = os.path.commonprefix([basename, asset_name])
-        basename = basename[len(common_prefix) :]
+        basename = basename[len(common_prefix) :].lstrip("_- ")
     mask = mask.replace(r"{name}", asset_name)
     mask = mask.replace(r"{file}", basename)
 
