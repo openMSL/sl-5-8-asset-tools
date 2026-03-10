@@ -48,7 +48,7 @@
 			"extensions": ["xodr"]		
 		},	
 		{
-			"enable" : false,
+			"enable" : true,
 			"filename": "config_vcs_odr-converter.json",
 			"extensions": ["xodr"]		
 		},	
