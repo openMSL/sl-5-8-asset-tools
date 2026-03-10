@@ -4,6 +4,7 @@ from utils.log_config import setup_logging
 from utils.http import download_or_get_file
 from utils.subprocess import run_command
 from utils.json import read_json
+from utils.input_manifest import load_input_file
 
 import json
 import argparse
@@ -185,7 +186,7 @@ def get_asset_type(asset_type: Path) -> str:
 
 # Return the first filename where type == "Asset" or raise if not found
 def get_asset_filename(json_path: Path) -> Path:
-    data = read_json(json_path)
+    data = load_input_file(json_path)
 
     for entry in data:
         if entry.get("type") == "Asset":
@@ -211,7 +212,7 @@ def main():
         prog="main.py",
         description="extracted from asset and user infos all extractor/creator scripts are called to create an asset archive.",
     )
-    parser.add_argument("filename", type=str, help="filename of uploadedFiles.json")
+    parser.add_argument("filename", type=str, help="filename of input_manifest.json or uploadedFiles.json")
     parser.add_argument(
         "-config", type=str, required=True, help="config path for sub tools."
     )

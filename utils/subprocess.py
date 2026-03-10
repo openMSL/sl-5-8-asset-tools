@@ -34,6 +34,12 @@ def run_command(cmd: list[str], name: str, cwd: Path | None = None) -> None:
         env.setdefault("PYTHONUTF8", "1")
         env.setdefault("PYTHONIOENCODING", "utf-8")
 
+        # Ensure the current venv's Scripts/bin directory is on PATH
+        # so that console_scripts entry points (e.g. qc_opendrive) are found
+        venv_bin = str(Path(sys.executable).parent)
+        if venv_bin not in env.get("PATH", ""):
+            env["PATH"] = venv_bin + os.pathsep + env.get("PATH", "")
+
         logger.info(">>>    start command %s", name)
         logger.info(cmd)
         result = subprocess.run(

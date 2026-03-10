@@ -8,6 +8,7 @@ from utils.http import url_from_path
 from utils.ids import create_uuid
 from utils.http import is_url, download_or_get_file
 from utils.json import write_json
+from utils.input_manifest import load_input_file
 from utils.constants import (
     ENVITED_URL,
     MANIFEST_SCHEMA_VERSION,
@@ -482,7 +483,7 @@ def main():
         prog="main.py",
         description="the folder structure is completed from the user info and a metadata table is created for the manifest",
     )
-    parser.add_argument("filename", help="filename of json file from frontend.")
+    parser.add_argument("filename", help="filename of input_manifest.json or uploadedFiles.json.")
     parser.add_argument("-out", required=True, help="json file for manifest.")
     parser.add_argument("-path", required=True, help="path to copy/parse data.")
     parser.add_argument(
@@ -511,9 +512,8 @@ def main():
     if not data_path.exists():
         raise FileNotFoundError(f"data path {data_path} not exists")
 
-    # read json
-    with open(user_input_file, "r") as file:
-        user_data = json.load(file)
+    # read json (supports both input_manifest.json and legacy uploadedFiles.json)
+    user_data = load_input_file(user_input_file)
 
     manifest_uuid = create_uuid()
 

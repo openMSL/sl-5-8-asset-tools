@@ -32,6 +32,14 @@ qc = [
     "asam-qc-openscenarioxml@git+https://github.com/asam-ev/qc-openscenarioxml@main",
     "openmsl-qc-opendrive@git+https://github.com/openMSL/sl-5-9-openmsl-qc-opendrive@main",
 ]
+qc-deps = [
+    "pyclothoids",
+    "transforms3d",
+    "xmlschema",
+    "semver",
+    "pydantic-xml",
+    "scipy",
+]
 dev = [
     "black",
     "flake8",

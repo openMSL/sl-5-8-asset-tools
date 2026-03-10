@@ -4,7 +4,7 @@
 	"data folder" : "temp",
 	"params" : 	{
 		"call" : "structure_creator.main",
-		"input" : {"" : "{asset_path}/uploadedFiles.json"},
+		"input" : {"" : "{asset_path}/input_manifest.json"},
 		"output" : {"-out" : "{path}/{sub_path}/{name}_structure.json"},
 		"additional" : {
 			"-path" : "{path}",
