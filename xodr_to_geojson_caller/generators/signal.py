@@ -23,8 +23,12 @@ def generate_signal_points(road: Road) -> list[SignalResult]:
         h = signal.z_offset
         if elev is not None:
             h += get_elevation(
-                s=signal.s, t=signal.t,
-                elev_a=elev.a, elev_b=elev.b, elev_c=elev.c, elev_d=elev.d,
+                s=signal.s,
+                t=signal.t,
+                elev_a=elev.a,
+                elev_b=elev.b,
+                elev_c=elev.c,
+                elev_d=elev.d,
                 elev_s=elev.s,
             )
 

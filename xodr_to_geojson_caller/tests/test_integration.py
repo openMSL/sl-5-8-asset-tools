@@ -9,7 +9,12 @@ import pytest
 from xodr_to_geojson_caller.converter.geojson import convert_all
 from xodr_to_geojson_caller.parser.xodr_parser import parse_opendrive
 
-SAMPLE_XODR = Path(__file__).resolve().parents[2] / "examples" / "OpenDRIVE" / "StraightRoad_NCAP_Roadmarks.xodr"
+SAMPLE_XODR = (
+    Path(__file__).resolve().parents[2]
+    / "examples"
+    / "OpenDRIVE"
+    / "StraightRoad_NCAP_Roadmarks.xodr"
+)
 
 
 @pytest.mark.skipif(

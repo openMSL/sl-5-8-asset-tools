@@ -36,9 +36,11 @@ def _feature(geometry_type: str, coordinates: Any, properties: dict) -> dict:
         "type": "Feature",
         "geometry": {
             "type": geometry_type,
-            "coordinates": [list(c) for c in coordinates]
-            if isinstance(coordinates, list)
-            else list(coordinates),
+            "coordinates": (
+                [list(c) for c in coordinates]
+                if isinstance(coordinates, list)
+                else list(coordinates)
+            ),
         },
         "properties": properties,
     }
@@ -78,10 +80,13 @@ def convert_reference_lines(
     for road in odr.roads:
         points = generate_center_line(road, step=step)
         points = transform_coords(points, transformer)
-        features.append(_feature(
-            "LineString", points,
-            {"roadId": road.id, "name": road.name, "length": road.length},
-        ))
+        features.append(
+            _feature(
+                "LineString",
+                points,
+                {"roadId": road.id, "name": road.name, "length": road.length},
+            )
+        )
     return _feature_collection(features)
 
 
@@ -97,15 +102,18 @@ def convert_lanes(
             for lane_id, coords in polys:
                 coords = transform_coords(coords, transformer)
                 # Find the lane object for metadata
-                lane = next(
-                    (l for l in ls.all_lanes if l.id == lane_id), None
+                lane = next((l for l in ls.all_lanes if l.id == lane_id), None)
+                features.append(
+                    _polygon_feature(
+                        coords,
+                        {
+                            "roadId": road.id,
+                            "laneId": lane_id,
+                            "type": lane.type if lane else "",
+                            "sOffset": ls.s,
+                        },
+                    )
                 )
-                features.append(_polygon_feature(coords, {
-                    "roadId": road.id,
-                    "laneId": lane_id,
-                    "type": lane.type if lane else "",
-                    "sOffset": ls.s,
-                }))
     return _feature_collection(features)
 
 
@@ -120,33 +128,54 @@ def convert_lane_sections(
             coords = generate_road_polygon(ls, bp)
             if coords:
                 coords = transform_coords(coords, transformer)
-                features.append(_polygon_feature(coords, {
-                    "roadId": road.id,
-                    "sOffset": ls.s,
-                }))
+                features.append(
+                    _polygon_feature(
+                        coords,
+                        {
+                            "roadId": road.id,
+                            "sOffset": ls.s,
+                        },
+                    )
+                )
     return _feature_collection(features)
 
 
 def convert_roads(
     odr: OpenDRIVE, transformer: Transformer | None = None, step: float = 0.2
 ) -> dict:
-    """Convert overall road polygons."""
+    """Convert overall road polygons.
+
+    Merges all lane sections into a single road polygon by concatenating
+    outermost left and right boundary points across sections.
+    """
     features = []
     for road in odr.roads:
-        all_coords: list[Coord3D] = []
+        left_boundary: list[Coord3D] = []
+        right_boundary: list[Coord3D] = []
         for ls in road.lanes.lane_sections:
             bp = generate_lane_ground_points(road, ls, step=step)
-            rp = generate_road_polygon(ls, bp)
-            if rp:
-                all_coords = rp  # Use last (or only) section as road polygon
-        if all_coords:
-            all_coords = transform_coords(all_coords, transformer)
-            features.append(_polygon_feature(all_coords, {
-                "roadId": road.id,
-                "name": road.name,
-                "length": road.length,
-                "junction": road.junction,
-            }))
+            if not bp:
+                continue
+            all_ids = sorted(bp.keys())
+            if len(all_ids) < 2:
+                continue
+            left_boundary.extend(bp[max(all_ids)])
+            right_boundary.extend(bp[min(all_ids)])
+        if left_boundary and right_boundary:
+            ring = left_boundary + list(reversed(right_boundary))
+            ring.append(ring[0])
+            ring = transform_coords(ring, transformer)
+            features.append(
+                _polygon_feature(
+                    ring,
+                    {
+                        "roadId": road.id,
+                        "name": road.name,
+                        "length": road.length,
+                        "junction": road.junction,
+                    },
+                )
+            )
     return _feature_collection(features)
 
 
@@ -160,16 +189,17 @@ def convert_lane_break_lines(
             bp = generate_lane_ground_points(road, ls, step=step)
             for lane_id, points in bp.items():
                 points = transform_coords(points, transformer)
-                features.append(_feature(
-                    "LineString", points,
-                    {"roadId": road.id, "laneId": lane_id, "sOffset": ls.s},
-                ))
+                features.append(
+                    _feature(
+                        "LineString",
+                        points,
+                        {"roadId": road.id, "laneId": lane_id, "sOffset": ls.s},
+                    )
+                )
     return _feature_collection(features)
 
 
-def convert_objects(
-    odr: OpenDRIVE, transformer: Transformer | None = None
-) -> dict:
+def convert_objects(odr: OpenDRIVE, transformer: Transformer | None = None) -> dict:
     """Convert road objects to GeoJSON features."""
     features = []
     for road in odr.roads:
@@ -184,9 +214,7 @@ def convert_objects(
     return _feature_collection(features)
 
 
-def convert_signals(
-    odr: OpenDRIVE, transformer: Transformer | None = None
-) -> dict:
+def convert_signals(odr: OpenDRIVE, transformer: Transformer | None = None) -> dict:
     """Convert signals to GeoJSON point features."""
     features = []
     for road in odr.roads:
@@ -210,12 +238,17 @@ def convert_road_marks(
                 ring = inner + list(reversed(outer))
                 ring.append(ring[0])
                 ring = transform_coords(ring, transformer)
-                features.append(_polygon_feature(ring, {
-                    "roadId": road.id,
-                    "laneId": lane_id,
-                    "markType": mark_type,
-                    "sOffset": ls.s,
-                }))
+                features.append(
+                    _polygon_feature(
+                        ring,
+                        {
+                            "roadId": road.id,
+                            "laneId": lane_id,
+                            "markType": mark_type,
+                            "sOffset": ls.s,
+                        },
+                    )
+                )
     return _feature_collection(features)
 
 
@@ -243,14 +276,16 @@ def convert_junctions(
                     multi_polygons.append([[list(c) for c in rp]])
 
         if multi_polygons:
-            features.append({
-                "type": "Feature",
-                "geometry": {
-                    "type": "MultiPolygon",
-                    "coordinates": multi_polygons,
-                },
-                "properties": {"junctionId": junction.id, "name": junction.name},
-            })
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "MultiPolygon",
+                        "coordinates": multi_polygons,
+                    },
+                    "properties": {"junctionId": junction.id, "name": junction.name},
+                }
+            )
 
     return _feature_collection(features)
 

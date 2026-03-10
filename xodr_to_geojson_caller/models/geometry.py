@@ -54,7 +54,9 @@ class Spiral(GeometryBase):
     @property
     def curv_dot(self) -> float:
         """Rate of curvature change per meter."""
-        return (self.curv_end - self.curv_start) / self.length if self.length > 0 else 0.0
+        return (
+            (self.curv_end - self.curv_start) / self.length if self.length > 0 else 0.0
+        )
 
 
 @dataclass(frozen=True, slots=True)

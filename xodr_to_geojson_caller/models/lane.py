@@ -37,8 +37,6 @@ class Lane:
     widths: list[LaneWidth] = field(default_factory=list)
     heights: list[LaneHeight] = field(default_factory=list)
     road_marks: list[RoadMark] = field(default_factory=list)
-    # Accumulated geometry (populated during generation)
-    geometries: list = field(default_factory=list)
 
     def width_at(self, s_local: float) -> LaneWidth | None:
         """Find the width polynomial at local s-offset."""

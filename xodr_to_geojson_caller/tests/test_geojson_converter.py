@@ -17,7 +17,6 @@ from xodr_to_geojson_caller.converter.geojson import (
 )
 from xodr_to_geojson_caller.parser.xodr_parser import parse_opendrive_string
 
-
 XODR = textwrap.dedent("""\
     <?xml version="1.0" encoding="UTF-8"?>
     <OpenDRIVE>
@@ -148,3 +147,134 @@ class TestConvertJunctions:
         fc = convert_junctions(odr)
         assert fc["type"] == "FeatureCollection"
         assert len(fc["features"]) == 0
+
+
+MULTI_SECTION_XODR = textwrap.dedent("""\
+    <?xml version="1.0" encoding="UTF-8"?>
+    <OpenDRIVE>
+        <header revMajor="1" revMinor="6" name="Test">
+            <geoReference><![CDATA[]]></geoReference>
+        </header>
+        <road id="1" name="MultiSection" length="100.0" junction="-1">
+            <planView>
+                <geometry s="0.0" x="0.0" y="0.0" hdg="0.0" length="100.0">
+                    <line/>
+                </geometry>
+            </planView>
+            <lanes>
+                <laneSection s="0.0">
+                    <left>
+                        <lane id="1" type="driving" level="false">
+                            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+                        </lane>
+                    </left>
+                    <center><lane id="0" type="none" level="false"/></center>
+                    <right>
+                        <lane id="-1" type="driving" level="false">
+                            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+                        </lane>
+                    </right>
+                </laneSection>
+                <laneSection s="50.0">
+                    <left>
+                        <lane id="1" type="driving" level="false">
+                            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+                        </lane>
+                    </left>
+                    <center><lane id="0" type="none" level="false"/></center>
+                    <right>
+                        <lane id="-1" type="driving" level="false">
+                            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+                        </lane>
+                    </right>
+                </laneSection>
+            </lanes>
+        </road>
+    </OpenDRIVE>
+""")
+
+
+JUNCTION_XODR = textwrap.dedent("""\
+    <?xml version="1.0" encoding="UTF-8"?>
+    <OpenDRIVE>
+        <header revMajor="1" revMinor="6" name="Test">
+            <geoReference><![CDATA[]]></geoReference>
+        </header>
+        <road id="1" name="Incoming" length="50.0" junction="-1">
+            <planView>
+                <geometry s="0.0" x="0.0" y="0.0" hdg="0.0" length="50.0">
+                    <line/>
+                </geometry>
+            </planView>
+            <lanes>
+                <laneSection s="0.0">
+                    <center><lane id="0" type="none"/></center>
+                    <right>
+                        <lane id="-1" type="driving">
+                            <width sOffset="0.0" a="3.5"/>
+                        </lane>
+                    </right>
+                </laneSection>
+            </lanes>
+        </road>
+        <road id="2" name="Connecting" length="30.0" junction="100">
+            <planView>
+                <geometry s="0.0" x="50.0" y="0.0" hdg="0.0" length="30.0">
+                    <line/>
+                </geometry>
+            </planView>
+            <lanes>
+                <laneSection s="0.0">
+                    <center><lane id="0" type="none"/></center>
+                    <right>
+                        <lane id="-1" type="driving">
+                            <width sOffset="0.0" a="3.5"/>
+                        </lane>
+                    </right>
+                </laneSection>
+            </lanes>
+        </road>
+        <junction id="100" name="Junc1">
+            <connection id="1" incomingRoad="1" connectingRoad="2" contactPoint="start">
+                <laneLink from="-1" to="-1"/>
+            </connection>
+        </junction>
+    </OpenDRIVE>
+""")
+
+
+class TestConvertRoadsMultiSection:
+    """Regression: convert_roads must merge all lane sections."""
+
+    def test_multi_section_polygon_spans_full_road(self):
+        odr = parse_opendrive_string(MULTI_SECTION_XODR)
+        fc = convert_roads(odr, step=10.0)
+        assert len(fc["features"]) == 1
+        coords = fc["features"][0]["geometry"]["coordinates"][0]
+        xs = [c[0] for c in coords]
+        assert min(xs) == pytest.approx(0.0, abs=1.0)
+        assert max(xs) == pytest.approx(100.0, abs=1.0)
+
+    def test_multi_section_polygon_is_closed(self):
+        odr = parse_opendrive_string(MULTI_SECTION_XODR)
+        fc = convert_roads(odr, step=10.0)
+        ring = fc["features"][0]["geometry"]["coordinates"][0]
+        assert ring[0] == ring[-1]
+
+
+class TestConvertJunctionsGeometry:
+    """Junctions with connecting roads should produce MultiPolygon features."""
+
+    def test_junction_produces_multipolygon(self):
+        odr = parse_opendrive_string(JUNCTION_XODR)
+        fc = convert_junctions(odr, step=10.0)
+        assert len(fc["features"]) == 1
+        feat = fc["features"][0]
+        assert feat["geometry"]["type"] == "MultiPolygon"
+        assert feat["properties"]["junctionId"] == "100"
+
+    def test_junction_coordinates_not_empty(self):
+        odr = parse_opendrive_string(JUNCTION_XODR)
+        fc = convert_junctions(odr, step=10.0)
+        coords = fc["features"][0]["geometry"]["coordinates"]
+        assert len(coords) > 0

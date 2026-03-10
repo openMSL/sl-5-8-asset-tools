@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -21,6 +21,3 @@ class Signal:
     value: float = 0.0
     dynamic: str = ""
     country: str = ""
-    # Populated during generation
-    geometries: list = field(default_factory=list)
-    computed_heading: float = 0.0

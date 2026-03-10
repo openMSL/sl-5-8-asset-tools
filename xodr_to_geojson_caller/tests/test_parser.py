@@ -6,7 +6,6 @@ import pytest
 
 from xodr_to_geojson_caller.parser.xodr_parser import parse_opendrive_string
 
-
 MINIMAL_XODR = textwrap.dedent("""\
     <?xml version="1.0" encoding="UTF-8"?>
     <OpenDRIVE>
@@ -227,3 +226,32 @@ class TestParserJunctions:
         assert len(junc.connections) == 1
         assert junc.connections[0].incoming_road == "1"
         assert len(junc.connections[0].lane_links) == 1
+
+
+class TestParserSafeXML:
+    """XXE prevention: parser disables entity resolution."""
+
+    def test_parses_normal_xml(self):
+        odr = parse_opendrive_string(MINIMAL_XODR)
+        assert len(odr.roads) == 1
+
+    def test_empty_road_plan_view(self):
+        """Road with no planView should parse without error."""
+        xodr = textwrap.dedent("""\
+            <?xml version="1.0"?>
+            <OpenDRIVE>
+                <header revMajor="1" revMinor="6" name="T">
+                    <geoReference><![CDATA[]]></geoReference>
+                </header>
+                <road id="1" name="Empty" length="10.0" junction="-1">
+                    <lanes>
+                        <laneSection s="0.0">
+                            <center><lane id="0" type="none"/></center>
+                        </laneSection>
+                    </lanes>
+                </road>
+            </OpenDRIVE>
+        """)
+        odr = parse_opendrive_string(xodr)
+        assert len(odr.roads) == 1
+        assert len(odr.roads[0].plan_view) == 0

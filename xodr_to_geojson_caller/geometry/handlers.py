@@ -8,7 +8,6 @@ selects the right handler based on geometry type.
 from __future__ import annotations
 
 import math
-from functools import singledispatch
 
 from xodr_to_geojson_caller.geometry.curves import (
     calc_normal_vector,
@@ -60,15 +59,15 @@ def line_sth2xyz(
     return x, y, h
 
 
-def arc_sth2xyz(
-    geom: Arc, s: float, t: float, h: float
-) -> tuple[float, float, float]:
+def arc_sth2xyz(geom: Arc, s: float, t: float, h: float) -> tuple[float, float, float]:
     ds = s - geom.s
     c = geom.curvature
     if c == 0.0:
         return line_sth2xyz(
             Line(s=geom.s, x=geom.x, y=geom.y, hdg=geom.hdg, length=geom.length),
-            s, t, h,
+            s,
+            t,
+            h,
         )
 
     sign = math.copysign(1.0, c)
@@ -143,9 +142,7 @@ _HANDLER_MAP = {
 }
 
 
-def sth2xyz(
-    geom: Geometry, s: float, t: float, h: float
-) -> tuple[float, float, float]:
+def sth2xyz(geom: Geometry, s: float, t: float, h: float) -> tuple[float, float, float]:
     """Dispatch to the appropriate handler based on geometry type."""
     handler = _HANDLER_MAP.get(type(geom))
     if handler is None:

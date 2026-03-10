@@ -15,7 +15,7 @@ governing permissions and limitations under the
 License.
 
 Contributors:
-- [<Initial Author> - <Description, e.g.: initial API and implementation>]
+- Copyright (C) 2026, BMW AG
 - Copyright (C) 2024, Automotive Solution Center for Simulation e.V. (ASCS)
 
 ===========================================================================

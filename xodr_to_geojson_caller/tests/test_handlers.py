@@ -82,7 +82,9 @@ class TestSpiralSth2Xyz:
 
 class TestPoly3Sth2Xyz:
     def test_straight_poly(self):
-        geom = Poly3(s=0.0, x=0.0, y=0.0, hdg=0.0, length=50.0, a=0.0, b=0.0, c=0.0, d=0.0)
+        geom = Poly3(
+            s=0.0, x=0.0, y=0.0, hdg=0.0, length=50.0, a=0.0, b=0.0, c=0.0, d=0.0
+        )
         x, y, z = poly3_sth2xyz(geom, s=10.0, t=0.0, h=0.0)
         assert x == pytest.approx(10.0)
         assert y == pytest.approx(0.0)
@@ -98,9 +100,19 @@ class TestPoly3Sth2Xyz:
 class TestParamPoly3Sth2Xyz:
     def test_straight_param_poly(self):
         geom = ParamPoly3(
-            s=0.0, x=0.0, y=0.0, hdg=0.0, length=50.0,
-            a_u=0.0, b_u=1.0, c_u=0.0, d_u=0.0,
-            a_v=0.0, b_v=0.0, c_v=0.0, d_v=0.0,
+            s=0.0,
+            x=0.0,
+            y=0.0,
+            hdg=0.0,
+            length=50.0,
+            a_u=0.0,
+            b_u=1.0,
+            c_u=0.0,
+            d_u=0.0,
+            a_v=0.0,
+            b_v=0.0,
+            c_v=0.0,
+            d_v=0.0,
             p_range="arcLength",
         )
         x, y, z = param_poly3_sth2xyz(geom, s=10.0, t=0.0, h=0.0)

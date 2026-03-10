@@ -42,7 +42,9 @@ def poly3_geometry():
     """A poly3 geometry: v(ds) = 0 + 0*ds + 0.001*ds² + 0."""
     from xodr_to_geojson_caller.models.geometry import Poly3
 
-    return Poly3(s=0.0, x=0.0, y=0.0, hdg=0.0, length=50.0, a=0.0, b=0.0, c=0.001, d=0.0)
+    return Poly3(
+        s=0.0, x=0.0, y=0.0, hdg=0.0, length=50.0, a=0.0, b=0.0, c=0.001, d=0.0
+    )
 
 
 @pytest.fixture
@@ -56,7 +58,13 @@ def param_poly3_geometry():
         y=0.0,
         hdg=0.0,
         length=50.0,
-        a_u=0.0, b_u=1.0, c_u=0.0, d_u=0.0,
-        a_v=0.0, b_v=0.0, c_v=0.001, d_v=0.0,
+        a_u=0.0,
+        b_u=1.0,
+        c_u=0.0,
+        d_u=0.0,
+        a_v=0.0,
+        b_v=0.0,
+        c_v=0.001,
+        d_v=0.0,
         p_range="arcLength",
     )

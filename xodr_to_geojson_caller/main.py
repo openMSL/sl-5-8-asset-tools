@@ -22,7 +22,9 @@ def main():
         description="Convert an OpenDRIVE (.xodr) file into GeoJSON files.",
     )
     parser.add_argument("filename", help="path to the OpenDRIVE (.xodr) input file")
-    parser.add_argument("-out", required=True, help="output directory for GeoJSON files")
+    parser.add_argument(
+        "-out", required=True, help="output directory for GeoJSON files"
+    )
     parser.add_argument(
         "-path",
         required=False,

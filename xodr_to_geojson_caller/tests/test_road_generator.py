@@ -19,7 +19,10 @@ from xodr_to_geojson_caller.models.road import ElevationProfile, Polynomial, Roa
 def _simple_road() -> Road:
     """A straight 100m road with one 3.5m lane on each side."""
     return Road(
-        id="1", name="Test", length=100.0, junction="-1",
+        id="1",
+        name="Test",
+        length=100.0,
+        junction="-1",
         plan_view=[Line(s=0.0, x=0.0, y=0.0, hdg=0.0, length=100.0)],
         elevation_profile=ElevationProfile(
             elevations=[Polynomial(s=0.0, a=0.0, b=0.0, c=0.0, d=0.0)]
@@ -29,11 +32,19 @@ def _simple_road() -> Road:
                 LaneSection(
                     s=0.0,
                     left_lanes=[
-                        Lane(id=1, type="driving", widths=[LaneWidth(s_offset=0.0, a=3.5)]),
+                        Lane(
+                            id=1,
+                            type="driving",
+                            widths=[LaneWidth(s_offset=0.0, a=3.5)],
+                        ),
                     ],
                     center_lane=Lane(id=0, type="none"),
                     right_lanes=[
-                        Lane(id=-1, type="driving", widths=[LaneWidth(s_offset=0.0, a=3.5)]),
+                        Lane(
+                            id=-1,
+                            type="driving",
+                            widths=[LaneWidth(s_offset=0.0, a=3.5)],
+                        ),
                     ],
                 )
             ],
@@ -127,3 +138,12 @@ class TestGenerateRoadPolygon:
         polygon = generate_road_polygon(ls, points)
         assert polygon[0] == polygon[-1]
         assert len(polygon) > 4
+
+
+class TestEmptyPlanView:
+    """Road with no geometry should raise ValueError on geometry_at."""
+
+    def test_geometry_at_raises_on_empty_planview(self):
+        road = Road(id="empty", name="Empty", length=10.0)
+        with pytest.raises(ValueError, match="empty planView"):
+            road.geometry_at(0.0)

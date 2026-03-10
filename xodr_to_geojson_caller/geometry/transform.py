@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from pyproj import CRS, Transformer
+
+logger = logging.getLogger(__name__)
 
 Coord3D = tuple[float, float, float]
 
@@ -20,13 +24,16 @@ def create_transformer(source_proj4: str) -> Transformer | None:
     try:
         source_crs = CRS.from_proj4(source_proj4)
         return Transformer.from_crs(source_crs, WGS84, always_xy=True)
-    except Exception:
+    except Exception as e:
+        logger.warning(
+            "Invalid CRS '%s': %s — coordinates will not be transformed to WGS84",
+            source_proj4,
+            e,
+        )
         return None
 
 
-def transform_coord(
-    coord: Coord3D, transformer: Transformer | None
-) -> Coord3D:
+def transform_coord(coord: Coord3D, transformer: Transformer | None) -> Coord3D:
     """Transform a single 3D coordinate. Pass-through if no transformer."""
     if transformer is None:
         return coord

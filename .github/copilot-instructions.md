@@ -24,7 +24,7 @@ This repository contains **tools to analyze, transform, and package simulation a
 | `jsonLD_validator/` | Legacy JSON-LD validator (replaced by ontology-management-base in pipeline) | ❌ | — |
 | `qualitychecker_caller/` | Runs ASAM/OpenMSL quality checkers, produces `.xqar` + text reports | ✅ | xodr, xosc |
 | `xodr_routing_creator/` | Generates GeoJSON road network geometry + bounding box from OpenDRIVE | ✅ | xodr |
-| `xodr_to_geojson_caller/` | VCS OpenDRIVE → GeoJSON converter (requires Java; disabled by default) | ❌ | xodr |
+| `xodr_to_geojson_caller/` | Pure-Python OpenDRIVE → GeoJSON 3D preview converter (reimplements VCS opendriveconverter) | ✅ | xodr |
 | `asset_reducer/` | Reduces XML to binary JSON (`.bjson`) for search indexing | ✅ | xodr |
 | `structure_creator/` | Builds final folder structure, renames files, generates manifest attribute JSON + README | ✅ | all |
 
@@ -86,6 +86,7 @@ uploadedFiles.json
   → qualitychecker (ASAM)    → validation-reports/{name}_asam_cb_xodr.xqar
   → qualitychecker (OpenMSL) → validation-reports/{name}_openmsl_cb_xodr.xqar
   → xodr_routing_creator     → media/roadNetwork.geojson + media/bbox.geojson
+  → xodr_to_geojson_caller   → media/3d_preview/*.json (road/lane/object GeoJSON)
   → asset_reducer             → metadata/{name}.bjson
   → structure_creator         → temp/{name}_structure.json (+ organizes files)
   → jsonLD_creator            → manifest_reference.json

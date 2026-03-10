@@ -54,6 +54,8 @@ class Road:
 
     def geometry_at(self, s: float) -> Geometry:
         """Find the geometry segment containing s-coordinate."""
+        if not self.plan_view:
+            raise ValueError(f"Road '{self.id}' has no geometry (empty planView)")
         result = self.plan_view[0]
         for geom in self.plan_view:
             if geom.s <= s:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from xodr_to_geojson_caller.generators._utils import get_lane_offset_value
 from xodr_to_geojson_caller.geometry.curves import calc_polynom_value
 from xodr_to_geojson_caller.geometry.discretisation import generate_s_runner
 from xodr_to_geojson_caller.geometry.elevation import get_elevation
@@ -71,8 +72,11 @@ def generate_road_mark_points(
                 ep = {}
                 if elev is not None:
                     ep = dict(
-                        elev_a=elev.a, elev_b=elev.b,
-                        elev_c=elev.c, elev_d=elev.d, elev_s=elev.s,
+                        elev_a=elev.a,
+                        elev_b=elev.b,
+                        elev_c=elev.c,
+                        elev_d=elev.d,
+                        elev_s=elev.s,
                     )
 
                 # Compute t-offset to this lane boundary
@@ -95,9 +99,7 @@ def _lane_boundary_t(
     ls: LaneSection, lane_id: int, s_local: float, road: Road, s_global: float
 ) -> float:
     """Compute the t-coordinate of a lane boundary."""
-    from xodr_to_geojson_caller.generators.road import _get_lane_offset_value
-
-    offset = _get_lane_offset_value(road, s_global)
+    offset = get_lane_offset_value(road, s_global)
 
     if lane_id == 0:
         return offset

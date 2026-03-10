@@ -6,6 +6,11 @@ accumulation, and constructs lane/road polygons as coordinate lists.
 
 from __future__ import annotations
 
+from xodr_to_geojson_caller.generators._utils import (
+    get_elev_params,
+    get_lane_offset_value,
+    get_super_params,
+)
 from xodr_to_geojson_caller.geometry.curves import calc_polynom_value
 from xodr_to_geojson_caller.geometry.discretisation import generate_s_runner
 from xodr_to_geojson_caller.geometry.elevation import get_elevation, get_projected_width
@@ -16,9 +21,7 @@ from xodr_to_geojson_caller.models.road import Road
 Coord3D = tuple[float, float, float]
 
 
-def generate_center_line(
-    road: Road, step: float = 0.2
-) -> list[Coord3D]:
+def generate_center_line(road: Road, step: float = 0.2) -> list[Coord3D]:
     """Generate the reference line (center lane) as a list of 3D points."""
     s_positions = generate_s_runner(length=road.length, step=step)
     points: list[Coord3D] = []
@@ -29,39 +32,18 @@ def generate_center_line(
         h = 0.0
         if elev is not None:
             h = get_elevation(
-                s=s, t=0.0,
-                elev_a=elev.a, elev_b=elev.b, elev_c=elev.c, elev_d=elev.d,
+                s=s,
+                t=0.0,
+                elev_a=elev.a,
+                elev_b=elev.b,
+                elev_c=elev.c,
+                elev_d=elev.d,
                 elev_s=elev.s,
             )
         x, y, z = sth2xyz(geom, s=s, t=0.0, h=h)
         points.append((x, y, z))
 
     return points
-
-
-def _get_lane_offset_value(road: Road, s: float) -> float:
-    """Get the lane offset (lateral shift of center lane) at s."""
-    lo = road.lanes.lane_offset_at(s)
-    if lo is None:
-        return 0.0
-    ds = s - lo.s
-    return calc_polynom_value(lo.a, lo.b, lo.c, lo.d, ds=ds)
-
-
-def _get_elev_params(road: Road, s: float) -> dict:
-    """Extract elevation polynomial params for get_elevation calls."""
-    elev = road.elevation_at(s)
-    if elev is None:
-        return dict(elev_a=0.0, elev_b=0.0, elev_c=0.0, elev_d=0.0, elev_s=0.0)
-    return dict(elev_a=elev.a, elev_b=elev.b, elev_c=elev.c, elev_d=elev.d, elev_s=elev.s)
-
-
-def _get_super_params(road: Road, s: float) -> dict:
-    """Extract superelevation polynomial params."""
-    se = road.superelevation_at(s)
-    if se is None:
-        return {}
-    return dict(super_a=se.a, super_b=se.b, super_c=se.c, super_d=se.d, super_s=se.s)
 
 
 def generate_lane_ground_points(
@@ -100,9 +82,9 @@ def generate_lane_ground_points(
     for s_local in s_positions:
         s_global = s_start + s_local
         geom = road.geometry_at(s_global)
-        elev_params = _get_elev_params(road, s_global)
-        super_params = _get_super_params(road, s_global)
-        offset = _get_lane_offset_value(road, s_global)
+        elev_params = get_elev_params(road, s_global)
+        super_params = get_super_params(road, s_global)
+        offset = get_lane_offset_value(road, s_global)
 
         # Center lane boundary (ID 0)
         t_center = offset
@@ -121,8 +103,12 @@ def generate_lane_ground_points(
             else:
                 width = 0.0
             t_accum -= width
-            pw = get_projected_width(t_accum, s=s_global, level=lane.level, **super_params)
-            h = get_elevation(s=s_global, t=t_accum, level=lane.level, **elev_params, **super_params)
+            pw = get_projected_width(
+                t_accum, s=s_global, level=lane.level, **super_params
+            )
+            h = get_elevation(
+                s=s_global, t=t_accum, level=lane.level, **elev_params, **super_params
+            )
             x, y, z = sth2xyz(geom, s=s_global, t=pw, h=h)
             points[lane.id].append((x, y, z))
 
@@ -136,8 +122,12 @@ def generate_lane_ground_points(
             else:
                 width = 0.0
             t_accum += width
-            pw = get_projected_width(t_accum, s=s_global, level=lane.level, **super_params)
-            h = get_elevation(s=s_global, t=t_accum, level=lane.level, **elev_params, **super_params)
+            pw = get_projected_width(
+                t_accum, s=s_global, level=lane.level, **super_params
+            )
+            h = get_elevation(
+                s=s_global, t=t_accum, level=lane.level, **elev_params, **super_params
+            )
             x, y, z = sth2xyz(geom, s=s_global, t=pw, h=h)
             points[lane.id].append((x, y, z))
 

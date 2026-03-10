@@ -3,7 +3,7 @@
 ## Description
 Pure-Python OpenDRIVE (.xodr) to GeoJSON converter. Re-implements the
 [VCS opendriveconverter](https://github.com/virtualcitySYSTEMS/opendriveconverter)
-without requiring Java.
+(Java) entirely in Python, removing the Java runtime dependency.
 
 ## Usage
 ```bash

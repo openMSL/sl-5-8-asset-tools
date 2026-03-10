@@ -69,5 +69,3 @@ class RoadObject:
     subtype: str = ""
     outlines: list[Outline] = field(default_factory=list)
     repeats: list[ObjectRepeat] = field(default_factory=list)
-    # Populated during generation
-    geometries: list = field(default_factory=list)

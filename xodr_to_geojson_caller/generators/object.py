@@ -2,28 +2,29 @@
 
 from __future__ import annotations
 
+import logging
 import math
 
+from xodr_to_geojson_caller.generators._utils import get_elev_params
 from xodr_to_geojson_caller.geometry.elevation import get_elevation
 from xodr_to_geojson_caller.geometry.handlers import sth2xyz
 from xodr_to_geojson_caller.models.road import Road
+
+logger = logging.getLogger(__name__)
 
 Coord3D = tuple[float, float, float]
 # Each result is (geom_type, coordinates, properties)
 ObjectGeometry = tuple[str, list[Coord3D] | Coord3D, dict]
 
 
-def _elev_params(road: Road, s: float) -> dict:
-    elev = road.elevation_at(s)
-    if elev is None:
-        return dict(elev_a=0.0, elev_b=0.0, elev_c=0.0, elev_d=0.0, elev_s=0.0)
-    return dict(elev_a=elev.a, elev_b=elev.b, elev_c=elev.c, elev_d=elev.d, elev_s=elev.s)
-
-
 def _obj_props(obj) -> dict:
     return {
-        "id": obj.id, "name": obj.name, "type": obj.type,
-        "s": obj.s, "t": obj.t, "heading": obj.hdg,
+        "id": obj.id,
+        "name": obj.name,
+        "type": obj.type,
+        "s": obj.s,
+        "t": obj.t,
+        "heading": obj.hdg,
         "zOffset": obj.z_offset,
     }
 
@@ -33,9 +34,16 @@ def generate_object_geometries(road: Road) -> list[ObjectGeometry]:
     results: list[ObjectGeometry] = []
 
     for obj in road.objects:
+        if obj.repeats:
+            logger.debug(
+                "Object '%s' has %d repeat element(s) which are not yet supported",
+                obj.id,
+                len(obj.repeats),
+            )
+
         props = _obj_props(obj)
         geom = road.geometry_at(obj.s)
-        ep = _elev_params(road, obj.s)
+        ep = get_elev_params(road, obj.s)
         h = get_elevation(s=obj.s, t=obj.t, **ep) + obj.z_offset
 
         if obj.outlines:
@@ -45,7 +53,10 @@ def generate_object_geometries(road: Road) -> list[ObjectGeometry]:
                 if outline.corner_road:
                     for cr in outline.corner_road:
                         g = road.geometry_at(cr.s)
-                        h_cr = get_elevation(s=cr.s, t=cr.t, **_elev_params(road, cr.s)) + cr.dz
+                        h_cr = (
+                            get_elevation(s=cr.s, t=cr.t, **get_elev_params(road, cr.s))
+                            + cr.dz
+                        )
                         x, y, z = sth2xyz(g, s=cr.s, t=cr.t, h=h_cr)
                         coords.append((x, y, z))
                 elif outline.corner_local:
@@ -59,19 +70,28 @@ def generate_object_geometries(road: Road) -> list[ObjectGeometry]:
                     results.append(("Polygon", coords, props))
 
         elif obj.length > 0.0 and obj.width > 0.0 and obj.radius == 0.0:
-            # Rectangular object
+            # Rectangular object rotated by obj.hdg
             half_l = obj.length / 2.0
             half_w = obj.width / 2.0
+            cos_h = math.cos(obj.hdg)
+            sin_h = math.sin(obj.hdg)
+            local_corners = [
+                (-half_l, -half_w),
+                (+half_l, -half_w),
+                (+half_l, +half_w),
+                (-half_l, +half_w),
+            ]
             corners = [
-                (obj.s - half_l, obj.t - half_w),
-                (obj.s + half_l, obj.t - half_w),
-                (obj.s + half_l, obj.t + half_w),
-                (obj.s - half_l, obj.t + half_w),
+                (obj.s + du * cos_h - dv * sin_h, obj.t + du * sin_h + dv * cos_h)
+                for du, dv in local_corners
             ]
             coords = []
             for cs, ct in corners:
                 g = road.geometry_at(cs)
-                h_c = get_elevation(s=cs, t=ct, **_elev_params(road, cs)) + obj.z_offset
+                h_c = (
+                    get_elevation(s=cs, t=ct, **get_elev_params(road, cs))
+                    + obj.z_offset
+                )
                 x, y, z = sth2xyz(g, s=cs, t=ct, h=h_c)
                 coords.append((x, y, z))
             coords.append(coords[0])

@@ -39,7 +39,9 @@ def get_elevation(
     ds_elev = s - elev_s
     base_height = calc_polynom_value(elev_a, elev_b, elev_c, elev_d, ds=ds_elev)
 
-    if level or (super_a == 0.0 and super_b == 0.0 and super_c == 0.0 and super_d == 0.0):
+    if level or (
+        super_a == 0.0 and super_b == 0.0 and super_c == 0.0 and super_d == 0.0
+    ):
         return base_height
 
     ds_super = s - super_s
@@ -63,7 +65,9 @@ def get_projected_width(
 
     When the road is banked, the horizontal distance is compressed by cos(alpha).
     """
-    if level or (super_a == 0.0 and super_b == 0.0 and super_c == 0.0 and super_d == 0.0):
+    if level or (
+        super_a == 0.0 and super_b == 0.0 and super_c == 0.0 and super_d == 0.0
+    ):
         return t
 
     ds_super = s - super_s
