@@ -279,26 +279,6 @@ def create_file_data(
     return file_data
 
 
-# register licence
-def register_licence(
-    data: dict,
-    filename: Path,
-    abs_data_path: Path,
-    category: str,
-    role: str,
-    data_type=None,
-):
-    data = create_file_data(filename, abs_data_path, category, role, None)
-    if data_type:
-        if data_type in data:
-            data[data_type].extend(data)
-        else:
-            data[data_type] = data
-    else:
-        data.clear()
-        data.update(data)
-
-
 # regrister asset
 def register_asset(
     data: dict,
@@ -553,6 +533,7 @@ def main():
     upload_folder = user_input_file.parent
     indexImage = 1
     license_data = None
+    license_dest = None
     for file in user_data:
         filename = Path(file["filename"])
 
@@ -590,8 +571,8 @@ def main():
         shutil.copy(source, dest)
 
         if category == "isLicense":
-            license_data = {}
             license_data = file
+            license_dest = dest
 
     # create json file for jsonLD creator
     data = {}
@@ -609,15 +590,15 @@ def main():
         )
 
     # register license
-    # TODO get license from file or user input link/type
-    # license_file = Path('https://www.mozilla.org/en-US/MPL/2.0/')
     if license_data is not None:
         licence_group = {}
         data["manifest:hasLicense"] = licence_group
+        license_path = license_dest if license_dest else Path(license_data["filename"])
+        license_base = data_path.parent if license_dest else data_path
         register_asset(
             licence_group,
-            Path(license_data["filename"]),
-            data_path,
+            license_path,
+            license_base,
             "isLicense",
             "isPublic",
         )
