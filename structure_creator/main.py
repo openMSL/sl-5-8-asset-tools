@@ -476,7 +476,9 @@ def main():
         prog="main.py",
         description="the folder structure is completed from the user info and a metadata table is created for the manifest",
     )
-    parser.add_argument("filename", help="filename of input_manifest.json or uploadedFiles.json.")
+    parser.add_argument(
+        "filename", help="filename of input_manifest.json or uploadedFiles.json."
+    )
     parser.add_argument("-out", required=True, help="json file for manifest.")
     parser.add_argument("-path", required=True, help="path to copy/parse data.")
     parser.add_argument(
@@ -530,8 +532,8 @@ def main():
     for file in user_data:
         filename = Path(file["filename"])
 
-        # no path elements?
-        if len(filename.parts) == 1:
+        # resolve relative paths against the upload folder
+        if not filename.is_absolute():
             filename = upload_folder / filename
 
         # get cat, type data

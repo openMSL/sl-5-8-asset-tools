@@ -212,7 +212,11 @@ def main():
         prog="main.py",
         description="extracted from asset and user infos all extractor/creator scripts are called to create an asset archive.",
     )
-    parser.add_argument("filename", type=str, help="filename of input_manifest.json or uploadedFiles.json")
+    parser.add_argument(
+        "filename",
+        type=str,
+        help="filename of input_manifest.json or uploadedFiles.json",
+    )
     parser.add_argument(
         "-config", type=str, required=True, help="config path for sub tools."
     )

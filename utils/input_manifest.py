@@ -73,7 +73,9 @@ def _infer_type(category: str, extension: str) -> str:
 
 def _link_to_entry(link: dict) -> dict:
     """Convert a single manifest:Link node to a legacy uploadedFiles entry."""
-    category = _extract_id(link.get("hasCategory", link.get("manifest:hasCategory", "")))
+    category = _extract_id(
+        link.get("hasCategory", link.get("manifest:hasCategory", ""))
+    )
     file_meta = link.get("hasFileMetadata", link.get("manifest:hasFileMetadata", {}))
 
     file_path = file_meta.get("filePath", file_meta.get("manifest:filePath", ""))
@@ -133,7 +135,9 @@ def load_input_file(json_path: Path) -> list:
         data = json.load(f)
 
     if is_input_manifest(data):
-        logger.info("Detected input_manifest.json format (JSON-LD) — converting to legacy format")
+        logger.info(
+            "Detected input_manifest.json format (JSON-LD) — converting to legacy format"
+        )
         return input_manifest_to_uploaded_files(data)
     elif isinstance(data, list):
         logger.info("Detected legacy uploadedFiles.json format")
