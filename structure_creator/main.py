@@ -318,7 +318,7 @@ def register_folder(
 
         file_data = get_file_data_from_category(filename)  # add from scripts
         if not file_data:
-            return
+            continue
 
         category = file_data["category"]
         role = file_data["role"]
@@ -555,7 +555,7 @@ def main():
         dest_name = create_filename(
             Path(dest_name), asset_name, cat_type_data, indexImage
         )
-        if category == "visualization" and typ == "Image":
+        if category == "isMedia" and typ == "Image":
             indexImage = indexImage + 1  # increase image index for image mask
 
         # destination filename
