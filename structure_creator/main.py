@@ -18,7 +18,6 @@ import argparse
 import json
 import shutil
 import logging
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +95,7 @@ CATEGORIES = {
         {
             "type": "License",
             "extensions": ["", "txt", "md"],
-            "folder": "../",
+            "folder": "",
             "mask": "LICENSE",
             "role": "isPublic",
         }
@@ -141,7 +140,7 @@ ASSET_TYPES = {
 
 MIME_TYPE = {
     "isManifest": {"json": "application/ld+json"},
-    "isLicense": {"": "text/html"},
+    "isLicense": {"": "text/plain"},
     "isSimulationData": {"": "application/x-{extension}"},
     "isMiscellaneous": {"bjson": "application/json"},
     "isDocumentation": {
@@ -234,8 +233,8 @@ def create_file_data(
     else:
         relative_path = filename.relative_to(abs_data_path)
 
-        if os.path.exists(filename) and data_type != "isManifest":
-            file_meta_data["manifest:fileSize"] = os.path.getsize(filename.as_posix())
+        if filename.exists() and data_type != "isManifest":
+            file_meta_data["manifest:fileSize"] = filename.stat().st_size
             creation_ts = filename.stat().st_ctime
             creation_dt = datetime.fromtimestamp(creation_ts)
             formatted_creation_data = creation_dt.isoformat(timespec="seconds")
@@ -247,7 +246,7 @@ def create_file_data(
             else:
                 file_meta_data["manifest:timestamp"] = formatted_creation_data
             # create IPFS CIDv1 identifier
-            with open(filename, "rb") as f:
+            with filename.open("rb") as f:
                 data = f.read()
             # create Multihash (SHA-256)
             mh = digest(data, "sha2-256")
@@ -256,7 +255,7 @@ def create_file_data(
             # convert in Base32 coded string
             cid_str = cid.encode("base32")
             file_meta_data["manifest:cid"] = cid_str
-            file_meta_data["manifest:filePath"] = "ipfs://" + cid_str
+            file_meta_data["manifest:filePath"] = relative_path.as_posix()
 
             if data_type == "isMedia" and filename.suffix.lstrip(".") == "png":
                 img = Image.open(filename)
@@ -350,7 +349,7 @@ def create_filename(
     mask = fill_mask(filename, file_data, index)
 
     if "{name}" in mask and "{file}" in mask:
-        common_prefix = os.path.commonprefix([basename, asset_name])
+        common_prefix = "".join(c for c, d in zip(basename, asset_name) if c == d)
         basename = basename[len(common_prefix) :].lstrip("_- ")
     mask = mask.replace(r"{name}", asset_name)
     mask = mask.replace(r"{file}", basename)
@@ -544,6 +543,8 @@ def main():
     data_group = []
     data["manifest:hasArtifacts"] = data_group
     for sub_folder in data_path.iterdir():
+        if sub_folder.is_file():
+            continue
         relative_path = str(sub_folder.relative_to(data_path))
         if relative_path == "temp":
             continue
@@ -556,7 +557,7 @@ def main():
         licence_group = {}
         data["manifest:hasLicense"] = licence_group
         license_path = license_dest if license_dest else Path(license_data["filename"])
-        license_base = data_path.parent if license_dest else data_path
+        license_base = data_path
         register_asset(
             licence_group,
             license_path,

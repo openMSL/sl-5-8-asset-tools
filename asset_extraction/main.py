@@ -5,6 +5,7 @@ from utils.http import download_or_get_file
 from utils.subprocess import run_command
 from utils.input_manifest import load_input_file
 import argparse
+import json
 import shutil
 import logging
 
@@ -25,7 +26,7 @@ def get_configs(config_dir: Path, asset_file: Path) -> list:
     process_file = config_dir / "process.json"
     if not process_file.exists():
         raise FileNotFoundError(f"config file {process_file} not exists")
-    with open(process_file, "r") as file:
+    with process_file.open("r") as file:
         config_process = json.load(file)
 
     # filter for asset_type
@@ -46,7 +47,7 @@ def get_configs(config_dir: Path, asset_file: Path) -> list:
         if not config_file.exists():
             raise FileNotFoundError(f"config file {config_file} not exists")
 
-        with open((config_dir / filename), "r") as file:
+        with (config_dir / filename).open("r") as file:
             configs.append(json.load(file))
 
     return configs
