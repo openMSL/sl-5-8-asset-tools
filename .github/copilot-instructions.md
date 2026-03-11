@@ -20,7 +20,7 @@ This repository contains **tools to analyze, transform, and package simulation a
 | `meta_data_extractor/` | Extracts metadata from asset files (format, content, quantity, georeference) | ✅ | xodr, xosc |
 | `jsonLD_creator/` | Creates JSON-LD instances from extracted attribute JSON + SHACL ontologies | ✅ | xodr, xosc, 3dmodel |
 | `shacl_combiner/` | Combines referenced SHACL shapes into a single `.ttl` file | ✅ | all |
-| `wizard_caller/` | SD Creation Wizard integration (disabled via `-enable false` by default) | ✅* | all |
+| `wizard_caller/` | SHACL-driven CLI wizard for enriching JSON-LD interactively (disabled via `-enable false` by default) | ✅* | all |
 | `jsonLD_validator/` | Legacy JSON-LD validator (replaced by ontology-management-base in pipeline) | ❌ | — |
 | `qualitychecker_caller/` | Runs ASAM/OpenMSL quality checkers, produces `.xqar` + text reports | ✅ | xodr, xosc |
 | `xodr_routing_creator/` | Generates GeoJSON road network geometry + bounding box from OpenDRIVE | ✅ | xodr |
@@ -81,7 +81,7 @@ uploadedFiles.json
   → meta_data_extractor     → temp/{name}_extractor.json
   → jsonLD_creator           → temp/hdmap_instance.json
   → shacl_combiner           → temp/hdmap_instance.ttl
-  → wizard_caller (disabled) → metadata/hdmap_instance.json (copy)
+  → wizard_caller (disabled) → metadata/hdmap_instance.json (interactive SHACL-guided prompts or copy)
   → jsonLD_validator_omb     → validation pass/fail
   → qualitychecker (ASAM)    → validation-reports/{name}_asam_cb_xodr.xqar
   → qualitychecker (OpenMSL) → validation-reports/{name}_openmsl_cb_xodr.xqar
