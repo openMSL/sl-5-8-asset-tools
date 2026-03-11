@@ -49,7 +49,9 @@ setup: $(ACTIVATE_SCRIPT)
 	@if ! "$(PYTHON)" -c "import rdflib, pyshacl, lxml" >/dev/null 2>&1; then \
 		echo "[INFO] Dependencies missing -- reinstalling..."; \
 		"$(PYTHON)" -m pip install -e ".[dev]"; \
-		"$(PYTHON)" -m pip install -e "$(OMB)"; \
+		if [ -f "$(OMB)/pyproject.toml" ] || [ -f "$(OMB)/setup.py" ]; then \
+			"$(PYTHON)" -m pip install -e "$(OMB)"; \
+		fi; \
 	fi
 	@"$(PYTHON)" -m pre_commit install --allow-missing-config >/dev/null 2>&1 || true
 	@echo "[OK] Setup complete.  Activate with:  source $(ACTIVATE_SCRIPT)"
@@ -62,7 +64,11 @@ $(PYTHON):
 $(ACTIVATE_SCRIPT): $(PYTHON)
 	@echo "[INFO] Installing dependencies..."
 	@"$(PYTHON)" -m pip install -e ".[dev]"
-	@"$(PYTHON)" -m pip install -e "$(OMB)"
+	@if [ -f "$(OMB)/pyproject.toml" ] || [ -f "$(OMB)/setup.py" ]; then \
+		"$(PYTHON)" -m pip install -e "$(OMB)"; \
+	else \
+		echo "[WARN] OMB submodule not initialised – skipping."; \
+	fi
 	@touch "$(ACTIVATE_SCRIPT)"
 
 install:
@@ -72,7 +78,11 @@ ifeq ($(SUBCMD),dev)
 else
 	@"$(PYTHON)" -m pip install -e .
 endif
-	@"$(PYTHON)" -m pip install -e "$(OMB)"
+	@if [ -f "$(OMB)/pyproject.toml" ] || [ -f "$(OMB)/setup.py" ]; then \
+		"$(PYTHON)" -m pip install -e "$(OMB)"; \
+	else \
+		echo "[WARN] OMB submodule not initialised – skipping."; \
+	fi
 	@echo "[OK] Install complete"
 
 # ── Lint & Format ────────────────────────────────────────────────────
