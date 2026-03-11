@@ -7,7 +7,7 @@ name = "sl-5-8-asset-tools"
 version = "0.1.0"
 description = "Tools to analyze, transform, and package simulation asset data into EVES-003 conformant archives"
 readme = "README.md"
-license = {text = "EPL-2.0"}
+license = {text = "Apache-2.0"}
 requires-python = ">=3.12"
 
 dependencies = [
