@@ -131,7 +131,7 @@ def load_input_file(json_path: Path) -> list:
     - If the loaded JSON is a dict with @context → input_manifest.json → convert
     - If the loaded JSON is a list → legacy uploadedFiles.json → pass through
     """
-    with open(json_path, "r", encoding="utf-8") as f:
+    with json_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     if is_input_manifest(data):

@@ -18,7 +18,6 @@ import xml.etree.ElementTree as ET
 import logging
 import typing
 import json
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -1482,9 +1481,9 @@ def register_links(links_dic, dict_name, links):
             file_meta_data = dict()
             link_data["manifest:fileMetaData"] = file_meta_data
             file_meta_data["manifest:uri"] = link
-            file_meta_data["manifest:filename"] = os.path.basename(link)
-            if os.path.exists(link):
-                file_meta_data["manifest:fileSize"] = os.path.getsize(link)
+            file_meta_data["manifest:filename"] = Path(link).name
+            if Path(link).exists():
+                file_meta_data["manifest:fileSize"] = Path(link).stat().st_size
             links_data.append(link_data)
         links_dic[dict_name] = links_data
 

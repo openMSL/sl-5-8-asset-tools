@@ -86,7 +86,7 @@ def process_element(element, mapping):
 def load_mapping_table(mapping_file: Path):
     if not Path(mapping_file).exists():
         raise FileNotFoundError(f"file '{mapping_file}' not exist.")
-    with open(mapping_file, "r") as f:
+    with mapping_file.open("r") as f:
         node_mapping = json.load(f)
     return node_mapping
 

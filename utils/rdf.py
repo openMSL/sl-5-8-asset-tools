@@ -33,7 +33,7 @@ def load_jsonld_file(jsonld_file: Path) -> Graph:
 
     data_graph = Graph()
     logger.info(f"adding jsonld file to data graph: {jsonld_file}.")
-    with open(jsonld_file) as f:
+    with jsonld_file.open() as f:
         data = json.load(f)
     data_graph.parse(data=json.dumps(data), format="json-ld")
     return data_graph

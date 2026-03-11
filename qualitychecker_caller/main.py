@@ -139,7 +139,7 @@ def main():
 
     # write als txt
     output_file = output_file.resolve()
-    os.chdir(output_file.parent)  # change system path
+    os.chdir(str(output_file.parent))  # change system path
     script_call = []
     script_path = Path(__file__).resolve()
     _apply_linux_textreport_library_fallback(script_path)
@@ -154,11 +154,11 @@ def main():
     script_call.append(str(output_file))
 
     if sys.platform.startswith("linux"):
-        os.chmod(
-            text_report_executable_path, stat.S_IXUSR
+        text_report_executable_path.chmod(
+            stat.S_IXUSR
         )  # chmode +x TextReport (in docker i.e. the Docker )
         # Confirm permissions (optional)
-        permissions = oct(os.stat(text_report_executable_path).st_mode)[-3:]
+        permissions = oct(text_report_executable_path.stat().st_mode)[-3:]
         logger.info(f"Permissions: {permissions}")
     run_command(script_call, f"Start Converting xqar to human readable form :")
 
