@@ -147,11 +147,31 @@ run generate:
 		echo "Usage:  make $@ <opendrive|openscenario>"; \
 		exit 1; \
 	fi; \
+	if [ "$(SUBCMD)" = "openscenario" ]; then \
+		odr_manifest=$$(find "$(CURDIR)/examples/OpenDRIVE/output" -name manifest.json 2>/dev/null | head -1); \
+		if [ -z "$$odr_manifest" ]; then \
+			echo "[INFO] OpenDRIVE asset not built yet — building dependency..."; \
+			"$(MAKE)" generate opendrive; \
+			odr_manifest=$$(find "$(CURDIR)/examples/OpenDRIVE/output" -name manifest.json 2>/dev/null | head -1); \
+		fi; \
+		if [ -n "$$odr_manifest" ]; then \
+			echo "[INFO] Resolving external references from $$odr_manifest"; \
+			cp "$(CURDIR)/examples/$$dir/input/input_manifest.json" \
+			   "$(CURDIR)/examples/$$dir/input/input_manifest.json.bak"; \
+			"$(CURDIR)/$(PYTHON)" "$(CURDIR)/scripts/resolve_references.py" \
+				"$(CURDIR)/examples/$$dir/input/input_manifest.json" \
+				--ref-manifest "$$odr_manifest"; \
+		fi; \
+	fi; \
 	echo "[INFO] Running $$dir pipeline..."; \
 	cd "./examples/$$dir/input" && "$(CURDIR)/$(PYTHON)" -m asset_extraction.main \
 		input_manifest.json \
 		-config "$(CURDIR)/configs" \
 		-out   "$(CURDIR)/examples/$$dir/output"; \
+	if [ -f "$(CURDIR)/examples/$$dir/input/input_manifest.json.bak" ]; then \
+		mv "$(CURDIR)/examples/$$dir/input/input_manifest.json.bak" \
+		   "$(CURDIR)/examples/$$dir/input/input_manifest.json"; \
+	fi; \
 	echo "[OK] $$dir pipeline complete"
 
 # ── Clean ────────────────────────────────────────────────────────────

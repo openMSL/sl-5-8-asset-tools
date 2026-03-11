@@ -374,7 +374,11 @@ def load_openscenario_file(osc_path: Path) -> OpenSCENARIO:
         # try local
         osc.map_location = (osc_path.parent / Path(filepath).name).resolve()
         if not osc.map_location.exists():
-            raise FileNotFoundError(f"map not exist {osc.map_location}")
+            logger.warning(
+                f"Referenced map not found locally: {osc.map_location} "
+                f"— treating as external asset reference"
+            )
+            osc.map_location = None
 
     if ".//CatalogLocations" in sc:
         for catalog in sc.find(".//CatalogLocations"):
@@ -447,10 +451,13 @@ def add_resources(
     scenario: OpenSCENARIO, resources: typing.Dict, metadata_config: typing.Dict
 ) -> str:
     uuid_map = create_uuid()
-    relative_path = Path(scenario.map_location).relative_to(
-        scenario.scenario_file.parent
-    )
-    resources[uuid_map] = get_conf_value(metadata_config, "map/location", relative_path)
+    if scenario.map_location is not None:
+        relative_path = Path(scenario.map_location).relative_to(
+            scenario.scenario_file.parent
+        )
+        resources[uuid_map] = get_conf_value(
+            metadata_config, "map/location", relative_path
+        )
     for catalogs in scenario.catalog_locations.values():
         for catalog in catalogs:
             resources[create_uuid()] = Path(catalog).relative_to(

@@ -51,6 +51,23 @@
       }
     }
   ],
+  "hasReferencedArtifacts": [
+    {
+      "@type": "Link",
+      "hasCategory": {
+        "@id": "envited-x:isSimulationData"
+      },
+      "hasAccessRole": {
+        "@id": "envited-x:isPublic"
+      },
+      "hasFileMetadata": {
+        "@type": "FileMetadata",
+        "filePath": "__OPENDRIVE_ASSET_PATH__",
+        "mimeType": "application/xml",
+        "cid": "__OPENDRIVE_ASSET_CID__"
+      }
+    }
+  ],
   "hasLicense": {
     "@type": "Link",
     "hasCategory": {

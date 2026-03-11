@@ -3,7 +3,7 @@ from zipfile import ZipFile
 from utils.log_config import setup_logging
 from utils.http import download_or_get_file
 from utils.subprocess import run_command
-from utils.input_manifest import load_input_file
+from utils.input_manifest import load_input_file, load_referenced_artifacts
 import argparse
 import json
 import shutil
@@ -154,6 +154,45 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
     run_command(cmd=script_call, name=script_config["name"], cwd=str(project_root))
 
 
+def _format_reference(ref: dict) -> dict:
+    """Format a referenced artifact link from input manifest JSON-LD
+    to match the output manifest format used by jsonLD_creator."""
+    cat = ref.get("hasCategory", ref.get("manifest:hasCategory", {}))
+    role = ref.get("hasAccessRole", ref.get("manifest:hasAccessRole", {}))
+    meta = ref.get("hasFileMetadata", ref.get("manifest:hasFileMetadata", {}))
+
+    cat_id = cat.get("@id", "") if isinstance(cat, dict) else str(cat)
+    role_id = role.get("@id", "") if isinstance(role, dict) else str(role)
+
+    out_meta = {"@type": "manifest:FileMetadata"}
+    for key in ("filePath", "manifest:filePath"):
+        if key in meta:
+            val = meta[key]
+            out_meta["filePath"] = (
+                val.get("@value", val) if isinstance(val, dict) else val
+            )
+            break
+    for key in ("mimeType", "manifest:mimeType"):
+        if key in meta:
+            out_meta["mimeType"] = meta[key]
+            break
+    for key in ("cid", "manifest:cid"):
+        if key in meta:
+            out_meta["cid"] = meta[key]
+            break
+    for key in ("filename", "manifest:filename"):
+        if key in meta:
+            out_meta["filename"] = meta[key]
+            break
+
+    return {
+        "@type": "manifest:Link",
+        "hasAccessRole": {"@type": "manifest:AccessRole", "@id": role_id},
+        "hasCategory": {"@type": "manifest:Category", "@id": cat_id},
+        "manifest:hasFileMetadata": out_meta,
+    }
+
+
 # create zip file from folder
 def create_zip(output_dir: Path, zip_filename: Path):
     with ZipFile(zip_filename, "w") as zipf:
@@ -254,6 +293,20 @@ def main():
     # execute each script and collect outputs
     for script_config in applicable_scripts:
         execute_script(script_config, asset_file, output_sub_dir)
+
+    # inject referenced artifacts from input manifest into output manifest
+    refs = load_referenced_artifacts(uploaded_file)
+    manifest_path = output_sub_dir / "manifest.json"
+    if refs and manifest_path.exists():
+        with manifest_path.open("r", encoding="utf-8") as f:
+            manifest = json.load(f)
+        manifest["manifest:hasReferencedArtifacts"] = [
+            _format_reference(ref) for ref in refs
+        ]
+        with manifest_path.open("w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        logger.info(f"Injected {len(refs)} referenced artifact(s) into manifest")
 
     # remove temp folder before
     temp_path = output_sub_dir / "temp"

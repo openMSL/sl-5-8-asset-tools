@@ -147,3 +147,25 @@ def load_input_file(json_path: Path) -> list:
             f"Unrecognized input format in {json_path}. "
             "Expected either a JSON-LD object (input_manifest.json) or a JSON array (uploadedFiles.json)."
         )
+
+
+def load_referenced_artifacts(json_path: Path) -> list | None:
+    """Extract hasReferencedArtifacts from an input_manifest.json.
+
+    Returns the raw JSON-LD array of referenced artifact links,
+    or None if the file is legacy format or has no references.
+    """
+    with json_path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    if not is_input_manifest(data):
+        return None
+
+    refs = data.get(
+        "hasReferencedArtifacts", data.get("manifest:hasReferencedArtifacts")
+    )
+    if refs is None:
+        return None
+    if not isinstance(refs, list):
+        refs = [refs]
+    return refs if refs else None
