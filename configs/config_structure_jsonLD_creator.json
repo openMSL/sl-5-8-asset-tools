@@ -5,7 +5,7 @@
 	"params" : 	{
 		"call" : "jsonLD_creator.main",
 		"input" : {"" : "{path}/temp/{name}_structure.json"},
-		"output" : {"-out" : "{path}/manifest_reference.json"},
+		"output" : {"-out" : "{path}/manifest.json"},
 		"additional" : {
 			"-ontology" : "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base/main"
 		}		

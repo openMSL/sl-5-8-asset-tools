@@ -8,7 +8,7 @@
 		"output" : {"-out" : "{path}/{sub_path}/{name}_structure.json"},
 		"additional" : {
 			"-path" : "{path}",
-			"-asset_json" : "{path}/metadata/{asset_type}_instance.json",
+			"-asset_json" : "{path}/metadata/{asset_type}.json",
 			"-asset_extractor" : "{path}/{sub_path}/{name}_extractor.json"
 		}	
 	}

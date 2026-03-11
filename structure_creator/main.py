@@ -1,5 +1,4 @@
 from pathlib import Path
-from urllib.parse import urlparse
 from multiformats import CID
 from multiformats.multihash import digest
 from PIL import Image
@@ -12,8 +11,6 @@ from utils.input_manifest import load_input_file
 from utils.constants import (
     ENVITED_URL,
     MANIFEST_SCHEMA_VERSION,
-    GITHUB_RAW_URL,
-    GAIAX_ONTOLOGY_PART,
     DID_ADRESS,
 )
 
@@ -22,7 +19,6 @@ import json
 import shutil
 import logging
 import os
-import requests
 
 logger = logging.getLogger(__name__)
 
@@ -366,35 +362,6 @@ def create_filename(
     return Path(filename_new)
 
 
-#  updat ereadme
-def update_readme(
-    file_path_in: Path, file_path_out: Path, name_value: str, description_value: str
-) -> None:
-    # Read the entire content of the file using UTF-8 encoding
-    content = file_path_in.read_text(encoding="utf-8")
-
-    # Replace the placeholders with the given values
-    content = content.replace("< envited-x:DataResource:name >", name_value)
-    content = content.replace(
-        "< envited-x:DataResource:description >", description_value
-    )
-
-    # Write the updated content back to the file using UTF-8 encoding
-    file_path_out.write_text(content, encoding="utf-8")
-
-
-# download readme
-def download_readme(readme_url: str, filename_target: str) -> str:
-    # get file from github
-    response = requests.get(readme_url)
-    if response.status_code == 200:
-        content = response.text
-        with open(filename_target, "w", encoding="utf-8") as file:
-            file.write(content)
-    else:
-        raise FileNotFoundError(f"No readme files found in url: {readme_url}")
-
-
 # Helper function to safely retrieve nested keys from a dictionary.
 # :param d: The dictionary to extract the value from.
 # :param keys: A list of keys representing the path to the desired value.
@@ -603,7 +570,7 @@ def main():
     data["manifest:hasManifestReference"] = manifest_group
     register_asset(
         manifest_group,
-        data_path / "manifest_reference.json",
+        data_path / "manifest.json",
         data_path,
         "isManifest",
         "isPublic",
@@ -614,26 +581,20 @@ def main():
         path.mkdir(parents=True, exist_ok=True)
 
     # create readme
-    script_path = Path(__file__).resolve()
-    readme_template = script_path.parent / "README_template.md"
-
-    readme_url = (
-        f"{GITHUB_RAW_URL}{GAIAX_ONTOLOGY_PART}/main/artifacts/envited-x/README.md"
-    )
-    download_readme(readme_url, readme_template)
     if asset_extension in ASSET_TYPES:
-        # get name + description from {asset_type}_instance.json
         classname = ASSET_TYPES[asset_extension]["classname"]
-        domainMetadata = (
-            filename_out.parent.parent / f"metadata/{classname}_instance.json"
-        )
+        domainMetadata = filename_out.parent.parent / f"metadata/{classname}.json"
         name, description = get_name_description_from_domainMetadata(
             domainMetadata, classname.lower()
         )
         if name and description:
             readme_file = filename_out.parent.parent / "README.md"
-            readme_file.write_bytes(readme_template.read_bytes())
-            update_readme(readme_template, readme_file, name, description)
+            readme_file.write_text(
+                f"# {name}\n\n{description}\n\n"
+                f"This asset conforms to [EVES-003]"
+                f"(https://ascs-ev.github.io/EVES/EVES-003/eves-003.html).\n",
+                encoding="utf-8",
+            )
 
     # write metadata json
     write_json(filename_out, data)

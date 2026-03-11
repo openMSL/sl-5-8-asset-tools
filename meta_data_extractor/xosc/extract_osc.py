@@ -7,6 +7,7 @@ from enum import Enum
 from utils.ids import create_uuid
 from utils.json import write_json
 from utils.constants import (
+    DID_ADRESS,
     ENVITED_URL,
     ENVITEDX_SCHEMA_VERSION,
     OSC_SCHEMA_VERSION,
@@ -1719,14 +1720,12 @@ def set_manifest_data(
     hasManifest_dict["manifest:hasAccessRole"] = "envited-x:isPublic"
     hasManifest_dict["manifest:hasCategory"] = "envited-x:isManifest"
     hasManifest_dict["manifest:hasFileMetadata"] = {
-        "manifest:filePath": "./base-references/scenario_manifest_reference.json",
+        "manifest:filePath": "../manifest.json",
         "manifest:mimeType": "application/ld+json",
     }
-    hasManifest_dict["manifest:iri"] = (
-        "did:web:test.fixture.net:Manifest:test_scenario_manifest_reference"
-    )
+    hasManifest_dict["manifest:iri"] = f"{DID_ADRESS}uuid"
     hasManifest_dict["skos:note"] = (
-        "Ensure that manifest_reference.json contains all required categories: simulationData, documentation, metadata, media."
+        "Ensure that manifest.json contains all required categories: simulationData, documentation, metadata, media."
     )
     hasManifest_dict["sh:conformsTo"] = [
         f"https://w3id.org/ascs-ev/envited-x/envited-x/{ENVITEDX_SCHEMA_VERSION}/",

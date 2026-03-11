@@ -6,7 +6,6 @@ from .constants import (
     GITHUB_URL,
     GITHUB_RAW_URL,
     ENVITED_URL,
-    GAIAX_ONTOLOGY_PART,
     SHACL_FOLDER_NAME,
     ENVITEDX_NAME,
     DID_ADRESS,

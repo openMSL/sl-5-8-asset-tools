@@ -3,10 +3,7 @@ from zipfile import ZipFile
 from utils.log_config import setup_logging
 from utils.http import download_or_get_file
 from utils.subprocess import run_command
-from utils.json import read_json
 from utils.input_manifest import load_input_file
-
-import json
 import argparse
 import shutil
 import logging

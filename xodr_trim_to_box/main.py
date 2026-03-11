@@ -35,8 +35,6 @@ def get_road_bounding(road):
 # replace box data in xodr file
 def reduceXODR(box, file_in, file_out):
 
-    root = etree._Element()
-
     # read file and convert to tree structure
     logger.info(f"read file {file_in.stem}")
     try:

@@ -1,16 +1,4 @@
-# import debugpy
-
-# debugpy, listening on port 5678
-# debugpy.listen(("0.0.0.0", 5678))
-# print("Waiting for debugger to attach...")
-
-# debugpy.wait_for_client()
-
-# debugpy.breakpoint()
-
-
-from datetime import datetime
-from rdflib.namespace import SH, XSD
+from rdflib.namespace import SH
 from rdflib import Graph, URIRef
 from collections import defaultdict
 from pathlib import Path
@@ -25,11 +13,6 @@ import json
 import logging
 import argparse
 import operator
-
-# logging.basicConfig(
-#    level=logging.DEBUG,
-#    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-# )
 
 logger = logging.getLogger(__name__)
 

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse
 from utils.constants import (
     GITHUB_URL,
     GITHUB_RAW_URL,
     ENVITED_URL,
-    ENVITED_DOWNLOAD_URL,
     SHACL_FOLDER_NAME,
     SHACLE_NAME,
 )
@@ -58,30 +57,8 @@ def url_from_path(path: Path) -> str:
 def github_to_raw(url: str) -> str:
     """Convert GitHub blob URL to raw URL if needed."""
 
-    org_url = url
     if "github.com" in url and "/blob/" in url:
         url = url.replace(GITHUB_URL, GITHUB_RAW_URL).replace("/blob/", "/")
-
-    # old
-    old_url = org_url.strip()
-    p = urlparse(old_url)
-
-    # Already raw
-    if p.netloc == "raw.githubusercontent.com":
-        old_url = old_url
-
-    if p.netloc != "github.com":
-        old_url = old_url  # Not GitHub; leave as-is
-
-    parts = [x for x in p.path.split("/") if x]
-    # Expect: org, repo, "blob", ref, ...path
-    if len(parts) >= 5 and parts[2] == "blob":
-        org, repo, ref = parts[0], parts[1], parts[3]
-        file_path = "/".join(parts[4:])
-        old_url = f"https://raw.githubusercontent.com/{org}/{repo}/{ref}/{file_path}"
-
-    if old_url != url:
-        print("not equal")
 
     return url
 

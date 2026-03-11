@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Iterator, Sequence, Tuple, Union, Optional
+from typing import Iterable, Sequence, Tuple, Union
 import math
 
 Number = Union[int, float]

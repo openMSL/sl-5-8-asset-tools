@@ -8,13 +8,6 @@ GX_NS: str = "https://w3id.org/gaia-x/development#"
 GITHUB_URL: str = "https://github.com/"
 GITHUB_RAW_URL: str = "https://raw.githubusercontent.com/"
 ENVITED_URL: str = "https://w3id.org/ascs-ev/envited-x/"
-ENVITED_DOWNLOAD_URL: str = (
-    "https://ascs-ev.github.io/ontology-management-base/artifacts/"
-)
-
-
-# URL parts
-GAIAX_ONTOLOGY_PART: str = "GAIA-X4PLC-AAD/ontology-management-base"
 
 # string
 SHACLE_NAME: str = ".shacl.ttl"

@@ -5,7 +5,7 @@
 	"params" : 	{
 		"call" : "jsonLD_creator.main",
 		"input" : {"" : "{path}/temp/{name}_extractor.json"},
-		"output" : {"-out" : "{path}/temp/{asset_type}_instance.json"},
+		"output" : {"-out" : "{path}/temp/{asset_type}.json"},
 		"additional" : {
         "-ontology" : "https://w3id.org/ascs-ev/envited-x/{schema}/v6"
 		}		

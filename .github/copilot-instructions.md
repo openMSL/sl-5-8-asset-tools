@@ -79,9 +79,9 @@ make run openscenario
 ```
 uploadedFiles.json
   → meta_data_extractor     → temp/{name}_extractor.json
-  → jsonLD_creator           → temp/hdmap_instance.json
-  → shacl_combiner           → temp/hdmap_instance.ttl
-  → wizard_caller (disabled) → metadata/hdmap_instance.json (interactive SHACL-guided prompts or copy)
+  → jsonLD_creator           → temp/hdmap.json
+  → shacl_combiner           → temp/hdmap.ttl
+  → wizard_caller (disabled) → metadata/hdmap.json (interactive SHACL-guided prompts or copy)
   → jsonLD_validator_omb     → validation pass/fail
   → qualitychecker (ASAM)    → validation-reports/{name}_asam_cb_xodr.xqar
   → qualitychecker (OpenMSL) → validation-reports/{name}_openmsl_cb_xodr.xqar
@@ -89,7 +89,7 @@ uploadedFiles.json
   → xodr_to_geojson_caller   → media/3d_preview/*.json (road/lane/object GeoJSON)
   → asset_reducer             → metadata/{name}.bjson
   → structure_creator         → temp/{name}_structure.json (+ organizes files)
-  → jsonLD_creator            → manifest_reference.json
+  → jsonLD_creator            → manifest.json
   → jsonLD_validator_omb     → final validation
   → create asset.zip
 ```
@@ -130,12 +130,12 @@ Frontend-generated JSON describing each uploaded file:
 
 ```
 <asset_name>/
-├── manifest_reference.json
+├── manifest.json
 ├── README.md
 ├── simulation-data/          (isOwner)
 │   └── {name}.xodr
 ├── metadata/                 (isPublic / isRegistered)
-│   ├── hdmap_instance.json   (domain metadata)
+│   ├── hdmap.json             (domain metadata)
 │   └── {name}.bjson          (reduced binary for indexing)
 ├── media/                    (isPublic)
 │   ├── roadNetwork.geojson
