@@ -38,7 +38,7 @@ define check_dev_setup
 	fi
 endef
 
-.PHONY: all setup install lint format check validate run clean help
+.PHONY: all setup install lint format check validate run generate clean help
 
 # Default target
 all: check
@@ -137,21 +137,21 @@ validate:
 		--artifacts "$(OMB)/artifacts"
 	@echo "[OK] Validation complete"
 
-# ── Run pipeline ─────────────────────────────────────────────────────
+# ── Run / Generate pipeline ──────────────────────────────────────────
 
-run:
+run generate:
 	$(call check_dev_setup)
 	@dir="$(EXAMPLE_$(SUBCMD))"; \
 	if [ -z "$$dir" ]; then \
 		echo "[ERR] Unknown example: $(SUBCMD)"; \
-		echo "Usage:  make run <opendrive|openscenario>"; \
+		echo "Usage:  make $@ <opendrive|openscenario>"; \
 		exit 1; \
 	fi; \
 	echo "[INFO] Running $$dir pipeline..."; \
-	"$(PYTHON)" -m asset_extraction.main \
-		"./examples/$$dir/uploadedFiles.json" \
-		-config "./configs" \
-		-out   "./examples/$$dir/output"; \
+	cd "./examples/$$dir/input" && "$(CURDIR)/$(PYTHON)" -m asset_extraction.main \
+		input_manifest.json \
+		-config "$(CURDIR)/configs" \
+		-out   "$(CURDIR)/examples/$$dir/output"; \
 	echo "[OK] $$dir pipeline complete"
 
 # ── Clean ────────────────────────────────────────────────────────────
@@ -185,12 +185,14 @@ help:
 	@echo ""
 	@echo "  make run opendrive      Run OpenDRIVE example pipeline"
 	@echo "  make run openscenario   Run OpenSCENARIO example pipeline"
+	@echo "  make generate opendrive   (alias for make run opendrive)"
+	@echo "  make generate openscenario (alias for make run openscenario)"
 	@echo ""
 	@echo "  make clean              Remove build artifacts and caches"
 
 # ── Catch-all for subcommand arguments ───────────────────────────────
 # Prevents "No rule to make target 'opendrive'" errors
-ifneq ($(filter run check install,$(firstword $(MAKECMDGOALS))),)
+ifneq ($(filter run generate check install,$(firstword $(MAKECMDGOALS))),)
 %:
 	@:
 endif

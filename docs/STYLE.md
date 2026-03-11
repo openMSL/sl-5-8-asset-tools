@@ -52,6 +52,7 @@ Each module README should follow this section order:
 8. `## Notes` (optional)
 
 Rules:
+
 - Keep commands runnable as-is.
 - Match argument names and required flags to `main.py` exactly.
 - Use one fenced `bash` block per usage/install section.
