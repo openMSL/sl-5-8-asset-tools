@@ -21,7 +21,6 @@ def run_command(cmd: list[str], name: str, cwd: Path | None = None) -> None:
     # Raises CalledProcessError on failures.
     """
     try:
-
         # Ensure all command parts are strings (Path objects can be problematic on Windows)
         cmd = [str(c) for c in cmd]
 

@@ -51,6 +51,7 @@ setup: $(ACTIVATE_SCRIPT)
 		"$(PYTHON)" -m pip install -e ".[dev]"; \
 		"$(PYTHON)" -m pip install -e "$(OMB)"; \
 	fi
+	@"$(PYTHON)" -m pre_commit install --allow-missing-config >/dev/null 2>&1 || true
 	@echo "[OK] Setup complete.  Activate with:  source $(ACTIVATE_SCRIPT)"
 
 $(PYTHON):
@@ -79,8 +80,8 @@ endif
 lint:
 	$(call check_dev_setup)
 	@echo "[INFO] Linting..."
-	@"$(PYTHON)" -m black --check $(PY_FILES)
-	@"$(PYTHON)" -m flake8 $(PY_FILES)
+	@"$(PYTHON)" -m ruff check $(PY_FILES)
+	@"$(PYTHON)" -m ruff format --check $(PY_FILES)
 	@echo "[OK] Lint passed"
 
 # Guard: skip when `format` is a subcommand argument (e.g. make check format)
@@ -90,8 +91,8 @@ ifneq ($(firstword $(MAKECMDGOALS)),format)
 else
 	$(call check_dev_setup)
 	@echo "[INFO] Formatting..."
-	@"$(PYTHON)" -m black $(PY_FILES)
-	@"$(PYTHON)" -m isort $(PY_FILES)
+	@"$(PYTHON)" -m ruff check --fix $(PY_FILES)
+	@"$(PYTHON)" -m ruff format $(PY_FILES)
 	@echo "[OK] Format complete"
 endif
 
@@ -101,7 +102,7 @@ check:
 	$(call check_dev_setup)
 ifeq ($(SUBCMD),format)
 	@echo "[INFO] Checking formatting..."
-	@"$(PYTHON)" -m black --check $(PY_FILES)
+	@"$(PYTHON)" -m ruff format --check $(PY_FILES)
 else ifeq ($(SUBCMD),py)
 	@echo "[INFO] Compile-checking Python files..."
 	@"$(PYTHON)" scripts/check_py_compile.py
@@ -110,7 +111,7 @@ else ifeq ($(SUBCMD),readme)
 	@"$(PYTHON)" scripts/check_readme_style.py
 else
 	@echo "[INFO] Running all checks..."
-	@"$(PYTHON)" -m black --check $(PY_FILES)
+	@"$(PYTHON)" -m ruff format --check $(PY_FILES)
 	@"$(PYTHON)" scripts/check_py_compile.py
 	@"$(PYTHON)" scripts/check_readme_style.py
 endif
@@ -162,8 +163,8 @@ help:
 	@echo "  make install            Install package"
 	@echo "  make install dev        Install with dev dependencies"
 	@echo ""
-	@echo "  make lint               Lint checks (black + flake8)"
-	@echo "  make format             Auto-format code (black + isort)"
+	@echo "  make lint               Lint checks (ruff)"
+	@echo "  make format             Auto-format code (ruff)"
 	@echo ""
 	@echo "  make check              Run all checks (format, compile, readme)"
 	@echo "  make check format       Check formatting only"

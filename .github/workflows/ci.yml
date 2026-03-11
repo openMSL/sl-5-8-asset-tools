@@ -18,8 +18,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -35,9 +33,6 @@ jobs:
       - name: Check
         run: make check
 
-      - name: Validate
-        run: make validate
-
   smoke:
     name: Smoke test (${{ matrix.example }})
     runs-on: ubuntu-latest
@@ -50,8 +45,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v5

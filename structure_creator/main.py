@@ -331,10 +331,10 @@ def register_folder(
         if category == "isMetadata":
             file_entry["manifest:iri"] = asset_info["did"]
             file_entry["skos:note"] = (
-                f'This is the domain metadata for a {asset_data["type"]}.'
+                f"This is the domain metadata for a {asset_data['type']}."
             )
             file_entry["sh:conformsTo"] = [
-                f'{ENVITED_URL}{asset_data["classname"]}/{SCHEMA_MANIFEST_VERSION}/ontology'
+                f"{ENVITED_URL}{asset_data['classname']}/{SCHEMA_MANIFEST_VERSION}/ontology"
             ]
 
         data.append(file_entry)

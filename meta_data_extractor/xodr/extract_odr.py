@@ -237,9 +237,10 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
         local_data_dict["projection_type"] = ""
         for information in geo_data:
             if information.startswith("+proj="):
-                local_data_dict["projection_type"] = local_data_dict[
-                    "projection_type"
-                ] + (information.split("+proj=")[1])
+                local_data_dict["projection_type"] = (
+                    local_data_dict["projection_type"]
+                    + (information.split("+proj=")[1])
+                )
             elif information.startswith("+grids="):
                 geodetic_ref_system_dict["georeference:heightSystem"] = (
                     information.split("+grids=")[1]
@@ -517,7 +518,6 @@ def get_elevation_min_max(start, end, expr, diff):
     candidate_value = []
     if len(candidates) != 0:
         for candidate in candidates:
-
             # check if the candidate is between the front and back border
             if 0 <= candidate <= end - start:
                 # if so --> use candidate as x and get the value
@@ -550,7 +550,6 @@ def get_elevation_range(root, elevations, list_of_lengths):
 
     # check if xml file has elevation and those elements
     if check_data(root, ".//elevation", "a", "b", "c", "d", "s"):
-
         all_functions = []
         # go through every elevation and get their functions
         for elevation in elevations:

@@ -95,7 +95,6 @@ class VecTagType(Enum):
 
 
 class OpenSCENARIO:
-
     def __init__(self) -> None:
         self.scenario_file: Path = None
         self.scenario_et: ET.Element = None
@@ -118,7 +117,6 @@ class OpenSCENARIO:
 
 
 class TagData(ABC):
-
     def __init__(self) -> None:
         super().__init__()
         self.k = "tag_data"
@@ -133,7 +131,6 @@ class TagData(ABC):
 
 
 class StringTag(TagData):
-
     def __init__(self, value: str) -> None:
         super().__init__()
         self.value: str = value
@@ -146,7 +143,6 @@ class StringTag(TagData):
 
 
 class BooleanTagValue:
-
     def __init__(
         self,
         value: bool,
@@ -175,7 +171,6 @@ class BooleanTagValue:
 
 
 class BooleanTag(TagData):
-
     def __init__(self, values: typing.List[BooleanTagValue]) -> None:
         super().__init__()
         self.values: typing.List[BooleanTagValue] = values
@@ -190,7 +185,6 @@ class BooleanTag(TagData):
 
 
 class NumTagValue:
-
     def __init__(
         self,
         value: float,
@@ -219,7 +213,6 @@ class NumTagValue:
 
 
 class NumTag(TagData):
-
     def __init__(self, values: typing.List[NumTagValue]) -> None:
         super().__init__()
         self.values: typing.List[NumTagValue] = values
@@ -234,7 +227,6 @@ class NumTag(TagData):
 
 
 class TextTagValue:
-
     def __init__(
         self,
         value: str,
@@ -263,7 +255,6 @@ class TextTagValue:
 
 
 class TextTag(TagData):
-
     def __init__(self, values: typing.List[TextTagValue]) -> None:
         super().__init__()
         self.values: typing.List[TextTagValue] = values
@@ -282,7 +273,6 @@ class TextTag(TagData):
 
 
 class VecTagValue:
-
     def __init__(
         self,
         value: typing.List,
@@ -311,7 +301,6 @@ class VecTagValue:
 
 
 class VecTag(TagData):
-
     def __init__(self, values: typing.List[VecTagValue]) -> None:
         super().__init__()
         self.values: typing.List[VecTagValue] = values
@@ -805,7 +794,7 @@ def analyze_road_user(child: ET.Element, road_users: set):
             road_users.add("VehicleVan")
         else:
             logger.warning(
-                f'Unknown vehicle category {child.attrib["vehicleCategory"]}'
+                f"Unknown vehicle category {child.attrib['vehicleCategory']}"
             )
         if "role" in child.attrib:
             if (
@@ -829,7 +818,7 @@ def analyze_road_user(child: ET.Element, road_users: set):
             road_users.add("VehicleWheelchair")
         else:
             logger.warning(
-                f'Unknown pedestrian category {child.attrib["pedestrianCategory"]}'
+                f"Unknown pedestrian category {child.attrib['pedestrianCategory']}"
             )
     elif child.tag == "MiscObject":
         road_users.add("RoadUser")  # ?
@@ -1254,7 +1243,7 @@ def add_tags(
                     get_conf_value(
                         metadata_config,
                         "openlabel/tags/scenarioDefinition",
-                        f'OpenSCENARIO {header.attrib["revMajor"]}.{header.attrib["revMinor"]}',
+                        f"OpenSCENARIO {header.attrib['revMajor']}.{header.attrib['revMinor']}",
                     )
                 )
             ]
@@ -1270,7 +1259,7 @@ def add_tags(
                     get_conf_value(
                         metadata_config,
                         "openlabel/tags/scenarioDefinitionLanguageURI",
-                        f'https://www.asam.net/static_downloads/ASAM_OpenSCENARIO_V{header.attrib["revMajor"]}.{header.attrib["revMinor"]}.0_Model_Documentation/modelDocumentation/',
+                        f"https://www.asam.net/static_downloads/ASAM_OpenSCENARIO_V{header.attrib['revMajor']}.{header.attrib['revMinor']}.0_Model_Documentation/modelDocumentation/",
                     )
                 )
             ]
@@ -1538,7 +1527,9 @@ def get_format_data(dictonary: dict, osc: OpenSCENARIO, default_value: str = "Un
         sc_header,
         ["revMajor", "revMinor"],
         default_value,
-        lambda sc_header, _: f'{sc_header.attrib["revMajor"]}.{sc_header.attrib["revMinor"]}',
+        lambda sc_header, _: (
+            f"{sc_header.attrib['revMajor']}.{sc_header.attrib['revMinor']}"
+        ),
     )
 
 
@@ -1629,7 +1620,7 @@ def get_content_data(
         for signal in osc.map_et.findall(".//signal"):
             if signal.attrib["country"] != "OpenDRIVE":
                 country_specific_sign.add(
-                    f'{signal.attrib["country"]}:{signal.attrib["type"]}'
+                    f"{signal.attrib['country']}:{signal.attrib['type']}"
                 )
     if len(country_specific_sign):
         content_dict[f"{get_name_lower()}:countrySpecificSign"] = ", ".join(
@@ -1697,7 +1688,7 @@ def get_quantity_data(
     for controller in controllers:
         if "controllerType" in controller.attrib:
             controller_names.add(
-                f'{controller.attrib["controllerType"]}: {controller.attrib["name"]}'
+                f"{controller.attrib['controllerType']}: {controller.attrib['name']}"
             )
         else:
             controller_names.add(controller.attrib["name"])
@@ -1791,18 +1782,18 @@ def set_manifest_data(
 def convert_env_to_string(env: etree._Element) -> str:
     val = ""
     tod = env.find("TimeOfDay")
-    val += f'time of day: {tod.attrib["dateTime"]}'
+    val += f"time of day: {tod.attrib['dateTime']}"
     weather = env.find("Weather")
-    val += f', 	CloudState: {weather.attrib["cloudState"]}'
+    val += f", 	CloudState: {weather.attrib['cloudState']}"
     sun = weather.find("Sun")
-    val += f', 	sun intensity: {sun.attrib["intensity"]}'
-    val += f', 	sun azimuth: {sun.attrib["azimuth"]}'
-    val += f', 	sun elevation: {sun.attrib["elevation"]}'
+    val += f", 	sun intensity: {sun.attrib['intensity']}"
+    val += f", 	sun azimuth: {sun.attrib['azimuth']}"
+    val += f", 	sun elevation: {sun.attrib['elevation']}"
     fog = weather.find("Fog")
-    val += f', 	visuale range: {fog.attrib["visualRange"]}'
+    val += f", 	visuale range: {fog.attrib['visualRange']}"
     precipitation = weather.find("Precipitation")
-    val += f', 	precipitation type: {precipitation.attrib["precipitationType"]}'
-    val += f', 	precipitation intensity: {precipitation.attrib["intensity"]}'
+    val += f", 	precipitation type: {precipitation.attrib['precipitationType']}"
+    val += f", 	precipitation intensity: {precipitation.attrib['intensity']}"
     return val
 
 

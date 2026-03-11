@@ -16,7 +16,10 @@ python -m xodr_to_geojson_caller.main <file.xodr> -out <output_dir>
 - `-path` (optional): Unused, kept for pipeline backward compatibility.
 - `-step` (optional): Discretisation step in meters (default: 0.2).
 
-## Output Files
+## Input
+- OpenDRIVE `.xodr` file (ASAM OpenDRIVE 1.4–1.8)
+
+## Output
 - `refLine.json` — Road reference lines (LineString)
 - `breakLines.json` — Lane boundary lines (LineString)
 - `roads.json` — Road polygons

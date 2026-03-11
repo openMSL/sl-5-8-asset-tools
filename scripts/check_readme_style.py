@@ -34,7 +34,11 @@ def main() -> None:
     errors: list[str] = []
 
     for readme in sorted(Path(".").glob("*/README.md")):
-        if readme.parts[0] in {"submodules", "ontology-management-base"}:
+        if readme.parts[0] in {
+            "submodules",
+            "ontology-management-base",
+            ".pytest_cache",
+        }:
             continue
         positions = section_positions(readme)
         missing = [section for section in MODULE_REQUIRED if section not in positions]

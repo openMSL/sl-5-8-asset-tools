@@ -11,7 +11,9 @@ def get_elev_params(road: Road, s: float) -> dict:
     elev = road.elevation_at(s)
     if elev is None:
         return dict(elev_a=0.0, elev_b=0.0, elev_c=0.0, elev_d=0.0, elev_s=0.0)
-    return dict(elev_a=elev.a, elev_b=elev.b, elev_c=elev.c, elev_d=elev.d, elev_s=elev.s)
+    return dict(
+        elev_a=elev.a, elev_b=elev.b, elev_c=elev.c, elev_d=elev.d, elev_s=elev.s
+    )
 
 
 def get_super_params(road: Road, s: float) -> dict:

@@ -41,17 +41,31 @@ qc-deps = [
     "scipy",
 ]
 dev = [
-    "black",
-    "flake8",
-    "isort",
+    "ruff",
     "pre-commit",
 ]
 
-[tool.black]
+[tool.ruff]
 line-length = 88
 
-[tool.isort]
-profile = "black"
+[tool.ruff.lint]
+# Match the old .flake8 ignore list — tighten incrementally
+ignore = [
+    "E501",   # line too long (formatter handles it)
+    "E722",   # bare except (15 pre-existing)
+    "E741",   # ambiguous variable name (pre-existing)
+    "F401",   # unused imports (34 pre-existing)
+    "F601",   # duplicate key in dict (1 pre-existing)
+    "F841",   # unused variables (17 pre-existing)
+    "F541",   # f-string without placeholders (16 pre-existing)
+    "E266",   # too many leading '#' for block comment
+    "E712",   # comparison to True/False
+    "E713",   # test for membership should be 'not in x'
+    "E721",   # do not compare types, use isinstance()
+    "F811",   # redefinition of unused name
+    "F821",   # undefined name (1 pre-existing in extract_osc.py)
+]
+per-file-ignores = {"__init__.py" = ["F401"]}
 
 [tool.setuptools.packages.find]
 include = [

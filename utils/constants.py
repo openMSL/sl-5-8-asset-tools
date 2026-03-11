@@ -1,8 +1,6 @@
 # namespaces -> end with #
 GAIAX_CORE_NS: str = "https://w3id.org/gaia-x/core#"
-GAIAX_TRUST_NS: str = (
-    "https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#"
-)
+GAIAX_TRUST_NS: str = "https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#"
 SHACL_NS: str = "http://www.w3.org/ns/shacl#"
 GX_NS: str = "https://w3id.org/gaia-x/development#"
 

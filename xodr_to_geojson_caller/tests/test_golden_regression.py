@@ -52,9 +52,9 @@ class TestGoldenFileRegression:
             with open(self.output_dir / filename) as f:
                 data = json.load(f)
             actual_count = len(data["features"])
-            assert (
-                actual_count == expected["feature_count"]
-            ), f"{filename}: expected {expected['feature_count']} features, got {actual_count}"
+            assert actual_count == expected["feature_count"], (
+                f"{filename}: expected {expected['feature_count']} features, got {actual_count}"
+            )
 
     def test_geometry_types_match(self):
         for filename, expected in self.golden.items():
@@ -64,9 +64,9 @@ class TestGoldenFileRegression:
                 set(feat["geometry"]["type"] for feat in data["features"])
             )
             expected_types = sorted(expected["geometry_types"])
-            assert (
-                actual_types == expected_types
-            ), f"{filename}: expected types {expected_types}, got {actual_types}"
+            assert actual_types == expected_types, (
+                f"{filename}: expected types {expected_types}, got {actual_types}"
+            )
 
     def test_all_features_have_valid_geojson(self):
         for filename in self.golden:

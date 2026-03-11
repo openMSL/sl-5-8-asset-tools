@@ -93,7 +93,6 @@ def convert_graph_to_dict(graph: Graph, search_node_shape: bool) -> Dict[str, An
     type_to_search = SH.NodeShape if search_node_shape else SH.NodeKind
 
     for node_shape in graph.subjects(RDF.type, type_to_search):
-
         prop_list = []
 
         # Collect shape-level constraints (e.g., sh:or, sh:message) in a single dict

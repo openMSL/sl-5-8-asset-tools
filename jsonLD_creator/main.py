@@ -104,7 +104,6 @@ def collect_nodes(shape: Any, visited: set | None = None) -> List[str]:
 
     if isinstance(shape, dict):
         for k, v in shape.items():
-
             # SHACL-node / SHACL-class
             if k.endswith(f"{SHACL_NS}node"):
                 if isinstance(v, str):
@@ -309,7 +308,7 @@ def create_property(
             # Lists of literals can stay as plain JSON values
             jsonLD_dict[key] = value
 
-        logger.debug(f'{" " * level * 3}add prop {key}')
+        logger.debug(f"{' ' * level * 3}add prop {key}")
         return
 
     # Handle single values
@@ -333,7 +332,7 @@ def create_property(
     else:
         jsonLD_dict[key] = value
 
-    logger.debug(f'{" " * level * 3}add prop {key}')
+    logger.debug(f"{' ' * level * 3}add prop {key}")
 
 
 # from 'https://ontologies.envited-x.net/manifest/v5/ontology#hasManifestReference'
@@ -400,7 +399,7 @@ def create_node(
     else:
         lsonLD[key] = node
 
-    logger.debug(f'{" " * level * 3}add node {key}')
+    logger.debug(f"{' ' * level * 3}add node {key}")
     return node
 
 
@@ -855,7 +854,6 @@ def process_graph(schema_namespace, schema_name, meta_data):
     config.JSON_OUT = defaultdict(list)
     # get shacl for asset
     if schema_namespace.lower() in config.SHACLS:
-
         shacl_graph_data = config.SHACLS[schema_namespace.lower()]
 
         config.JSON_OUT["@context"] = shacl_graph_data["prefixes"]
