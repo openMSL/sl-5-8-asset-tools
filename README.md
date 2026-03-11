@@ -22,11 +22,11 @@ The following modules are used in the asset archive pipeline.
 - [meta_data_extractor](meta_data_extractor/README.md): Extracts metadata from asset files.
 - [jsonLD_creator](jsonLD_creator/README.md): Creates JSON-LD from attribute JSON.
 - [shacl_combiner](shacl_combiner/README.md): Combines required shacl shapes.
-- [wizard_caller](wizard_caller/README.md): SD Wizard integration (currently disabled in default flow).
+- [wizard_caller](wizard_caller/README.md): SHACL-driven CLI wizard for enriching JSON-LD interactively (disabled via config by default).
 - [jsonLD_validator](jsonLD_validator/README.md): Legacy validator (replaced by ontology-management-base in pipeline).
 - [qualitychecker_caller](qualitychecker_caller/README.md): Runs ASAM/OpenMSL quality checkers.
 - [xodr_routing_creator](xodr_routing_creator/README.md): Generates route and bounding box geometry.
-- [xodr_to_geojson_caller](xodr_to_geojson_caller/README.md): Calls VCS converter (currently disabled in default flow).
+- [xodr_to_geojson_caller](xodr_to_geojson_caller/README.md): Pure-Python OpenDRIVE to GeoJSON 3D preview converter.
 - [asset_reducer](asset_reducer/README.md): Reduces XML asset data for search indexing.
 - [structure_creator](structure_creator/README.md): Builds final archive structure and manifest input.
 

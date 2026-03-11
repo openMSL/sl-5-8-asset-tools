@@ -164,8 +164,8 @@ Frontend-generated JSON describing each uploaded file:
 make help              # Show all available commands
 make setup             # Create venv and install dependencies
 make install dev       # Install with dev dependencies
-make lint              # Lint checks (black + flake8)
-make format            # Format Python with black/isort
+make lint              # Lint checks (ruff)
+make format            # Format Python (ruff)
 make check             # Run all checks (format, compile, readme style)
 make check format      # Check formatting only
 make check py          # Compile-check all Python files
