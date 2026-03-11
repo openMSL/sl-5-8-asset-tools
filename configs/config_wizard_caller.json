@@ -1,9 +1,9 @@
 {
-	"name" : "wizard-caller",
+	"name" : "wizard_caller",
 	"environment type" : "python",
 	"data folder" : "metadata",
 	"params" : 	{
-		"call" : "wizard-caller.main",
+		"call" : "wizard_caller.main",
 		"input" : {"" : "{path}/temp/{asset_type}_instance.json"},
 		"output" : {"-out" : "{path}/{sub_path}/{asset_type}_instance.json"},
 		"additional" : {			

@@ -22,7 +22,7 @@ The following modules are used in the asset archive pipeline.
 - [meta_data_extractor](meta_data_extractor/README.md): Extracts metadata from asset files.
 - [jsonLD_creator](jsonLD_creator/README.md): Creates JSON-LD from attribute JSON.
 - [shacl_combiner](shacl_combiner/README.md): Combines required shacl shapes.
-- [wizard-caller](wizard-caller/README.md): SD Wizard integration (currently disabled in default flow).
+- [wizard_caller](wizard_caller/README.md): SD Wizard integration (currently disabled in default flow).
 - [jsonLD_validator](jsonLD_validator/README.md): Legacy validator (replaced by ontology-management-base in pipeline).
 - [qualitychecker_caller](qualitychecker_caller/README.md): Runs ASAM/OpenMSL quality checkers.
 - [xodr_routing_creator](xodr_routing_creator/README.md): Generates route and bounding box geometry.

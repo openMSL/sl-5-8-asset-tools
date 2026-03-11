@@ -79,7 +79,7 @@ include = [
     "shacl_combiner*",
     "structure_creator*",
     "utils*",
-    "wizard-caller*",
+    "wizard_caller*",
     "xodr_calc_box*",
     "xodr_routing_creator*",
     "xodr_to_geojson_caller*",

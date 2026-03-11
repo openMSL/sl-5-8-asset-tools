@@ -1,11 +1,11 @@
-# wizard-caller
+# wizard_caller
 
 ## Description
 Integrates with the SD Creation Wizard service to enrich JSON-LD with user-provided values.
 
 ## Usage
 ```bash
-python -m wizard-caller.main <jsonld_file> -shacl <combined_shacl.ttl> -enable <true|false> -out <enhanced.json>
+python -m wizard_caller.main <jsonld_file> -shacl <combined_shacl.ttl> -enable <true|false> -out <enhanced.json>
 ```
 
 ## Arguments
