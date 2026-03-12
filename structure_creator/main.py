@@ -2,11 +2,11 @@ from pathlib import Path
 from multiformats import CID
 from multiformats.multihash import digest
 from PIL import Image
-from datetime import datetime
+from datetime import datetime, timezone
 from utils.http import url_from_path
 from utils.ids import create_uuid
 from utils.http import is_url, download_or_get_file
-from utils.json import write_json
+from utils.json import write_json, write_text
 from utils.input_manifest import load_input_file
 from utils.constants import (
     ENVITED_URL,
@@ -16,6 +16,7 @@ from utils.constants import (
 
 import argparse
 import json
+import os
 import shutil
 import logging
 
@@ -46,7 +47,7 @@ CATEGORIES = {
     "isMedia": [
         {
             "type": "Image",
-            "extensions": ["png", "jpeg"],
+            "extensions": ["png", "jpeg", "jpg"],
             "folder": "media",
             "mask": "{name}_impression-{number}",
             "role": "isPublic",
@@ -152,6 +153,8 @@ MIME_TYPE = {
     "isMetadata": {"json": "application/ld+json"},
     "isMedia": {
         "png": "image/png",
+        "jpeg": "image/jpeg",
+        "jpg": "image/jpeg",
         "geojson": "application/x-geojson",
         "json": "application/json",
         "mp4": "video/mp4",
@@ -235,9 +238,7 @@ def create_file_data(
 
         if filename.exists() and data_type != "isManifest":
             file_meta_data["manifest:fileSize"] = filename.stat().st_size
-            creation_ts = filename.stat().st_ctime
-            creation_dt = datetime.fromtimestamp(creation_ts)
-            formatted_creation_data = creation_dt.isoformat(timespec="seconds")
+            formatted_creation_data = get_file_timestamp(filename)
 
             if data_type == "isSimulationData":
                 if asset_info and "recordingTime" in asset_info:
@@ -400,10 +401,24 @@ def get_asset(user_data: dict) -> tuple[str, str]:
     for file in user_data:
         if file["category"] == "isSimulationData" and file["type"] == "Asset":
             asset_name = Path(file["filename"])
-            asset_extension = asset_name.suffix.lstrip(".")
+            asset_extension = asset_name.suffix.lstrip(".").lower()
             asset_name = asset_name.stem
             return asset_name, asset_extension
     return None, None
+
+
+def get_file_timestamp(filename: Path) -> str:
+    stat_result = filename.stat()
+    if hasattr(stat_result, "st_birthtime"):
+        timestamp = stat_result.st_birthtime
+    elif os.name == "nt":
+        timestamp = stat_result.st_ctime
+    else:
+        timestamp = stat_result.st_mtime
+
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat(
+        timespec="seconds"
+    )
 
 
 # get asset info (did, recordingTime)
@@ -480,15 +495,17 @@ def main():
 
     # get asset info (uuid, recordingTime)
     asset_json = Path(args.asset_json)
+    if not asset_json.is_absolute():
+        asset_json = asset_json.resolve()
     asset_info = get_asset_info(asset_json, Path(args.asset_extractor))
 
     # initialize asset_name
     asset_name, asset_extension = get_asset(user_data)
     if not asset_name or not asset_extension:
-        raise FileNotFoundError(f"no asset found in {file}")
-
-    if asset_extension in ASSET_TYPES:
-        asset_data = ASSET_TYPES[asset_extension]
+        raise FileNotFoundError(f"no asset found in {user_input_file}")
+    if asset_extension not in ASSET_TYPES:
+        raise ValueError(f"unsupported asset extension '{asset_extension}'")
+    asset_data = ASSET_TYPES[asset_extension]
 
     # copy files
     upload_folder = user_input_file.parent
@@ -603,7 +620,7 @@ def main():
     # replace with uuid in json
     asset_content = asset_json.read_text(encoding="utf-8")
     asset_content = asset_content.replace("Manifest:uuid", f"Manifest:{manifest_uuid}")
-    asset_json.write_text(asset_content, encoding="utf-8")
+    write_text(asset_json, asset_content, encoding="utf-8")
 
 
 if __name__ == "__main__":
