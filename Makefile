@@ -4,6 +4,7 @@
 # Allow parent makefiles to override the venv path/tooling.
 VENV ?= .venv
 OMB  := submodules/ontology-management-base
+GIT  ?= git
 
 # OS detection for cross-platform support (Windows vs Unix)
 ifeq ($(OS),Windows_NT)
@@ -39,20 +40,37 @@ define check_dev_setup
 	fi
 endef
 
-.PHONY: all setup install lint format check validate run generate clean help
+.PHONY: all setup install lint format check validate run generate clean help init-submodules
 
 # Default target
 all: check
 
 # ── Setup & Install ──────────────────────────────────────────────────
 
-setup: $(ACTIVATE_SCRIPT)
+init-submodules:
+	@if [ -f .gitmodules ]; then \
+		if ! command -v $(GIT) >/dev/null 2>&1; then \
+			echo "[WARN] Git is not available -- skipping submodule initialization."; \
+		elif $(GIT) rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+			echo "[INFO] Initializing git submodules..."; \
+			$(GIT) submodule update --init --recursive; \
+		else \
+			echo "[WARN] .gitmodules found, but this checkout is not a git worktree -- skipping submodule initialization."; \
+		fi; \
+	fi
+
+setup:
+	@$(MAKE) --no-print-directory init-submodules
+	@$(MAKE) --no-print-directory $(ACTIVATE_SCRIPT)
 	@if ! "$(PYTHON)" -c "import rdflib, pyshacl, lxml" >/dev/null 2>&1; then \
 		echo "[INFO] Dependencies missing -- reinstalling..."; \
 		"$(PYTHON)" -m pip install -e ".[dev]"; \
-		if [ -f "$(OMB)/pyproject.toml" ] || [ -f "$(OMB)/setup.py" ]; then \
-			"$(PYTHON)" -m pip install -e "$(OMB)"; \
-		fi; \
+	fi
+	@if [ -f "$(OMB)/pyproject.toml" ] || [ -f "$(OMB)/setup.py" ]; then \
+		echo "[INFO] Installing ontology-management-base..."; \
+		"$(PYTHON)" -m pip install -e "$(OMB)"; \
+	else \
+		echo "[WARN] OMB submodule not initialised – skipping."; \
 	fi
 	@"$(PYTHON)" -m pre_commit install --allow-missing-config >/dev/null 2>&1 || true
 	@echo "[OK] Setup complete.  Activate in the POSIX shell with:  source $(ACTIVATE_SCRIPT)"
@@ -65,11 +83,6 @@ $(PYTHON):
 $(ACTIVATE_SCRIPT): $(PYTHON)
 	@echo "[INFO] Installing dependencies..."
 	@"$(PYTHON)" -m pip install -e ".[dev]"
-	@if [ -f "$(OMB)/pyproject.toml" ] || [ -f "$(OMB)/setup.py" ]; then \
-		"$(PYTHON)" -m pip install -e "$(OMB)"; \
-	else \
-		echo "[WARN] OMB submodule not initialised – skipping."; \
-	fi
 	@touch "$(ACTIVATE_SCRIPT)"
 
 install:
@@ -190,7 +203,7 @@ clean:
 help:
 	@echo "sl-5-8-asset-tools -- Available Commands"
 	@echo ""
-	@echo "  make setup              Create venv and install all dependencies"
+	@echo "  make setup              Create venv, init submodules, and install dependencies"
 	@echo "  make install            Install package"
 	@echo "  make install dev        Install with dev dependencies"
 	@echo ""

@@ -96,12 +96,13 @@ Example:
 Python 3.12+ is required.
 
 ```bash
-git clone --recurse-submodules https://github.com/openMSL/sl-5-8-asset-tools.git
+git clone https://github.com/openMSL/sl-5-8-asset-tools.git
 cd sl-5-8-asset-tools
 make setup
 ```
 
 All dependencies are managed via `pyproject.toml` and installed automatically by `make setup`.
+When run from a git checkout, `make setup` also initializes and updates the configured git submodules automatically. Cloning with `--recurse-submodules` still works, but is no longer required.
 
 On Windows, run `make` from Git Bash or another POSIX `sh`-compatible shell.
 
