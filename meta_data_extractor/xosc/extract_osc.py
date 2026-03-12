@@ -550,7 +550,7 @@ def analyze_environment(
         time = time_of_day.attrib["dateTime"]
         try:
             dt = datetime.strptime(time, "%Y-%m-%dT%H:%M:%S")
-        except:
+        except Exception:
             logger.exception(f"Unknown datetime of environment: {time}")
 
 
@@ -1435,7 +1435,7 @@ def get_scenario_files(scenario_dir: Path):
                 logger.debug(
                     f"Not analyzing {osc_file} since it is not a Scenario (probably a catalog)"
                 )
-        except:
+        except Exception:
             logger.exception(
                 f"Could not read {osc_file} - not generating meta data for it."
             )
@@ -1836,22 +1836,22 @@ def extract_meta_data(file: Path) -> Tuple[bool, dict]:
     try:
         with open(file, "r") as f:
             _ = f.read()
-    except:
+    except Exception:
         logger.exception(f"Cannot read file {file.absolute()}")
-        return False
+        return False, {}
 
     # parse xml
     try:
         osc = load_openscenario_file(file)
-    except:
+    except Exception:
         logger.exception(f"Cannot parse XML from file {file.absolute()}")
-        return False
+        return False, {}
 
     try:
         attributes = get_meta_data(osc, file)
-    except:
+    except Exception:
         logger.exception(f"Cannot extract from file {file.absolute()}")
-        return False
+        return False, {}
 
     logger.info(f"Extract from file {file}")
     return True, attributes

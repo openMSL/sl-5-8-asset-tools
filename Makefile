@@ -7,6 +7,7 @@ OMB  := submodules/ontology-management-base
 
 # OS detection for cross-platform support (Windows vs Unix)
 ifeq ($(OS),Windows_NT)
+    SHELL            := sh
     VENV_BIN         := $(VENV)/Scripts
     PYTHON           ?= $(VENV_BIN)/python.exe
     BOOTSTRAP_PYTHON ?= python
@@ -54,7 +55,7 @@ setup: $(ACTIVATE_SCRIPT)
 		fi; \
 	fi
 	@"$(PYTHON)" -m pre_commit install --allow-missing-config >/dev/null 2>&1 || true
-	@echo "[OK] Setup complete.  Activate with:  source $(ACTIVATE_SCRIPT)"
+	@echo "[OK] Setup complete.  Activate in the POSIX shell with:  source $(ACTIVATE_SCRIPT)"
 
 $(PYTHON):
 	@echo "[INFO] Creating virtual environment at $(VENV)..."
@@ -209,6 +210,8 @@ help:
 	@echo "  make generate openscenario (alias for make run openscenario)"
 	@echo ""
 	@echo "  make clean              Remove build artifacts and caches"
+	@echo ""
+	@echo "  Note: Windows users should run make from Git Bash or another POSIX sh-compatible shell."
 
 # ── Catch-all for subcommand arguments ───────────────────────────────
 # Prevents "No rule to make target 'opendrive'" errors
