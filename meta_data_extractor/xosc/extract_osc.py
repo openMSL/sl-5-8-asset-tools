@@ -550,6 +550,7 @@ def analyze_environment(
         time = time_of_day.attrib["dateTime"]
         try:
             dt = datetime.strptime(time, "%Y-%m-%dT%H:%M:%S")
+            time_list.append(dt)
         except Exception:
             logger.exception(f"Unknown datetime of environment: {time}")
 

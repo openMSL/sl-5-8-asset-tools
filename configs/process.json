@@ -3,71 +3,76 @@
 		{
 			"enable" : true,
 			"filename": "config_meta_data_extractor.json",
-			"extensions": ["xodr", "xosc"]		
+			"extensions": ["xodr", "xosc"]
 		},
 		{
 			"enable" : true,
 			"filename": "config_asset_jsonLD_creator.json",
-			"extensions": ["xodr", "xosc"]		
+			"extensions": ["xodr", "xosc"]
+		},
+		{
+			"enable" : true,
+			"filename": "config_3dmodel_meta_data_extractor.json",
+			"extensions": ["3dmodel"]
 		},
 		{
 			"enable" : true,
 			"filename": "config_3dmodel_jsonLD_creator.json",
-			"extensions": ["3dmodel"]		
+			"extensions": ["3dmodel"]
 		},
 		{
 			"enable" : true,
-			"filename": "config_shacl_combiner.json"	
+			"filename": "config_shacl_combiner.json"
 		},
 		{
 			"enable" : true,
-			"filename": "config_wizard_caller.json"	
+			"filename": "config_wizard_caller.json"
 		},
 		{
 			"enable" : true,
-			"filename": "config_jsonLD_validator_omb.json"	
+			"filename": "config_jsonLD_validator_omb.json"
 		},
 		{
 			"enable" : true,
 			"filename": "config_quality_checker_asam_xodr.json",
-			"extensions": ["xodr"]		
-		},	
+			"extensions": ["xodr"]
+		},
 		{
 			"enable" : true,
 			"filename": "config_quality_checker_asam_xosc.json",
-			"extensions": ["xosc"]		
-		},	
+			"extensions": ["xosc"]
+		},
 		{
 			"enable" : true,
 			"filename": "config_quality_checker_openmsl_xodr.json",
-			"extensions": ["xodr"]		
-		},					
+			"extensions": ["xodr"]
+		},
 		{
 			"enable" : true,
 			"filename": "config_xodr_routing_creator.json",
-			"extensions": ["xodr"]		
-		},	
+			"extensions": ["xodr"]
+		},
 		{
 			"enable" : true,
 			"filename": "config_vcs_odr-converter.json",
-			"extensions": ["xodr"]		
-		},	
+			"extensions": ["xodr"]
+		},
 		{
 			"enable" : true,
 			"filename": "config_asset_reducer.json",
-			"extensions": ["xodr"]		
-		},	
+			"extensions": ["xodr"]
+		},
 		{
 			"enable" : true,
 			"filename": "config_structure_creator.json"
-		},	
+		},
 		{
 			"enable" : true,
 			"filename": "config_structure_jsonLD_creator.json"
-		},	
+		},
 		{
 			"enable" : true,
 			"filename": "config_structure_jsonLD_validator_omb.json"
-		}										
+		}
 	]
 }
