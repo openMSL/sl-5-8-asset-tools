@@ -12,7 +12,9 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -33,6 +35,26 @@ def find_sim_data_entry(manifest: dict) -> dict | None:
 def get_file_metadata(link: dict) -> dict:
     """Extract FileMetadata from a Link node."""
     return link.get("hasFileMetadata", link.get("manifest:hasFileMetadata", {}))
+
+
+def write_manifest_atomic(path: Path, manifest: dict) -> None:
+    payload = json.dumps(manifest, indent=2, ensure_ascii=False) + "\n"
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=path.parent,
+    )
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(payload)
+        os.replace(temp_path, path)
+    except Exception:
+        try:
+            temp_path.unlink()
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def main():
@@ -98,9 +120,7 @@ def main():
             replaced = True
 
     if replaced:
-        with manifest_path.open("w", encoding="utf-8") as f:
-            json.dump(manifest, f, indent=2, ensure_ascii=False)
-            f.write("\n")
+        write_manifest_atomic(manifest_path, manifest)
         print(f"[OK] Resolved references in {manifest_path}")
     else:
         print(f"[INFO] No placeholders to resolve in {manifest_path}")

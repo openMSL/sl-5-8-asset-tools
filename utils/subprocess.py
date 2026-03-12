@@ -15,7 +15,9 @@ import subprocess
 logger = logging.getLogger(__name__)
 
 
-def run_command(cmd: list[str], name: str, cwd: Path | None = None) -> None:
+def run_command(
+    cmd: list[str | Path], name: str, cwd: Path | str | None = None
+) -> None:
     """Run *cmd* and log stdout/stderr similar to other tools.
 
     # Raises CalledProcessError on failures.
@@ -25,7 +27,12 @@ def run_command(cmd: list[str], name: str, cwd: Path | None = None) -> None:
         cmd = [str(c) for c in cmd]
 
         # Always use the current interpreter (venv) instead of relying on PATH resolving "python"
-        if cmd and cmd[0] == "python":
+        if cmd and Path(cmd[0]).name.lower() in {
+            "python",
+            "python.exe",
+            "python3",
+            "python3.exe",
+        }:
             cmd[0] = sys.executable
 
         # Force UTF-8 for the child process output

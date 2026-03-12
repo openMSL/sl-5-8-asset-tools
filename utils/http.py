@@ -114,7 +114,7 @@ def download_shacl(url_path: str, shacl_name: str) -> Path:
 
     # 3. Try local cache (from a previous download)
     filename = f"{shacl_name}{SHACLE_NAME}"
-    local_path = Path(f"{SHACL_FOLDER_NAME}")
+    local_path = _PROJECT_ROOT / SHACL_FOLDER_NAME
     local_filepath = local_path / filename
 
     if local_filepath.exists():

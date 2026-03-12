@@ -2,6 +2,7 @@ from pathlib import Path
 from zipfile import ZipFile
 from utils.log_config import setup_logging
 from utils.http import download_or_get_file
+from utils.json import write_json
 from utils.subprocess import run_command
 from utils.input_manifest import load_input_file, load_referenced_artifacts
 import argparse
@@ -67,7 +68,7 @@ def replace_file_pattern(
     updated_string = updated_string.replace(r"{name}", asset_name)
     updated_string = updated_string.replace(r"{asset_path}", str(asset_path))
     updated_string = updated_string.replace(r"{asset_type}", asset_type)
-    if "https:" not in updated_string:
+    if not is_url(Path(updated_string)):
         filename = Path(updated_string)
         filename = filename.as_posix()
         return filename
@@ -126,9 +127,9 @@ def create_script_params(
                 value, output_dir, sub_path, asset_name, asset_path, asset_type
             )
             script_call.append(updated_string)
-            # TODO create folder here or in sub script?
-            directory = Path(updated_string).parent
-            directory.mkdir(parents=True, exist_ok=True)
+            if not is_url(Path(updated_string)):
+                directory = Path(updated_string).parent
+                directory.mkdir(parents=True, exist_ok=True)
 
     # additional parameters
     if "additional" in script_config["params"]:
@@ -303,14 +304,13 @@ def main():
         manifest["manifest:hasReferencedArtifacts"] = [
             _format_reference(ref) for ref in refs
         ]
-        with manifest_path.open("w", encoding="utf-8") as f:
-            json.dump(manifest, f, indent=2, ensure_ascii=False)
-            f.write("\n")
+        write_json(manifest_path, manifest, indentValue=2, trailing_newline=True)
         logger.info(f"Injected {len(refs)} referenced artifact(s) into manifest")
 
     # remove temp folder before
     temp_path = output_sub_dir / "temp"
-    shutil.rmtree(temp_path)
+    if temp_path.exists():
+        shutil.rmtree(temp_path)
 
     # create a zip file of the output directory
     zip_filename = output_sub_dir / f"asset.zip"

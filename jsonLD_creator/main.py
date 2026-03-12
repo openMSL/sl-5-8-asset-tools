@@ -15,6 +15,7 @@ import argparse
 import operator
 
 logger = logging.getLogger(__name__)
+SHACL_CACHE_DIR = Path(__file__).resolve().parent.parent / SHACL_FOLDER_NAME
 
 
 # global config value with all shacls, dicts and jsonLD output
@@ -894,8 +895,8 @@ def register_shacl(url_path: str, shacl_name: str, shacls):
             graph_data["prefixes"] = getPrefixes(graph)
 
             shacls[shacl_name] = graph_data
-    except:
-        raise FileNotFoundError(f"cannot read turtle file: {local_file_path}")
+    except Exception as exc:
+        raise RuntimeError(f"cannot read turtle file: {local_file_path}") from exc
 
 
 def convert_context_for_output(context: dict) -> list:
@@ -999,9 +1000,11 @@ def main():
 
     # download shacl file
     if args.removeShacl:
-        shacl_folder = Path(SHACL_FOLDER_NAME)
+        shacl_folder = SHACL_CACHE_DIR
         if shacl_folder.exists():
             shutil.rmtree(shacl_folder)
+    config.SHACLS = {}
+    config.JSON_OUT = {}
     shacl_namespace = claim_data["shacl_schema"]
     shacl_url = claim_data["shacl_url"]
     del claim_data["shacl_schema"]
@@ -1029,8 +1032,8 @@ def main():
     # fill data in shacl structure
     try:
         process_graph(shacl_namespace, shacl_url, claim_data)
-    except:
-        raise Exception(f"Could not convert to json")
+    except Exception as exc:
+        raise RuntimeError("Could not convert to json") from exc
 
     # write claims as json id to output
     output_path = Path(args.out)

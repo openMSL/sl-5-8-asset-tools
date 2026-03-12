@@ -7,6 +7,7 @@ import stat
 import logging
 import os
 import sys
+import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,11 @@ def update_config_file(
 
 # create config file
 def create_config_file(
-    config_file_name: Path, checkerbundle_name: str, input_file: Path, result_file: Path
+    config_file_name: Path,
+    checkerbundle_name: str,
+    input_file: Path,
+    result_file: Path,
+    config_file: Path,
 ) -> Path:
     script_folder = Path(__file__).parent
     templates_folder = script_folder / "templates"
@@ -79,7 +84,7 @@ def create_config_file(
         checkerbundle_name,
         input_file,
         result_file,
-        Path("qc_config.xml"),
+        config_file,
     )
 
 
@@ -104,12 +109,12 @@ def main():
     )
     args = parser.parse_args()
 
-    input_file = Path(args.filename)
+    input_file = Path(args.filename).resolve()
     if not input_file.exists():
         raise FileNotFoundError(f"input file {input_file} not exists")
 
     # create config file from templates with input_file replacement
-    output_file = Path(args.out)
+    output_file = Path(args.out).resolve()
     if not output_file.parent.exists():
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -121,53 +126,56 @@ def main():
     if not bundle_name:
         raise ValueError(f"bundle name not valid {bundle_name}")
 
-    config_file = create_config_file(
-        config_file_name, bundle_name, input_file, output_file
-    )
+    with tempfile.NamedTemporaryFile(
+        prefix=f"{output_file.stem}_",
+        suffix="_qc_config.xml",
+        dir=output_file.parent,
+        delete=False,
+    ) as temp_config:
+        config_file = Path(temp_config.name)
 
     app_name = args.app
     if not app_name:
         raise ValueError(f"app name not valid {app_name}")
 
-    # call
-    script_call = []
-    script_call.append(app_name)
-    script_call.append("-c")
-    script_call.append(config_file.as_posix())
+    try:
+        config_file = create_config_file(
+            config_file_name, bundle_name, input_file, output_file, config_file
+        )
 
-    run_command(cmd=script_call, name=app_name)
+        script_call = [app_name, "-c", config_file.as_posix()]
+        run_command(cmd=script_call, name=app_name)
 
-    # write als txt
-    output_file = output_file.resolve()
-    os.chdir(str(output_file.parent))  # change system path
-    script_call = []
-    script_path = Path(__file__).resolve()
-    _apply_linux_textreport_library_fallback(script_path)
-    if sys.platform.startswith("win"):
-        appname = Path("TextReport.exe")
-    elif sys.platform.startswith("linux"):
-        appname = Path("TextReport")
-    else:
-        print(f"unknown system: {sys.platform}")
-    text_report_executable_path = script_path.parent / "apps" / appname
-    script_call.append(f"{text_report_executable_path}")  # call Textreport
-    script_call.append(str(output_file))
+        script_call = []
+        script_path = Path(__file__).resolve()
+        _apply_linux_textreport_library_fallback(script_path)
+        if sys.platform.startswith("win"):
+            appname = Path("TextReport.exe")
+        elif sys.platform.startswith("linux"):
+            appname = Path("TextReport")
+        else:
+            raise RuntimeError(f"unknown system: {sys.platform}")
+        text_report_executable_path = script_path.parent / "apps" / appname
+        script_call.append(f"{text_report_executable_path}")
+        script_call.append(str(output_file))
 
-    if sys.platform.startswith("linux"):
-        text_report_executable_path.chmod(
-            stat.S_IXUSR
-        )  # chmode +x TextReport (in docker i.e. the Docker )
-        # Confirm permissions (optional)
-        permissions = oct(text_report_executable_path.stat().st_mode)[-3:]
-        logger.info(f"Permissions: {permissions}")
-    run_command(script_call, f"Start Converting xqar to human readable form :")
+        if sys.platform.startswith("linux"):
+            text_report_executable_path.chmod(stat.S_IXUSR)
+            permissions = oct(text_report_executable_path.stat().st_mode)[-3:]
+            logger.info(f"Permissions: {permissions}")
+        run_command(
+            script_call,
+            "Start Converting xqar to human readable form :",
+            cwd=output_file.parent,
+        )
 
-    xqar_path_without_extension = output_file.with_suffix(
-        ""
-    )  # Get full path without extension
-    new_path = f"{xqar_path_without_extension}_QCReport.txt"
-    result_text_path = output_file.parent / "Report.txt"
-    result_text_path.rename(new_path)
+        xqar_path_without_extension = output_file.with_suffix("")
+        new_path = f"{xqar_path_without_extension}_QCReport.txt"
+        result_text_path = output_file.parent / "Report.txt"
+        result_text_path.rename(new_path)
+    finally:
+        if config_file.exists():
+            config_file.unlink()
 
 
 if __name__ == "__main__":

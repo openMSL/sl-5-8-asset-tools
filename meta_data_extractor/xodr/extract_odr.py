@@ -406,7 +406,7 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
             if check_data(root, ".//header", "date")
             else default_value
         )
-    except:
+    except Exception:
         logger.error("cannot extract date")
 
     hasDomainSpecification_dict = dict()
@@ -605,23 +605,23 @@ def extract_meta_data(file: Path) -> Tuple[bool, dict]:
     try:
         with open(file, "r") as f:
             _ = f.read()
-    except:
+    except Exception:
         logger.exception(f"Cannot read file {file.absolute()}")
-        return False
+        return False, {}
 
     # parse xml
     try:
         root = etree.parse(str(file), etree.XMLParser(dtd_validation=False))
-    except:
+    except Exception:
         logger.exception(f"Cannot parse XML from file {file.absolute()}")
-        return False
+        return False, {}
 
     # ask in file dialog for file with given file extension -->close program if interrupted
     try:
         attributes = get_meta_data(file, "Unknown")
-    except:
+    except Exception:
         logger.exception(f"Cannot extract from file {file.absolute()}")
-        return False
+        return False, {}
 
     logger.info(f"Extract from file {file}")
     return True, attributes

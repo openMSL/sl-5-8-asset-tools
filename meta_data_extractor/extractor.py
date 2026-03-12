@@ -142,7 +142,7 @@ def extract(file: Path, output_file: Path) -> bool:
     logger.debug(f"Loading extractor {{{module_name}}}")
     try:
         extract_module = __import__(module_name, fromlist=required_functions)
-    except:
+    except Exception:
         logger.exception(f"Could not load extract file from module {module_name}")
         return False
 
@@ -161,7 +161,7 @@ def extract(file: Path, output_file: Path) -> bool:
         valid, meta_data = extract_module.extract_meta_data(file)
         if valid is False:
             return valid
-    except:
+    except Exception:
         logger.exception(f"Could not extract format {extract_module.get_description()}")
         return False
 

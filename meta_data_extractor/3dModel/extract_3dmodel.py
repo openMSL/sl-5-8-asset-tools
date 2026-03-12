@@ -46,17 +46,17 @@ def extract_meta_data(file: Path) -> Tuple[bool, dict]:
     try:
         with open(file, "r") as f:
             file_data = json.load(f)
-    except:
+    except Exception:
         logger.exception(f"Cannot read json file {file.absolute()}")
-        return False
+        return False, {}
 
     # ask in file dialog for file with given file extension -->close program if interrupted
     try:
         attributes = dict()
         get_meta_data(file_data, attributes)
-    except:
+    except Exception:
         logger.exception(f"Cannot extract from file {file.absolute()}")
-        return False
+        return False, {}
 
     data = {}
     data["did"] = "did:web:registry.gaia-x.eu:EnvironmentModel:" + create_uuid()

@@ -103,6 +103,8 @@ make setup
 
 All dependencies are managed via `pyproject.toml` and installed automatically by `make setup`.
 
+On Windows, run `make` from Git Bash or another POSIX `sh`-compatible shell.
+
 Run `make help` for the full list of available commands.
 
 ## Usage

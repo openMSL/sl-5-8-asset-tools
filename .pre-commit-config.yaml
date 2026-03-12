@@ -7,10 +7,10 @@ repos:
         entry: make lint
         language: system
         pass_filenames: false
-        always_run: true
+        files: \.py$
       - id: check
         name: check
         entry: make check
         language: system
         pass_filenames: false
-        always_run: true
+        files: ^(README\.md|.*\.py)$
