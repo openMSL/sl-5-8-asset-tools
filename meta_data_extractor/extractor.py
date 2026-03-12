@@ -1,4 +1,5 @@
 from pathlib import Path
+from geopy.exc import GeocoderServiceError
 from geopy.geocoders import Nominatim
 from pyproj import CRS, Transformer
 from utils.json import write_json
@@ -6,6 +7,10 @@ from utils.json import write_json
 import logging
 
 logger = logging.getLogger(__name__)
+
+FORMAT_ALIASES = {
+    "3dmodel": "3dModel",
+}
 
 # manual assignment of local country name (Germany) to alpha-2 -> OSM only receives local name, but for alpha 2 code you need the English name.
 COUNTRY_NAME_TO_ALPHA2 = {
@@ -69,11 +74,35 @@ def get_adress_from_osm(data_dict, latitude, longitude):
     # custom User-Agent
     custom_user_agent = "GaiaX_ODR_Extractor/1.0"
     # Initialize Nominatim geocoder
-    geolocator = Nominatim(user_agent=custom_user_agent)
-    # Reverse geocoding: find address based on coordinates
-    location = geolocator.reverse((latitude, longitude), exactly_one=True)
-    # Extract the desired information
-    address = location.raw["address"]
+    geolocator = Nominatim(user_agent=custom_user_agent, timeout=10)
+    try:
+        location = geolocator.reverse((latitude, longitude), exactly_one=True)
+    except GeocoderServiceError as exc:
+        logger.warning(
+            "Could not reverse geocode latitude=%s longitude=%s: %s",
+            latitude,
+            longitude,
+            exc,
+        )
+        return False
+
+    if location is None or not isinstance(getattr(location, "raw", None), dict):
+        logger.warning(
+            "Reverse geocoding returned no address for latitude=%s longitude=%s",
+            latitude,
+            longitude,
+        )
+        return False
+
+    address = location.raw.get("address")
+    if not isinstance(address, dict):
+        logger.warning(
+            "Reverse geocoding returned no structured address for latitude=%s longitude=%s",
+            latitude,
+            longitude,
+        )
+        return False
+
     country_name = address.get("country", "")
     data_dict["georeference:country"] = replace_german_umlauts(
         str(
@@ -88,6 +117,7 @@ def get_adress_from_osm(data_dict, latitude, longitude):
     data_dict["georeference:city"] = replace_german_umlauts(
         address.get("city", address.get("town", address.get("village", "")))
     )
+    return True
 
 
 # convert proj4 to epsg code
@@ -101,22 +131,30 @@ def proj4_to_epsg(proj4_string: str) -> int:
 
 # convert coordinates to LatLon using pyproj
 def convert_to_LatLon(x: float, y: float, proj4: str) -> tuple[float, float]:
-    transformer = Transformer.from_proj(proj4, "epsg:4326")  # WGS84
+    source_crs = CRS.from_proj4(proj4)
+    transformer = Transformer.from_crs(source_crs, CRS.from_epsg(4326), always_xy=True)
     lon, lat = transformer.transform(x, y)
-    return lon, lat
+    return lat, lon
+
+
+def get_format_name(file: Path, format_hint: str | None = None) -> str:
+    if format_hint:
+        return FORMAT_ALIASES.get(format_hint, format_hint)
+    return file.suffix.lstrip(".")
 
 
 # extract meta data from file
-def extract(file: Path, output_file: Path) -> bool:
+def extract(file: Path, output_file: Path, format_hint: str | None = None) -> bool:
     file = file.expanduser()
     file = file.resolve()
 
     # check folder with extension
-    extension = file.suffix.lstrip(".")
-    format_path = Path(__file__).parent / f"{extension}"
+    format_name = get_format_name(file, format_hint)
+    format_path = Path(__file__).parent / format_name
     if not format_path.exists() or not format_path.is_dir():
         logger.error(
-            f"Provided format path does not exist or is not a file: {format_path.absolute()}"
+            "Provided format path does not exist or is not a directory: %s",
+            format_path.absolute(),
         )
         return False
 

@@ -25,6 +25,11 @@ def main():
         action="store_true",
         help="Activates the user query via dialogues for non-extractable attributes.",
     )
+    parser.add_argument(
+        "-format",
+        type=str,
+        help="Optional extractor format override (for example '3dmodel').",
+    )
 
     # 1. get and check arguments
     args = parser.parse_args()
@@ -43,7 +48,7 @@ def main():
         raise ValueError(f"args.filename not defined")
 
     # extract meta data depended on asset type
-    valid = extract(file, output_file)
+    valid = extract(file, output_file, format_hint=args.format)
     if valid is not True:
         logger.error(f"file {file.absolute()} can not be extraced")
 

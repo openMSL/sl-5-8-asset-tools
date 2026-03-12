@@ -12,7 +12,7 @@ The tools are primarily used by the asset service pipeline in:
 
 - ASAM OpenDRIVE (`.xodr`)
 - ASAM OpenSCENARIO XML (`.xosc`)
-- 3D environment model metadata inputs
+- 3D environment model archives (`.zip`, `.7z`) with a companion `statistic_3dModel.json` metadata file in the same input folder
 
 ## Pipeline Modules
 

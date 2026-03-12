@@ -1,4 +1,4 @@
-from sympy import symbols, solveset
+from sympy import S, symbols, solveset
 from lxml import etree
 from pathlib import Path
 from datetime import datetime
@@ -341,12 +341,16 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
             if check_data(root, ".//header", "north")
             else unknown_unit
         )
-        bounding_dict["yMin"], bounding_dict["xMin"] = convert_to_LatLon(
+        lat_min, lon_min = convert_to_LatLon(
             bounding_dict["xMin"], bounding_dict["yMin"], geo_reference_cleaned
         )
-        bounding_dict["yMax"], bounding_dict["xMax"] = convert_to_LatLon(
+        lat_max, lon_max = convert_to_LatLon(
             bounding_dict["xMax"], bounding_dict["yMax"], geo_reference_cleaned
         )
+        bounding_dict["xMin"] = lon_min
+        bounding_dict["yMin"] = lat_min
+        bounding_dict["xMax"] = lon_max
+        bounding_dict["yMax"] = lat_max
         bounding_data_dict = dict()
         bounding_data_dict["georeference:xMin"] = str(bounding_dict["xMin"])
         bounding_data_dict["georeference:yMin"] = str(bounding_dict["yMin"])
@@ -362,8 +366,8 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
         geodetic_ref_system_dict["georeference:hasOrigin"] = origin_dict
 
         # get country, state, town from OSM
-        center_lon = (bounding_dict["xMin"] + bounding_dict["xMax"]) * 0.5
         center_lat = (bounding_dict["yMin"] + bounding_dict["yMax"]) * 0.5
+        center_lon = (bounding_dict["xMin"] + bounding_dict["xMax"]) * 0.5
         get_adress_from_osm(projection_location_dict, center_lat, center_lon)
         viewpoint_dict = dict()
         viewpoint_dict["georeference:lat"] = str(center_lat)
@@ -513,7 +517,14 @@ def get_elevation_min_max(start, end, expr, diff):
     candidates = []
     # if diff is 0 do not search for results as 0 = 0
     if diff != 0:
-        solveset(diff)
+        solutions = solveset(diff, x, domain=S.Reals)
+        if getattr(solutions, "is_FiniteSet", False):
+            for candidate in solutions:
+                if candidate.is_real is False:
+                    continue
+                candidate_numeric = float(candidate)
+                if 0 <= candidate_numeric <= end - start:
+                    candidates.append(candidate)
     candidate_value = []
     if len(candidates) != 0:
         for candidate in candidates:
