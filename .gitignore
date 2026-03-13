@@ -6,6 +6,4 @@
 shacls/
 qc_config.xml
 examples/*/output/
-examples/**/*.xodr
-examples/**/*.xosc
 examples/**/*.zip
