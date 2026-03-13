@@ -11,7 +11,7 @@ from utils.pipeline_reporting import (
     summarize_stage_success,
 )
 from utils.cid import compute_file_cid
-from utils.http import download_or_get_file
+from utils.http import download_or_get_file, is_url
 from utils.json import write_json
 from utils.subprocess import run_command, CommandError
 from utils.input_manifest import load_input_file, load_referenced_artifacts
