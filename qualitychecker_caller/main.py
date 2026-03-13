@@ -1,8 +1,6 @@
 import argparse
 import logging
-import os
 import re
-import stat
 import sys
 import tempfile
 from pathlib import Path
@@ -16,24 +14,67 @@ setup_logging(logging.DEBUG if is_debug_logging() else logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# add local fallback lib folders for Linux runtime dependencies (e.g. TextReport)
-def _apply_linux_textreport_library_fallback(script_path: Path) -> None:
-    """Prepend known local library paths so TextReport can resolve runtime deps on Linux."""
-    if not sys.platform.startswith("linux"):
-        return
+def _generate_text_report(xqar_file: Path, report_file: Path) -> None:
+    """Convert an XQAR result file to a human-readable text report.
 
-    fallback_lib_dirs = [
-        Path("/tmp/textreport-libs/usr/lib/x86_64-linux-gnu"),
-        Path("/tmp/xerces-local/usr/lib/x86_64-linux-gnu"),
-        script_path.parent / "apps" / "libs",
-    ]
-    existing_dirs = [str(path) for path in fallback_lib_dirs if path.exists()]
-    if not existing_dirs:
-        return
+    Uses the Python qc_baselib.Result API (from asam-qc-baselib) instead of
+    the legacy C++ TextReport binary, eliminating the libxerces-c runtime
+    dependency.  See asam-ev/qc-framework#115.
+    """
+    from qc_baselib import Result
 
-    current = os.environ.get("LD_LIBRARY_PATH", "")
-    prepend = ":".join(existing_dirs)
-    os.environ["LD_LIBRARY_PATH"] = f"{prepend}:{current}" if current else prepend
+    result = Result()
+    result.load_from_file(str(xqar_file))
+
+    with open(report_file, "w", encoding="utf-8") as f:
+        f.write("=" * 102 + "\n")
+        f.write("Text Report Module - Pooled Results\n")
+        f.write("=" * 102 + "\n")
+
+        for bundle in result.get_checker_bundle_results():
+            f.write(f"\n    CheckerBundle: {bundle.name}\n")
+            f.write(f"    Build date: {bundle.build_date}\n")
+            f.write(f"    Build version: {bundle.version}\n")
+            f.write(f"    Description: {bundle.description}\n")
+            f.write(f"    Summary: {bundle.summary}\n")
+            if bundle.params:
+                f.write("    Parameters:\n")
+                for param in bundle.params:
+                    f.write(f"    {param.name} = {param.value}\n")
+
+            f.write("    " + "=" * 20 + "\n")
+            f.write("    Checkers:\n")
+            f.write("    " + "=" * 20 + "\n")
+
+            for checker in bundle.checkers:
+                f.write(f"\n        Checker:        {checker.checker_id}\n")
+                f.write(f"        Description:    {checker.description}\n")
+                f.write(f"        Status:    {checker.status or ''}\n")
+                f.write(f"        Summary:        {checker.summary}\n")
+
+                f.write("        " + "=" * 20 + "\n")
+                f.write("        Issues:\n")
+                f.write("        " + "=" * 20 + "\n")
+                for issue in checker.issues:
+                    f.write(f"            Issue:              {issue.issue_id}\n")
+                    f.write(f"            Description:        {issue.description}\n")
+                    f.write(f"            Level:              {issue.level}\n")
+
+                if checker.addressed_rule:
+                    f.write("        " + "=" * 20 + "\n")
+                    f.write("        Addressed rules:\n")
+                    f.write("        " + "=" * 20 + "\n")
+                    for rule in checker.addressed_rule:
+                        f.write(f"            Addressed Rule:     {rule.rule_uid}\n")
+
+                if checker.metadata:
+                    f.write("        " + "=" * 20 + "\n")
+                    f.write("        Metadata:\n")
+                    f.write("        " + "=" * 20 + "\n")
+                    for meta in checker.metadata:
+                        f.write(f"            Metadata:        {meta.key}\n")
+                        f.write(f"            Value:        {meta.value}\n")
+                        f.write(f"            Description:        {meta.description}\n")
 
 
 # update config file and replace input, output file and bundle name
@@ -205,35 +246,10 @@ def main():
         script_call = [app_name, "-c", config_file.as_posix()]
         run_command(cmd=script_call, name=app_name)
 
-        script_call = []
-        script_path = Path(__file__).resolve()
-        _apply_linux_textreport_library_fallback(script_path)
-        if sys.platform.startswith("win"):
-            appname = Path("TextReport.exe")
-        elif sys.platform.startswith("linux"):
-            appname = Path("TextReport")
-        else:
-            raise RuntimeError(f"unknown system: {sys.platform}")
-        text_report_executable_path = script_path.parent / "apps" / appname
-        script_call.append(f"{text_report_executable_path}")
-        script_call.append(str(output_file))
+        text_report_path = Path(f"{output_file.with_suffix('')}_QCReport.txt")
+        _generate_text_report(output_file, text_report_path)
 
-        if sys.platform.startswith("linux"):
-            text_report_executable_path.chmod(stat.S_IXUSR)
-            permissions = oct(text_report_executable_path.stat().st_mode)[-3:]
-            logger.debug("TextReport permissions: %s", permissions)
-        run_command(
-            script_call,
-            "convert QC report to text",
-            cwd=output_file.parent,
-        )
-
-        xqar_path_without_extension = output_file.with_suffix("")
-        new_path = f"{xqar_path_without_extension}_QCReport.txt"
-        result_text_path = output_file.parent / "Report.txt"
-        result_text_path.rename(new_path)
-
-        fail_on_internal_checker_errors(app_name, output_file, Path(new_path))
+        fail_on_internal_checker_errors(app_name, output_file, text_report_path)
         summary = get_checker_bundle_summary(output_file)
         if summary:
             logger.info("%s: %s", app_name, summary)
