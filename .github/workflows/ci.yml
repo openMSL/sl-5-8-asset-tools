@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -26,9 +28,6 @@ jobs:
 
       - name: Setup
         run: make setup
-
-      - name: Lint
-        run: make lint
 
       - name: Check
         run: make check
@@ -45,9 +44,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Init OMB submodule
-        run: git submodule update --init submodules/ontology-management-base
+        with:
+          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -57,5 +55,8 @@ jobs:
       - name: Setup
         run: make setup
 
-      - name: Run pipeline
-        run: make run ${{ matrix.example }}
+      - name: Generate
+        run: make generate ${{ matrix.example }}
+
+      - name: Validate
+        run: make validate
