@@ -17,9 +17,8 @@ logger = logging.getLogger(__name__)
 def _generate_text_report(xqar_file: Path, report_file: Path) -> None:
     """Convert an XQAR result file to a human-readable text report.
 
-    Uses the Python qc_baselib.Result API (from asam-qc-baselib) instead of
-    the legacy C++ TextReport binary, eliminating the libxerces-c runtime
-    dependency.  See asam-ev/qc-framework#115.
+    Uses the Python qc_baselib.Result API (from asam-qc-baselib) to generate
+    human-readable text reports.  See asam-ev/qc-framework#115.
     """
     from qc_baselib import Result
 

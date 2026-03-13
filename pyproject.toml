@@ -45,6 +45,7 @@ qc-deps = [
 dev = [
     "ruff",
     "pre-commit",
+    "pytest",
 ]
 
 [tool.ruff]
