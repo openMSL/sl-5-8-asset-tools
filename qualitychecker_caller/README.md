@@ -29,4 +29,4 @@ make install  # from repository root
 ```
 
 ## Notes
-- On Linux, additional runtime libraries are required by `TextReport`.
+- Text reports are generated using the pure-Python `qc_baselib.Result` API (no native binaries required).

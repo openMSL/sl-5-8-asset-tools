@@ -27,11 +27,11 @@ dependencies = [
 
 [project.optional-dependencies]
 qc = [
-    "asam-qc-baselib@git+https://github.com/asam-ev/qc-baselib-py@main",
+    "asam-qc-baselib@git+https://github.com/asam-ev/qc-baselib-py@v1.1.0",
     # Pinned to fork pending upstream PR asam-ev/qc-opendrive#139.
-    # Switch back to @main once the PR is merged.
+    # Switch back to @v1.0.0 (or newer) once the PR is merged.
     "asam-qc-opendrive@git+https://github.com/jdsika/qc-opendrive@fix-contact-point-missing-road-link",
-    "asam-qc-openscenarioxml@git+https://github.com/asam-ev/qc-openscenarioxml@main",
+    "asam-qc-openscenarioxml@git+https://github.com/asam-ev/qc-openscenarioxml@v1.0.0",
     "openmsl-qc-opendrive@git+https://github.com/openMSL/sl-5-9-openmsl-qc-opendrive@main",
 ]
 qc-deps = [

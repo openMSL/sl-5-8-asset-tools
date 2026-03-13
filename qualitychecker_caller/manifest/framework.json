@@ -1,9 +1,6 @@
 {
     "manifest_file_path": [
-        "$QC4OPENX_INTERNAL_DIR/bin/manifest/qc_opendrive.json",
-        "$QC4OPENX_INTERNAL_DIR/bin/manifest/qc_openscenarioxml.json",
-        "$QC4OPENX_INTERNAL_DIR/bin/manifest/report_gui.json",
-        "$QC4OPENX_INTERNAL_DIR/bin/manifest/result_pooling.json",
-        "$QC4OPENX_INTERNAL_DIR/bin/manifest/text_report.json"
+        "qc_opendrive.json",
+        "qc_openscenarioxml.json"
     ]
 }
