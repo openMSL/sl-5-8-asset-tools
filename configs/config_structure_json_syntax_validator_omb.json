@@ -1,12 +1,12 @@
 {
-    "name": "jsonLD validator from ontology-management-base",
+    "name": "json syntax validator from ontology-management-base",
     "environment type": "python",
     "data folder": "",
     "params": {
         "call": "src.tools.validators.validation_suite",
-        "input": {"--data-paths": "{path}/manifest.json"},
+        "input": {"--data-paths": "{path}/temp/{name}_structure.json"},
         "additional": {
-            "--run": "check-data-conformance",
+            "--run": "check-syntax",
             "--artifacts": "submodules/ontology-management-base/artifacts"
         }
     }

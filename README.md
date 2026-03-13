@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository contains tools to analyze, transform, and package asset data into an `asset.zip` archive for marketplace workflows (for example Envited Marketplace).
+This repository contains tools to analyze, transform, and package asset data into CID-named `.zip` archives for marketplace workflows (for example Envited Marketplace).
 
 The tools are primarily used by the asset service pipeline in:
 
@@ -115,8 +115,8 @@ Run `make help` for the full list of available commands.
 Two ready-to-run examples are included under `examples/`:
 
 ```bash
-make generate opendrive      # OpenDRIVE example  → examples/OpenDRIVE/output/
-make generate openscenario   # OpenSCENARIO example → examples/OpenSCENARIO/output/
+make generate opendrive      # OpenDRIVE example  → examples/OpenDRIVE/output/ + examples/OpenDRIVE/<CID>.zip
+make generate openscenario   # OpenSCENARIO example → examples/OpenSCENARIO/output/ + examples/OpenSCENARIO/<CID>.zip
 ```
 
 Each example follows the `input/` → `output/` convention:
@@ -124,7 +124,16 @@ Each example follows the `input/` → `output/` convention:
 - `examples/<name>/input/` — input manifest, simulation data, media, docs, LICENSE
 - `examples/<name>/output/` — pipeline-generated EVES-003 asset (gitignored)
 
-`make run opendrive` and `make run openscenario` are aliases for the same targets.
+By default the pipeline uses concise, stage-oriented logging. To inspect raw
+child command lines and full stdout/stderr, set `SL58_LOG_MODE=debug` before
+running `make generate ...`.
+
+PowerShell example:
+
+```powershell
+$env:SL58_LOG_MODE = "debug"
+make generate opendrive
+```
 
 ## Input Manifest
 

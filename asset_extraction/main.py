@@ -1,25 +1,37 @@
 from pathlib import Path
 from zipfile import ZipFile
-from utils.log_config import setup_logging
+from time import perf_counter
+
+from utils.log_config import is_debug_logging, setup_logging
+from utils.pipeline_reporting import (
+    PipelineReporter,
+    get_pipeline_name,
+    get_stage_label,
+    summarize_stage_failure,
+    summarize_stage_success,
+)
+from utils.cid import compute_file_cid
 from utils.http import download_or_get_file
 from utils.json import write_json
-from utils.subprocess import run_command
+from utils.subprocess import run_command, CommandError
 from utils.input_manifest import load_input_file, load_referenced_artifacts
 import argparse
+import hashlib
 import json
+import os
 import shutil
 import logging
 
 # configure logging once for the entire application
-DEBUG = False
-setup_logging(logging.DEBUG if DEBUG else logging.INFO)
+setup_logging(logging.DEBUG if is_debug_logging() else logging.INFO)
 logger = logging.getLogger(__name__)
 
 asset_types = {"xodr": "hdmap", "xosc": "scenario", "3dmodel": "environment-model"}
 
 
 # load configurations depending on asset type
-def get_configs(config_dir: Path, asset_file: Path) -> list:
+def get_configs(config_dir: Path, asset_file: Path) -> tuple[list, dict]:
+    """Return (configs, source_filenames) where source_filenames maps index to filename."""
     # get asset extension
     asset_type_extension = get_asset_type_extension(asset_file)
 
@@ -43,15 +55,17 @@ def get_configs(config_dir: Path, asset_file: Path) -> list:
 
     # load configs
     configs = []
-    for filename in config_files:
+    source_filenames = {}
+    for index, filename in enumerate(config_files):
         config_file = config_dir / filename
         if not config_file.exists():
             raise FileNotFoundError(f"config file {config_file} not exists")
 
         with (config_dir / filename).open("r") as file:
             configs.append(json.load(file))
+            source_filenames[index] = filename
 
-    return configs
+    return configs, source_filenames
 
 
 # replace placeholders in file path
@@ -152,7 +166,12 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
 
     # run sub script
     project_root = Path(__file__).parent.parent
-    run_command(cmd=script_call, name=script_config["name"], cwd=str(project_root))
+    return run_command(
+        cmd=script_call,
+        name=script_config["name"],
+        cwd=str(project_root),
+        log_output=False,
+    )
 
 
 def _format_reference(ref: dict) -> dict:
@@ -196,14 +215,38 @@ def _format_reference(ref: dict) -> dict:
 
 # create zip file from folder
 def create_zip(output_dir: Path, zip_filename: Path):
+    # Use a fixed timestamp for all entries so the archive is deterministic.
+    source_mtime = os.environ.get("SL58_SOURCE_MTIME")
+    if source_mtime:
+        from datetime import datetime
+
+        dt = datetime.fromtimestamp(int(source_mtime))
+        fixed_date_time = (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+    else:
+        fixed_date_time = None
+
     with ZipFile(zip_filename, "w") as zipf:
-        for file_path in output_dir.rglob("*"):
+        for file_path in sorted(output_dir.rglob("*")):
             if file_path.is_file():
-                filename = str(file_path.name)
-                if filename == "asset.zip":
-                    continue
                 file_local = file_path.relative_to(output_dir)
-                zipf.write(file_path, file_local)
+                if fixed_date_time:
+                    from zipfile import ZipInfo
+
+                    info = ZipInfo(file_local.as_posix(), date_time=fixed_date_time)
+                    info.compress_type = zipf.compression
+                    zipf.writestr(info, file_path.read_bytes())
+                else:
+                    zipf.write(file_path, file_local)
+
+
+def compute_input_hash(input_dir: Path) -> str:
+    """Compute a stable SHA-256 hash over all input files (sorted by name)."""
+    sha = hashlib.sha256()
+    for path in sorted(input_dir.rglob("*")):
+        if path.is_file():
+            sha.update(path.name.encode("utf-8"))
+            sha.update(path.read_bytes())
+    return sha.hexdigest()
 
 
 # get asset type extension
@@ -261,24 +304,31 @@ def main():
     parser.add_argument(
         "-out", type=str, required=True, help="output path for asset archive."
     )
+    parser.add_argument(
+        "-zip-dir",
+        type=str,
+        default="",
+        help="optional output directory for the generated archive",
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.out)
     output_dir = output_dir.resolve()
+    zip_dir = Path(args.zip_dir).resolve() if args.zip_dir else output_dir
+    zip_dir.mkdir(parents=True, exist_ok=True)
 
     # determine asset type (e.g., ".xodr")
     uploaded_file = Path(args.filename)
     asset_file = get_asset_file(uploaded_file)
     if not asset_file.exists():
         raise FileNotFoundError(f"asset file {asset_file} not exists")
-    logger.info(f"asset file {asset_file}")
 
     # load all configs that are applicable to the asset type
     config_dir = Path(args.config)
     config_dir = config_dir.resolve()
     if not config_dir.is_dir():
         raise FileNotFoundError(f"config path {config_dir} not exists")
-    applicable_scripts = get_configs(config_dir, asset_file)
+    applicable_scripts, source_filenames = get_configs(config_dir, asset_file)
 
     # create, cleanup output directory for the asset file
     asset_name = asset_file.stem
@@ -289,11 +339,74 @@ def main():
     if output_sub_dir.exists():
         shutil.rmtree(output_sub_dir)
     output_sub_dir.mkdir(parents=True, exist_ok=True)
-    logger.info(f"output path {output_sub_dir}")
+
+    # Deterministic mode (opt-in): hash all input files so subprocesses
+    # derive reproducible UUIDs and use the source file's modification
+    # time instead of "now" for generated-file timestamps.
+    # Enable with SL58_DETERMINISTIC=1.
+    if os.environ.get("SL58_DETERMINISTIC") == "1":
+        input_hash = compute_input_hash(asset_file.parent)
+        source_mtime = str(int(asset_file.stat().st_mtime))
+        os.environ["SL58_INPUT_HASH"] = input_hash
+        os.environ["SL58_SOURCE_MTIME"] = source_mtime
+        logger.debug(
+            "Deterministic mode: input_hash=%s, source_mtime=%s",
+            input_hash,
+            source_mtime,
+        )
+    else:
+        os.environ.pop("SL58_INPUT_HASH", None)
+        os.environ.pop("SL58_SOURCE_MTIME", None)
+
+    project_root = Path(__file__).parent.parent
+    pipeline_reporter = PipelineReporter(
+        pipeline_name=get_pipeline_name(asset_file),
+        total_stages=len(applicable_scripts),
+        input_file=asset_file,
+        output_dir=output_sub_dir,
+        project_root=project_root,
+    )
+    pipeline_reporter.start_pipeline()
 
     # execute each script and collect outputs
-    for script_config in applicable_scripts:
-        execute_script(script_config, asset_file, output_sub_dir)
+    pipeline_started_at = perf_counter()
+    for stage_index, script_config in enumerate(applicable_scripts, start=1):
+        source_file = source_filenames.get(stage_index - 1, "")
+        stage_label = get_stage_label(script_config, source_file)
+        pipeline_reporter.start_stage(stage_index, stage_label)
+        stage_started_at = perf_counter()
+
+        try:
+            result = execute_script(script_config, asset_file, output_sub_dir)
+        except CommandError as exc:
+            summary = summarize_stage_failure(
+                script_config,
+                exc.cmd,
+                exc,
+                project_root=project_root,
+                source_filename=source_file,
+            )
+            pipeline_reporter.finish_stage(
+                stage_index,
+                stage_label,
+                perf_counter() - stage_started_at,
+                summary,
+            )
+            raise SystemExit(1) from None
+
+        summary = summarize_stage_success(
+            script_config,
+            result.cmd,
+            result,
+            project_root=project_root,
+            source_filename=source_file,
+        )
+        pipeline_reporter.finish_stage(
+            stage_index,
+            stage_label,
+            perf_counter() - stage_started_at,
+            summary,
+        )
 
     # inject referenced artifacts from input manifest into output manifest
     refs = load_referenced_artifacts(uploaded_file)
@@ -312,9 +425,19 @@ def main():
     if temp_path.exists():
         shutil.rmtree(temp_path)
 
-    # create a zip file of the output directory
-    zip_filename = output_sub_dir / f"asset.zip"
-    create_zip(output_sub_dir, zip_filename)
+    # create a temporary archive, compute its CID, then rename it
+    temp_zip_path = zip_dir / "asset.zip"
+    if temp_zip_path.exists():
+        temp_zip_path.unlink()
+    create_zip(output_sub_dir, temp_zip_path)
+    archive_cid = compute_file_cid(temp_zip_path)
+    zip_filename = zip_dir / f"{archive_cid}.zip"
+    if zip_filename.exists():
+        zip_filename.unlink()
+    temp_zip_path.replace(zip_filename)
+    archive_display = zip_filename
+    logger.info("[DONE ] Archive: %s", archive_display)
+    pipeline_reporter.finish_pipeline(perf_counter() - pipeline_started_at)
 
 
 if __name__ == "__main__":

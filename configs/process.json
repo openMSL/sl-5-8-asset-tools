@@ -7,6 +7,11 @@
 		},
 		{
 			"enable" : true,
+			"filename": "config_extractor_json_syntax_validator_omb.json",
+			"extensions": ["xodr", "xosc"]
+		},
+		{
+			"enable" : true,
 			"filename": "config_asset_jsonLD_creator.json",
 			"extensions": ["xodr", "xosc"]
 		},
@@ -65,6 +70,10 @@
 		{
 			"enable" : true,
 			"filename": "config_structure_creator.json"
+		},
+		{
+			"enable" : true,
+			"filename": "config_structure_json_syntax_validator_omb.json"
 		},
 		{
 			"enable" : true,

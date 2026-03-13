@@ -12,12 +12,15 @@ ifeq ($(OS),Windows_NT)
     VENV_BIN         := $(VENV)/Scripts
     PYTHON           ?= $(VENV_BIN)/python.exe
     BOOTSTRAP_PYTHON ?= python
+    ACTIVATE_SCRIPT  := $(VENV_BIN)/activate
+    ACTIVATE_HINT    := use the activation script under $(VENV_BIN) for your shell
 else
     VENV_BIN         := $(VENV)/bin
     PYTHON           ?= $(VENV_BIN)/python3
     BOOTSTRAP_PYTHON ?= python3
+    ACTIVATE_SCRIPT  := $(VENV_BIN)/activate
+    ACTIVATE_HINT    := source $(ACTIVATE_SCRIPT)
 endif
-ACTIVATE_SCRIPT := $(VENV_BIN)/activate
 
 PY_FILES := $(shell git ls-files '*.py')
 
@@ -40,7 +43,7 @@ define check_dev_setup
 	fi
 endef
 
-.PHONY: all setup install lint format check validate run generate clean help init-submodules
+.PHONY: all setup install lint format check validate generate clean help init-submodules
 
 # Default target
 all: check
@@ -73,7 +76,7 @@ setup:
 		echo "[WARN] OMB submodule not initialised – skipping."; \
 	fi
 	@"$(PYTHON)" -m pre_commit install --allow-missing-config >/dev/null 2>&1 || true
-	@echo "[OK] Setup complete.  Activate in the POSIX shell with:  source $(ACTIVATE_SCRIPT)"
+	@echo "[OK] Setup complete. Activate with: $(ACTIVATE_HINT)"
 
 $(PYTHON):
 	@echo "[INFO] Creating virtual environment at $(VENV)..."
@@ -145,15 +148,22 @@ endif
 
 validate:
 	$(call check_dev_setup)
-	@echo "[INFO] Running SHACL conformance validation..."
-	@"$(PYTHON)" -m src.tools.validators.validation_suite \
+	@json_files=$$(find examples/*/output -name 'manifest.json' -o -name '*.json' -path '*/metadata/*' 2>/dev/null); \
+	if [ -z "$$json_files" ]; then \
+		echo "[SKIP] No generated assets found. Run:  make generate opendrive"; \
+		exit 0; \
+	fi; \
+	echo "[INFO] Running SHACL conformance validation..."; \
+	echo "[INFO] Files: $$json_files"; \
+	"$(PYTHON)" -m src.tools.validators.validation_suite \
 		--run check-data-conformance \
-		--artifacts "$(OMB)/artifacts"
-	@echo "[OK] Validation complete"
+		--data-paths $$json_files \
+		--artifacts "$(OMB)/artifacts"; \
+	echo "[OK] Validation complete"
 
-# ── Run / Generate pipeline ──────────────────────────────────────────
+# ── Generate pipeline ─────────────────────────────────────────────────
 
-run generate:
+generate:
 	$(call check_dev_setup)
 	@dir="$(EXAMPLE_$(SUBCMD))"; \
 	if [ -z "$$dir" ]; then \
@@ -161,30 +171,49 @@ run generate:
 		echo "Usage:  make $@ <opendrive|openscenario>"; \
 		exit 1; \
 	fi; \
+	bak="$(CURDIR)/examples/$$dir/input/input_manifest.json.bak"; \
+	status=0; \
+	restore_status=0; \
 	if [ "$(SUBCMD)" = "openscenario" ]; then \
 		odr_manifest=$$(find "$(CURDIR)/examples/OpenDRIVE/output" -name manifest.json 2>/dev/null | head -1); \
 		if [ -z "$$odr_manifest" ]; then \
 			echo "[INFO] OpenDRIVE asset not built yet — building dependency..."; \
-			"$(MAKE)" generate opendrive; \
-			odr_manifest=$$(find "$(CURDIR)/examples/OpenDRIVE/output" -name manifest.json 2>/dev/null | head -1); \
+			"$(MAKE)" generate opendrive || status=$$?; \
+			if [ $$status -eq 0 ]; then \
+				odr_manifest=$$(find "$(CURDIR)/examples/OpenDRIVE/output" -name manifest.json 2>/dev/null | head -1); \
+			fi; \
 		fi; \
-		if [ -n "$$odr_manifest" ]; then \
+		if [ $$status -eq 0 ] && [ -n "$$odr_manifest" ]; then \
 			echo "[INFO] Resolving external references from $$odr_manifest"; \
 			cp "$(CURDIR)/examples/$$dir/input/input_manifest.json" \
-			   "$(CURDIR)/examples/$$dir/input/input_manifest.json.bak"; \
-			"$(CURDIR)/$(PYTHON)" "$(CURDIR)/scripts/resolve_references.py" \
-				"$(CURDIR)/examples/$$dir/input/input_manifest.json" \
-				--ref-manifest "$$odr_manifest"; \
+			   "$$bak" || status=$$?; \
+			if [ $$status -eq 0 ]; then \
+				"$(CURDIR)/$(PYTHON)" "$(CURDIR)/scripts/resolve_references.py" \
+					"$(CURDIR)/examples/$$dir/input/input_manifest.json" \
+					--ref-manifest "$$odr_manifest" || status=$$?; \
+			fi; \
 		fi; \
 	fi; \
-	echo "[INFO] Running $$dir pipeline..."; \
-	cd "./examples/$$dir/input" && "$(CURDIR)/$(PYTHON)" -m asset_extraction.main \
-		input_manifest.json \
-		-config "$(CURDIR)/configs" \
-		-out   "$(CURDIR)/examples/$$dir/output"; \
-	if [ -f "$(CURDIR)/examples/$$dir/input/input_manifest.json.bak" ]; then \
-		mv "$(CURDIR)/examples/$$dir/input/input_manifest.json.bak" \
-		   "$(CURDIR)/examples/$$dir/input/input_manifest.json"; \
+	if [ $$status -eq 0 ]; then \
+		echo "[INFO] Running $$dir pipeline..."; \
+		cd "./examples/$$dir/input" && "$(CURDIR)/$(PYTHON)" -m asset_extraction.main \
+			input_manifest.json \
+			-config "$(CURDIR)/configs" \
+			-out   "$(CURDIR)/examples/$$dir/output" \
+			-zip-dir "$(CURDIR)/examples/$$dir" || status=$$?; \
+	fi; \
+	if [ -f "$$bak" ]; then \
+		mv "$$bak" "$(CURDIR)/examples/$$dir/input/input_manifest.json" || restore_status=$$?; \
+	fi; \
+	if [ $$restore_status -ne 0 ]; then \
+		echo "[ERR] Failed to restore input manifest"; \
+		if [ $$status -eq 0 ]; then \
+			status=$$restore_status; \
+		fi; \
+	fi; \
+	if [ $$status -ne 0 ]; then \
+		echo "[ERR] $$dir pipeline failed (exit $$status)"; \
+		exit $$status; \
 	fi; \
 	echo "[OK] $$dir pipeline complete"
 
@@ -196,6 +225,7 @@ clean:
 	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	@rm -rf examples/OpenDRIVE/output examples/OpenSCENARIO/output
+	@rm -f examples/OpenDRIVE/*.zip examples/OpenSCENARIO/*.zip
 	@echo "[OK] Cleaned"
 
 # ── Help ─────────────────────────────────────────────────────────────
@@ -203,32 +233,36 @@ clean:
 help:
 	@echo "sl-5-8-asset-tools -- Available Commands"
 	@echo ""
-	@echo "  make setup              Create venv, init submodules, and install dependencies"
-	@echo "  make install            Install package"
-	@echo "  make install dev        Install with dev dependencies"
+	@echo "  make setup                   Create venv, init submodules, and install dependencies"
+	@echo "  make install                 Install package"
+	@echo "  make install dev             Install with dev dependencies"
 	@echo ""
-	@echo "  make lint               Lint checks (ruff)"
-	@echo "  make format             Auto-format code (ruff)"
+	@echo "  make lint                    Lint checks (ruff)"
+	@echo "  make format                  Auto-format code (ruff)"
 	@echo ""
-	@echo "  make check              Run all checks (format, compile, readme)"
-	@echo "  make check format       Check formatting only"
-	@echo "  make check py           Compile-check all Python files"
-	@echo "  make check readme       Validate README structure"
+	@echo "  make check                   Run all checks (format, compile, readme)"
+	@echo "  make check format            Check formatting only"
+	@echo "  make check py                Compile-check all Python files"
+	@echo "  make check readme            Validate README structure"
 	@echo ""
-	@echo "  make validate           SHACL data conformance validation"
+	@echo "  make validate                Validate generated examples against SHACL"
 	@echo ""
-	@echo "  make run opendrive      Run OpenDRIVE example pipeline"
-	@echo "  make run openscenario   Run OpenSCENARIO example pipeline"
-	@echo "  make generate opendrive   (alias for make run opendrive)"
-	@echo "  make generate openscenario (alias for make run openscenario)"
+	@echo "  make generate opendrive      Run OpenDRIVE example pipeline"
+	@echo "  make generate openscenario   Run OpenSCENARIO example pipeline"
 	@echo ""
-	@echo "  make clean              Remove build artifacts and caches"
+	@echo "  make clean                   Remove build artifacts and caches"
 	@echo ""
-	@echo "  Note: Windows users should run make from Git Bash or another POSIX sh-compatible shell."
+	@echo "Debug logging:"
+	@echo "  SL58_LOG_MODE=debug make generate opendrive"
+	@echo "  Shows full subprocess command lines, stdout/stderr, and tracebacks."
+	@echo ""
+	@echo "Deterministic mode (reproducible output):"
+	@echo "  SL58_DETERMINISTIC=1 make generate opendrive"
+	@echo "  Same input files produce identical UUIDs, timestamps, and CID."
 
 # ── Catch-all for subcommand arguments ───────────────────────────────
 # Prevents "No rule to make target 'opendrive'" errors
-ifneq ($(filter run generate check install,$(firstword $(MAKECMDGOALS))),)
+ifneq ($(filter generate check install,$(firstword $(MAKECMDGOALS))),)
 %:
 	@:
 endif

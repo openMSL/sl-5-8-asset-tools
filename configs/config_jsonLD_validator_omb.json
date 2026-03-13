@@ -1,13 +1,13 @@
 {
-	"name" : "jsonLD validator from ontology-management-base",
-	"environment type" : "python",
-	"data folder" : "metadata",
-	"params" : 	{
-		"call" : "src.tools.validators.validation_suite",
-		"input" : {"--data-paths" : "{path}/temp/{asset_type}.json"},
-        "additional" : {
-            "--run" : "check-data-conformance",
-			"--artifacts" : "submodules/ontology-management-base/artifacts"
-		}	
-	}
+    "name": "jsonLD validator from ontology-management-base",
+    "environment type": "python",
+    "data folder": "metadata",
+    "params": {
+        "call": "src.tools.validators.validation_suite",
+        "input": {"--data-paths": "{path}/metadata/{asset_type}.json"},
+        "additional": {
+            "--run": "check-data-conformance",
+            "--artifacts": "submodules/ontology-management-base/artifacts"
+        }
+    }
 }

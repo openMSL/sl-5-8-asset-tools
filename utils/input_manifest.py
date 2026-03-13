@@ -136,7 +136,7 @@ def load_input_file(json_path: Path) -> list:
 
     if is_input_manifest(data):
         logger.info(
-            "Detected input_manifest.json format (JSON-LD) — converting to legacy format"
+            "Detected input_manifest.json format (JSON-LD) - converting to legacy format"
         )
         return input_manifest_to_uploaded_files(data)
     elif isinstance(data, list):

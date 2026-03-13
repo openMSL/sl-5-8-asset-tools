@@ -4,20 +4,62 @@
 """
 
 from __future__ import annotations
+from dataclasses import dataclass
 from pathlib import Path
-from utils.log_config import handle_output
 
 import sys
 import os
 import logging
 import subprocess
 
+from utils.log_config import extract_error_summary, handle_output, is_debug_logging
+
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class CommandResult:
+    name: str
+    cmd: list[str]
+    returncode: int
+    stdout: str = ""
+    stderr: str = ""
+
+
+class CommandError(RuntimeError):
+    """Raised when a child command exits with a non-zero status."""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        cmd: list[str],
+        returncode: int,
+        stdout: str | None = None,
+        stderr: str | None = None,
+    ) -> None:
+        self.name = name
+        self.cmd = cmd
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+        command = subprocess.list2cmdline(cmd)
+        self.command = command
+        detail = extract_error_summary(stderr, stdout)
+        super().__init__(
+            f"Command {name} failed with return code {returncode}"
+            + (f": {detail}" if detail else "")
+        )
+
+
 def run_command(
-    cmd: list[str | Path], name: str, cwd: Path | str | None = None
-) -> None:
+    cmd: list[str | Path],
+    name: str,
+    cwd: Path | str | None = None,
+    *,
+    log_output: bool = True,
+) -> CommandResult:
     """Run *cmd* and log stdout/stderr similar to other tools.
 
     # Raises CalledProcessError on failures.
@@ -46,8 +88,9 @@ def run_command(
         if venv_bin not in env.get("PATH", ""):
             env["PATH"] = venv_bin + os.pathsep + env.get("PATH", "")
 
-        logger.info(">>>    start command %s", name)
-        logger.info(cmd)
+        if is_debug_logging():
+            logger.debug("Starting command %s", name)
+            logger.debug("Command line: %s", subprocess.list2cmdline(cmd))
         result = subprocess.run(
             cmd,
             check=True,
@@ -58,11 +101,36 @@ def run_command(
             cwd=str(cwd) if cwd else None,
             env=env,
         )
-        handle_output(result, name)
-        logger.info("   <<< end command %s", name)
-    except subprocess.CalledProcessError as e:
-        logger.error(
-            f"!!!!!!!!!!!! Command {name} failed with return code {e.returncode}"
+        command_result = CommandResult(
+            name=name,
+            cmd=cmd,
+            returncode=result.returncode,
+            stdout=result.stdout,
+            stderr=result.stderr,
         )
-        handle_output(e, name)
-        raise Exception(f"Command {name}")
+        if log_output:
+            handle_output(command_result, name)
+        return command_result
+    except subprocess.CalledProcessError as e:
+        if isinstance(e.cmd, (list, tuple)):
+            failed_cmd = [str(part) for part in e.cmd]
+        else:
+            failed_cmd = [str(e.cmd)]
+
+        failed_result = CommandResult(
+            name=name,
+            cmd=failed_cmd,
+            returncode=e.returncode,
+            stdout=e.stdout or "",
+            stderr=e.stderr or "",
+        )
+        if log_output:
+            handle_output(failed_result, name)
+
+        raise CommandError(
+            name=name,
+            cmd=failed_cmd,
+            returncode=e.returncode,
+            stdout=e.stdout or "",
+            stderr=e.stderr or "",
+        ) from e

@@ -1,8 +1,7 @@
 from pathlib import Path
-from multiformats import CID
-from multiformats.multihash import digest
 from PIL import Image
 from datetime import datetime, timezone
+from utils.cid import compute_file_cid
 from utils.http import url_from_path
 from utils.ids import create_uuid
 from utils.http import is_url, download_or_get_file
@@ -13,6 +12,8 @@ from utils.constants import (
     MANIFEST_SCHEMA_VERSION,
     DID_ADRESS,
 )
+
+import os
 
 import argparse
 import json
@@ -238,7 +239,15 @@ def create_file_data(
 
         if filename.exists() and data_type != "isManifest":
             file_meta_data["manifest:fileSize"] = filename.stat().st_size
-            formatted_creation_data = get_file_timestamp(filename)
+
+            # In deterministic mode (SL58_DETERMINISTIC=1) use the source
+            # file's mtime; otherwise use the generated file's own time.
+            source_mtime = os.environ.get("SL58_SOURCE_MTIME")
+            if source_mtime:
+                creation_dt = datetime.fromtimestamp(int(source_mtime))
+            else:
+                creation_dt = datetime.fromtimestamp(filename.stat().st_ctime)
+            formatted_creation_data = creation_dt.isoformat(timespec="seconds")
 
             if data_type == "isSimulationData":
                 if asset_info and "recordingTime" in asset_info:
@@ -246,16 +255,7 @@ def create_file_data(
                 file_meta_data["manifest:timestamp"] = formatted_creation_data
             else:
                 file_meta_data["manifest:timestamp"] = formatted_creation_data
-            # create IPFS CIDv1 identifier
-            with filename.open("rb") as f:
-                data = f.read()
-            # create Multihash (SHA-256)
-            mh = digest(data, "sha2-256")
-            # create CIDv1 with code "raw"
-            cid = CID("base32", 1, "raw", bytes(mh))
-            # convert in Base32 coded string
-            cid_str = cid.encode("base32")
-            file_meta_data["manifest:cid"] = cid_str
+            file_meta_data["manifest:cid"] = compute_file_cid(filename)
             file_meta_data["manifest:filePath"] = relative_path.as_posix()
 
             if data_type == "isMedia" and filename.suffix.lstrip(".") == "png":
@@ -433,6 +433,16 @@ def get_asset_info(asset_json: Path, asset_extractor: Path) -> dict:
         asset_json_data = json.load(file)
     asset_info = {}
     asset_info["did"] = asset_json_data["@id"]  # to get did
+    for key, value in asset_json_data.items():
+        if not isinstance(value, dict):
+            continue
+        if not key.endswith(":hasManifest"):
+            continue
+
+        manifest_did = value.get("iri", value.get("manifest:iri"))
+        if manifest_did:
+            asset_info["manifestDid"] = manifest_did
+            break
 
     # load asset extractor data
     if not asset_extractor.is_absolute():
@@ -491,13 +501,16 @@ def main():
     # read json (supports both input_manifest.json and legacy uploadedFiles.json)
     user_data = load_input_file(user_input_file)
 
-    manifest_uuid = create_uuid()
-
     # get asset info (uuid, recordingTime)
     asset_json = Path(args.asset_json)
     if not asset_json.is_absolute():
         asset_json = asset_json.resolve()
     asset_info = get_asset_info(asset_json, Path(args.asset_extractor))
+    manifest_did = asset_info.get("manifestDid", "")
+    if isinstance(manifest_did, str) and manifest_did.startswith(DID_ADRESS):
+        manifest_uuid = manifest_did[len(DID_ADRESS) :]
+    else:
+        manifest_uuid = create_uuid()
 
     # initialize asset_name
     asset_name, asset_extension = get_asset(user_data)

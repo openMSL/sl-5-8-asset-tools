@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Tuple, Optional, Sequence
 from ..extractor import get_adress_from_osm, proj4_to_epsg, convert_to_LatLon
+from ..gaiax import enrich_resource_description
 from utils.ids import create_uuid
 from utils.constants import (
     DID_ADRESS,
@@ -313,6 +314,7 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
     # if it is a xodr file it describes road network
     hasResourceDescription_dict["gx:name"] = file_path.name.replace(".xodr", "")
     hasResourceDescription_dict["gx:description"] = "road network"
+    enrich_resource_description(hasResourceDescription_dict, file_path)
 
     # bounding
     georeference_dict = dict()
@@ -438,7 +440,7 @@ def get_meta_data(file_path: str, default_value: str) -> dict:
         "manifest:filePath": "../manifest.json",
         "manifest:mimeType": "application/ld+json",
     }
-    hasManifest_dict["manifest:iri"] = f"{DID_ADRESS}uuid"
+    hasManifest_dict["manifest:iri"] = f"{DID_ADRESS}{create_uuid()}"
     hasManifest_dict["skos:note"] = (
         "Ensure that manifest.json contains all required categories: simulationData, documentation, metadata, media."
     )

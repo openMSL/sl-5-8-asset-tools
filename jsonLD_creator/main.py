@@ -161,7 +161,7 @@ def get_value_type(key: str, shacl_values: dict) -> str:
         "languageIn",
     ]
 
-    # Explizit: sh:nodeKind sh:IRI → @id
+    # Explicit: sh:nodeKind sh:IRI -> @id
     node_kind = get_value("nodeKind", shacl_values)
     if node_kind and str(node_kind).endswith("IRI"):
         return "@id"
@@ -427,6 +427,22 @@ def _inject_manifest_mapping_candidates(nodes: list | None) -> list:
     return nodes
 
 
+def _extend_shape_with_additional_nodes(
+    shape_value: list[dict], additional_nodes: list[str]
+) -> list[dict]:
+    merged_shape = list(shape_value)
+    for node in additional_nodes:
+        namespace_sub, _ = get_namespace_name_from_url(node)
+        if not namespace_sub:
+            continue
+
+        additional_shape = get_shacl_shape(namespace_sub, node)
+        if additional_shape:
+            merged_shape.extend(additional_shape)
+
+    return merge_property_constraints(merged_shape)
+
+
 def class_types_from_shacl(shacl_values: dict) -> Union[str, None]:
     """
     Extracts the expected rdf:class from the SHACL property definition.
@@ -560,6 +576,12 @@ def register_key(
             if best_node:
                 uri, ns_sub, type_name, shape_val = best_node
                 used_ns, _ = get_namespace_name_from_url(path)
+
+                if key.endswith(":hasResourceDescription"):
+                    shape_val = _extend_shape_with_additional_nodes(
+                        shape_val,
+                        [f"{GX_NS}VirtualResourceShape"],
+                    )
 
                 # Determine the LD-type string (e.g., manifest:Link or hdmap:ResourceDescription)
                 type_without_shape = type_name.replace("Shape", "")
@@ -833,6 +855,36 @@ def getPrefixes(shacl_graph: Graph) -> dict:
     return prefixes
 
 
+def is_supported_shacl_namespace(url: str) -> bool:
+    namespace = str(url)
+    return namespace.startswith(ENVITED_URL) or namespace.startswith(GX_NS)
+
+
+def register_shacl_dependencies(
+    root_key: str, shacl_definitions: dict, extra_prefixes: dict | None = None
+) -> None:
+    pending_keys = [root_key]
+
+    while pending_keys:
+        current_key = pending_keys.pop(0)
+        graph_data = shacl_definitions.get(current_key)
+        if graph_data is None:
+            continue
+
+        prefixes = getPrefixes(graph_data["graph"])
+        if current_key == root_key and extra_prefixes:
+            prefixes.update(extra_prefixes)
+
+        for key, value in prefixes.items():
+            if key in shacl_definitions:
+                continue
+            if not is_supported_shacl_namespace(value):
+                continue
+
+            register_shacl(get_url_for_download(value), key, shacl_definitions)
+            pending_keys.append(key)
+
+
 # use shacls and extracted data to create json ld dict
 def process_graph(schema_namespace, schema_name, meta_data):
     config.JSON_OUT = defaultdict(list)
@@ -1018,15 +1070,16 @@ def main():
 
     # get gaiaX/envited prefixes
     shacl_data = shacl_definitions[shacl_namespace.lower()]
-    prefixes = get_prefixes(shacl_data["graph"])
+    prefixes = getPrefixes(shacl_data["graph"])
     # add special prefixes
     prefixes["sh"] = SHACL_NS
 
     # and download additional shacls
-    for key, value in prefixes.items():
-        if key not in shacl_definitions:
-            new_url_path = get_url_for_download(value)
-            register_shacl(new_url_path, key, shacl_definitions)
+    register_shacl_dependencies(
+        shacl_namespace.lower(),
+        shacl_definitions,
+        extra_prefixes={"sh": SHACL_NS},
+    )
     config.SHACLS = shacl_definitions
 
     # fill data in shacl structure

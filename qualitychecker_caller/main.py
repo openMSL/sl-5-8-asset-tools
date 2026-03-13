@@ -1,14 +1,18 @@
-from pathlib import Path
-from lxml import etree
-from utils.subprocess import run_command
-
 import argparse
-import stat
 import logging
 import os
+import re
+import stat
 import sys
 import tempfile
+from pathlib import Path
 
+from lxml import etree
+
+from utils.log_config import is_debug_logging, setup_logging
+from utils.subprocess import CommandError, run_command
+
+setup_logging(logging.DEBUG if is_debug_logging() else logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -41,7 +45,7 @@ def update_config_file(
     config_file: Path,
 ) -> Path:
     # Parse the XML file
-    logger.info(f"Using template {template_file}")
+    logger.debug("Using template %s", template_file)
     tree = etree.parse(template_file)
     root = tree.getroot()
 
@@ -59,7 +63,7 @@ def update_config_file(
 
     # Write the updated XML to the output file
     tree.write(config_file, encoding="utf-8", pretty_print=True, xml_declaration=True)
-    logger.info(f"Created configuration file {config_file}")
+    logger.debug("Created configuration file %s", config_file)
 
     return config_file
 
@@ -85,6 +89,61 @@ def create_config_file(
         input_file,
         result_file,
         config_file,
+    )
+
+
+def get_internal_checker_errors(result_file: Path) -> list[str]:
+    """Return QC checker errors recorded in the generated XQAR result."""
+
+    if not result_file.exists():
+        raise FileNotFoundError(f"quality checker result file not found: {result_file}")
+
+    tree = etree.parse(str(result_file))
+    bundle = tree.find(".//CheckerBundle")
+
+    errors = []
+    for checker in tree.findall(".//Checker[@status='error']"):
+        checker_id = checker.get("checkerId", "unknown-checker")
+        summary = checker.get("summary", "internal checker error")
+        errors.append(f"{checker_id}: {summary}")
+
+    if errors:
+        return errors
+
+    if bundle is not None:
+        summary = bundle.get("summary", "")
+        match = re.search(r"(\d+)\s+checker\(s\)\s+have internal error", summary)
+        if match and int(match.group(1)) > 0:
+            return [summary]
+
+    return []
+
+
+def get_checker_bundle_summary(result_file: Path) -> str | None:
+    if not result_file.exists():
+        return None
+
+    tree = etree.parse(str(result_file))
+    bundle = tree.find(".//CheckerBundle")
+    return bundle.get("summary", "").strip() if bundle is not None else None
+
+
+def fail_on_internal_checker_errors(
+    app_name: str, result_file: Path, text_report: Path | None = None
+) -> None:
+    """Stop the pipeline when the QC tool completed with internal checker errors."""
+
+    errors = get_internal_checker_errors(result_file)
+    if not errors:
+        return
+
+    details = "; ".join(errors[:3])
+    if len(errors) > 3:
+        details += f"; ... ({len(errors)} total)"
+
+    report_hint = f" See {text_report} for details." if text_report else ""
+    raise SystemExit(
+        f"{app_name} reported internal checker errors: {details}{report_hint}"
     )
 
 
@@ -162,10 +221,10 @@ def main():
         if sys.platform.startswith("linux"):
             text_report_executable_path.chmod(stat.S_IXUSR)
             permissions = oct(text_report_executable_path.stat().st_mode)[-3:]
-            logger.info(f"Permissions: {permissions}")
+            logger.debug("TextReport permissions: %s", permissions)
         run_command(
             script_call,
-            "Start Converting xqar to human readable form :",
+            "convert QC report to text",
             cwd=output_file.parent,
         )
 
@@ -173,6 +232,15 @@ def main():
         new_path = f"{xqar_path_without_extension}_QCReport.txt"
         result_text_path = output_file.parent / "Report.txt"
         result_text_path.rename(new_path)
+
+        fail_on_internal_checker_errors(app_name, output_file, Path(new_path))
+        summary = get_checker_bundle_summary(output_file)
+        if summary:
+            logger.info("%s: %s", app_name, summary)
+    except CommandError as exc:
+        if is_debug_logging():
+            logger.debug("Full error details:", exc_info=exc)
+        raise SystemExit(str(exc)) from None
     finally:
         if config_file.exists():
             config_file.unlink()

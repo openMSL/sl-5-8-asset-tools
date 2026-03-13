@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from lxml import etree
 from enum import Enum
+from ..gaiax import enrich_resource_description
 from utils.ids import create_uuid
 from utils.json import write_json
 from utils.constants import (
@@ -1509,6 +1510,7 @@ def get_resource_description_data(
     fill_from_header_value(
         description_dict, "gx:description", sc_header, ["description"], default_value
     )
+    enrich_resource_description(description_dict, file_path)
 
     # TODO add to description?
     additional_dict = dict()
@@ -1730,7 +1732,7 @@ def set_manifest_data(
         "manifest:filePath": "../manifest.json",
         "manifest:mimeType": "application/ld+json",
     }
-    hasManifest_dict["manifest:iri"] = f"{DID_ADRESS}uuid"
+    hasManifest_dict["manifest:iri"] = f"{DID_ADRESS}{create_uuid()}"
     hasManifest_dict["skos:note"] = (
         "Ensure that manifest.json contains all required categories: simulationData, documentation, metadata, media."
     )

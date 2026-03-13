@@ -65,7 +65,7 @@ def _feature_collection(features: list[dict]) -> dict:
 def _write_geojson(data: dict, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False)
+        json.dump(data, f, indent=2, ensure_ascii=False)
     logger.info("Wrote %s (%d features)", path, len(data.get("features", [])))
 
 
