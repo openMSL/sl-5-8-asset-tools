@@ -67,7 +67,7 @@ setup:
 	@$(MAKE) --no-print-directory $(ACTIVATE_SCRIPT)
 	@if ! "$(PYTHON)" -c "import rdflib, pyshacl, lxml" >/dev/null 2>&1; then \
 		echo "[INFO] Dependencies missing -- reinstalling..."; \
-		"$(PYTHON)" -m pip install -e ".[dev,qc,qc-deps]"; \
+		"$(PYTHON)" -m pip install -e ".[dev]"; \
 	fi
 	@if [ -f "$(OMB)/pyproject.toml" ] || [ -f "$(OMB)/setup.py" ]; then \
 		echo "[INFO] Installing ontology-management-base..."; \
@@ -85,7 +85,7 @@ $(PYTHON):
 
 $(ACTIVATE_SCRIPT): $(PYTHON)
 	@echo "[INFO] Installing dependencies..."
-	@"$(PYTHON)" -m pip install -e ".[dev,qc,qc-deps]"
+	@"$(PYTHON)" -m pip install -e ".[dev]"
 	@touch "$(ACTIVATE_SCRIPT)"
 
 install:
