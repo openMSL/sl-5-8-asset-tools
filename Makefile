@@ -194,10 +194,25 @@ validate:
 
 generate:
 	$(call check_dev_setup)
+ifneq ($(INPUT_DIR),)
+	@if [ ! -f "$(INPUT_DIR)/input_manifest.json" ]; then \
+		echo "[ERR] No input_manifest.json found in $(INPUT_DIR)"; \
+		exit 1; \
+	fi
+	@mkdir -p "$(OUTPUT_DIR)" 2>/dev/null || true
+	@echo "[INFO] Running pipeline from $(INPUT_DIR)..."
+	@"$(PYTHON)" -m asset_extraction.main \
+		"$(INPUT_DIR)/input_manifest.json" \
+		-config "$(CURDIR)/configs" \
+		-out "$(OUTPUT_DIR)" \
+		$(if $(ZIP_DIR),-zip-dir "$(ZIP_DIR)")
+	@echo "[OK] Pipeline complete -> $(OUTPUT_DIR)"
+else
 	@dir="$(EXAMPLE_$(SUBCMD))"; \
 	if [ -z "$$dir" ]; then \
 		echo "[ERR] Unknown example: $(SUBCMD)"; \
 		echo "Usage:  make $@ <opendrive|openscenario>"; \
+		echo "        make $@ INPUT_DIR=path/to/input OUTPUT_DIR=path/to/output"; \
 		exit 1; \
 	fi; \
 	bak="$(CURDIR)/examples/$$dir/input/input_manifest.json.bak"; \
@@ -206,7 +221,7 @@ generate:
 	if [ "$(SUBCMD)" = "openscenario" ]; then \
 		odr_manifest=$$(find "$(CURDIR)/examples/OpenDRIVE/output" -name manifest.json 2>/dev/null | head -1); \
 		if [ -z "$$odr_manifest" ]; then \
-			echo "[INFO] OpenDRIVE asset not built yet -- building dependency..."; \
+			echo "[INFO] OpenScenario references an OpenDRIVE map -- building dependency first..."; \
 			"$(MAKE)" generate opendrive || status=$$?; \
 			if [ $$status -eq 0 ]; then \
 				odr_manifest=$$(find "$(CURDIR)/examples/OpenDRIVE/output" -name manifest.json 2>/dev/null | head -1); \
@@ -225,8 +240,8 @@ generate:
 	fi; \
 	if [ $$status -eq 0 ]; then \
 		echo "[INFO] Running $$dir pipeline..."; \
-		cd "./examples/$$dir/input" && "$(CURDIR)/$(PYTHON)" -m asset_extraction.main \
-			input_manifest.json \
+		"$(PYTHON)" -m asset_extraction.main \
+			"$(CURDIR)/examples/$$dir/input/input_manifest.json" \
 			-config "$(CURDIR)/configs" \
 			-out   "$(CURDIR)/examples/$$dir/output" \
 			-zip-dir "$(CURDIR)/examples/$$dir" || status=$$?; \
@@ -245,6 +260,7 @@ generate:
 		exit $$status; \
 	fi; \
 	echo "[OK] $$dir pipeline complete"
+endif
 
 # ── Wizard (SD Creation Wizard frontend + API) ───────────────────────
 
@@ -346,6 +362,8 @@ help:
 	@echo ""
 	@echo "  make generate opendrive      Run OpenDRIVE example pipeline"
 	@echo "  make generate openscenario   Run OpenSCENARIO example pipeline"
+	@echo "  make generate INPUT_DIR=<path> OUTPUT_DIR=<path>"
+	@echo "                               Run pipeline for a custom input directory"
 	@echo ""
 	@echo "  make wizard                  Start SD Creation Wizard (Podman, auto-setup if needed)"
 	@echo "  make wizard stop             Stop the wizard containers"

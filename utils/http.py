@@ -22,14 +22,22 @@ OMB_ARTIFACTS = _PROJECT_ROOT / "submodules" / "ontology-management-base" / "art
 
 
 def download_or_get_file(filename: Path, out_path: Path) -> Path:
-    """get filename, if url download file first and get local filename"""
+    """get filename, if url download file first and get local filename.
+
+    Relative paths are resolved against *out_path* (typically the
+    directory that contains the manifest), not against the current
+    working directory.
+    """
 
     if is_url(filename):
         filename = Path(
             download_file(normalize_url(str(filename)), out_path, filename.name)
         )
 
-    filename = filename.resolve()
+    if not filename.is_absolute():
+        filename = (out_path / filename).resolve()
+    else:
+        filename = filename.resolve()
     return filename
 
 
