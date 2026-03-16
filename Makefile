@@ -310,7 +310,7 @@ else
 		echo "  Stop with:  make wizard stop"; \
 	else \
 		echo ""; \
-		echo "[ERROR] Failed to start the wizard. Check the errors above."; \
+		echo "[ERR] Failed to start the wizard. Check the errors above."; \
 		echo ""; \
 		echo "  Common causes:"; \
 		echo "    - Podman machine not running  →  podman machine start"; \
