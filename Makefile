@@ -95,7 +95,7 @@ else
 	@"$(MAKE)" --no-print-directory $(ACTIVATE_SCRIPT)
 	@if ! "$(PYTHON)" -c "import rdflib, pyshacl, lxml" >/dev/null 2>&1; then \
 		echo "[INFO] Dependencies missing -- reinstalling..."; \
-		"$(PYTHON)" -m pip install -e ".[dev,qc,qc-deps]"; \
+		"$(PYTHON)" -m pip install -e ".[dev]"; \
 	fi
 	@if [ -f "$(OMB)/pyproject.toml" ] || [ -f "$(OMB)/setup.py" ]; then \
 		echo "[INFO] Installing ontology-management-base..."; \
@@ -114,13 +114,16 @@ $(PYTHON):
 
 $(ACTIVATE_SCRIPT): $(PYTHON)
 	@echo "[INFO] Installing dependencies..."
-	@"$(PYTHON)" -m pip install -e ".[dev,qc,qc-deps]"
+	@"$(PYTHON)" -m pip install -e ".[dev]"
 	@touch "$(ACTIVATE_SCRIPT)"
 
 install:
 	$(call check_dev_setup)
 ifeq ($(SUBCMD),dev)
 	@"$(PYTHON)" -m pip install -e ".[dev]"
+else ifeq ($(SUBCMD),qc)
+	@git config core.longpaths true 2>/dev/null || true
+	@"$(PYTHON)" -m pip install -e ".[qc,qc-deps]"
 else
 	@"$(PYTHON)" -m pip install -e .
 endif
@@ -400,6 +403,7 @@ help:
 	@echo "  make setup                   Create venv, init submodules, and install dependencies"
 	@echo "  make install                 Install package"
 	@echo "  make install dev             Install with dev dependencies"
+	@echo "  make install qc              Install quality checker tools (ASAM, OpenMSL)"
 	@echo ""
 	@echo "  make lint                    Lint checks (ruff)"
 	@echo "  make lint-md                 Lint Markdown files"

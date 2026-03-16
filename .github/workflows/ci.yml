@@ -43,6 +43,10 @@ jobs:
         example: [opendrive, openscenario]
 
     steps:
+      - name: Enable long paths (Windows)
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -55,6 +59,9 @@ jobs:
 
       - name: Setup
         run: make setup
+
+      - name: Install QC tools
+        run: make install qc
 
       - name: Generate
         run: make generate ${{ matrix.example }}
