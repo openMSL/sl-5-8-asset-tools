@@ -605,8 +605,7 @@ def register_key(
                     del meta_data[key]
 
     elif is_required:
-        # TODO write empty node
-        test = 0
+        pass  # empty required nodes are omitted for now
 
 
 # register list of key + value to json ld
@@ -678,8 +677,7 @@ def register_list(
             lsonLD_dict[key] = created_nodes
 
     elif is_required:
-        # TODO write empty node
-        test = 0
+        pass  # empty required nodes are omitted for now
 
 
 # Comments in English as requested

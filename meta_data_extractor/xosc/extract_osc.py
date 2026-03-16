@@ -1742,49 +1742,6 @@ def set_manifest_data(
     ]
 
     return
-    # TODO Write links to a separate file to add this to the manifest json
-
-    # links
-    # get catalog
-    links = list()
-    catalog_locations = osc.scenario_et.find(".//CatalogLocations")
-    if catalog_locations is not None:
-        for catalog in catalog_locations:
-            path = catalog.find("Directory").attrib["path"]
-            if len(path):
-                links.append(path)
-    # register
-    register_links(hasManifest_dict, f"{get_name_lower()}:catalogs", links)
-    links.clear()
-
-    # environment model
-    scene_graph_file = osc.scenario_et.find(".//SceneGraphFile")
-    if scene_graph_file is not None:
-        links.append(scene_graph_file.attrib["filepath"])
-    # register
-    register_links(hasManifest_dict, f"{get_name_lower()}:environmentModels", links)
-    links.clear()
-
-    # trafficSpace
-    road_network = osc.scenario_et.find(".//LogicFile")
-    if road_network is not None:
-        links.append(road_network.attrib["filepath"])
-    # register
-    register_links(hasManifest_dict, f"{get_name_lower()}:trafficSpace", links)
-    links.clear()
-
-    ### licence
-    sc_header = osc.scenario_et.find(".//FileHeader")
-    if sc_header is not None:
-        license = sc_header.find(".//License")
-        if license is not None:
-            links_data = list()
-            link_data = dict()
-            link_data["manifest:type"] = "Document"
-            # meta_data_dict['licence_type'] = license.attrib['name']
-            if "resource" in license.attrib:
-                link_data["manifest:url"] = license.attrib["resource"]
-            links_data.append(link_data)
 
 
 def convert_env_to_string(env: etree._Element) -> str:
