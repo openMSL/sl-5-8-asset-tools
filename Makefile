@@ -25,10 +25,10 @@ endif
 PY_FILES := $(shell git ls-files '*.py')
 
 # ── Subcommand support ───────────────────────────────────────────────
-# Enables:  make run opendrive,  make check format,  make install dev
+# Enables:  make generate opendrive,  make check format,  make install dev
 SUBCMD = $(word 2,$(MAKECMDGOALS))
 
-# Example directory mapping for `make run <example>`
+# Example directory mapping for `make generate <example>`
 EXAMPLE_opendrive    := OpenDRIVE
 EXAMPLE_openscenario := OpenSCENARIO
 

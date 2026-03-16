@@ -66,11 +66,11 @@ There are two configuration types:
 
 Supported placeholders:
 
-- `path`: path of input file
+- `path`: output base directory
 - `sub_path`: target data subfolder
 - `name`: asset filename stem
-- `asset_path`: full asset path
-- `asset_type`: asset extension
+- `asset_path`: directory containing the input manifest
+- `asset_type`: asset domain type (`hdmap`, `scenario`, `environment-model`)
 
 Example:
 
@@ -118,6 +118,14 @@ Two ready-to-run examples are included under `examples/`:
 make generate opendrive      # OpenDRIVE example  → examples/OpenDRIVE/output/ + examples/OpenDRIVE/<CID>.zip
 make generate openscenario   # OpenSCENARIO example → examples/OpenSCENARIO/output/ + examples/OpenSCENARIO/<CID>.zip
 ```
+
+### Run Pipeline for a Custom Input Directory
+
+```bash
+make generate INPUT_DIR=path/to/input OUTPUT_DIR=path/to/output
+```
+
+The `INPUT_DIR` must contain an `input_manifest.json`. This is the mode used by downstream asset repositories (e.g. `hd-map-asset-example`) to delegate pipeline execution.
 
 Each example follows the `input/` → `output/` convention:
 
@@ -188,8 +196,8 @@ using SHACL shapes. It runs as two containers (API + frontend) via Podman.
 
 ```bash
 make wizard            # installs Podman if needed, builds and starts containers
-make wizard-stop       # stops the containers
-make setup-wizard      # install Podman + compose provider only (called by wizard)
+make wizard stop       # stops the containers
+make setup wizard      # install Podman + compose provider only (called by wizard)
 ```
 
 `make wizard` performs automatic pre-flight checks:
