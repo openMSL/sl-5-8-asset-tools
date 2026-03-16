@@ -8,3 +8,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^(README\.md|.*\.py)$
+      - id: lint-md
+        name: lint markdown
+        entry: make lint-md
+        language: system
+        pass_filenames: false
+        types: [markdown]

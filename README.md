@@ -201,6 +201,7 @@ make setup wizard      # install Podman + compose provider only (called by wizar
 ```
 
 `make wizard` performs automatic pre-flight checks:
+
 - Installs Podman if missing (via `winget` on Windows, `apt` on Linux)
 - Initialises and starts the Podman machine on Windows if needed
 - Installs `podman-compose` if no compose provider is found
@@ -223,9 +224,11 @@ Or open **Podman Desktop** from the Start menu -- it will guide you through
 the machine setup. Then restart your shell and run `make wizard`.
 
 > **No WSL2 or Hyper-V?** Use the CLI wizard instead:
+>
 > ```bash
 > python -m wizard_caller.main metadata/hdmap.json -shacl temp/hdmap.ttl -enable true -out metadata/hdmap.json
 > ```
+>
 > This provides the same SHACL-driven metadata enrichment in the terminal.
 
 ### Corporate proxy (Windows)
@@ -357,8 +360,8 @@ build container) and then starts compose without `--build`.
 
 | Service  | URL                    |
 |----------|------------------------|
-| Frontend | http://localhost:4200   |
-| API      | http://localhost:8080   |
+| Frontend | <http://localhost:4200>   |
+| API      | <http://localhost:8080>   |
 
 ## Notes
 

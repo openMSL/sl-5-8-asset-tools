@@ -1,0 +1,27 @@
+# Markdownlint configuration
+# https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+default: true
+
+# Allow long lines — tables and descriptive prose need room
+MD013:
+  line_length: 300
+  code_blocks: false
+  tables: false
+
+# Allow inline HTML for collapsible sections and formatting
+MD033:
+  allowed_elements:
+    - a
+    - br
+    - details
+    - img
+    - noscript
+    - strong
+    - summary
+    - sup
+
+# Disable table column style — compact pipes are fine
+MD060: false
+
+# Allow bold text as step labels (e.g., **Step 1 — ...**)
+MD036: false

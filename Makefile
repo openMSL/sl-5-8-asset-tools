@@ -140,6 +140,11 @@ lint:
 	@"$(PYTHON)" -m ruff format --check $(PY_FILES)
 	@echo "[OK] Lint passed"
 
+lint-md:
+	@echo "[INFO] Linting Markdown..."
+	@npx --yes markdownlint-cli2 "README.md" "**/README.md" "!submodules/**" "!.venv/**" "!.pytest_cache/**"
+	@echo "[OK] Markdown lint passed"
+
 # Guard: skip when `format` is a subcommand argument (e.g. make check format)
 format:
 ifneq ($(firstword $(MAKECMDGOALS)),format)
@@ -151,6 +156,11 @@ else
 	@"$(PYTHON)" -m ruff format $(PY_FILES)
 	@echo "[OK] Format complete"
 endif
+
+format-md:
+	@echo "[INFO] Formatting Markdown..."
+	@npx --yes markdownlint-cli2 --fix "README.md" "**/README.md" "!submodules/**" "!.venv/**" "!.pytest_cache/**"
+	@echo "[OK] Markdown format complete"
 
 # ── Check (with subcommands) ─────────────────────────────────────────
 
@@ -165,11 +175,15 @@ else ifeq ($(SUBCMD),py)
 else ifeq ($(SUBCMD),readme)
 	@echo "[INFO] Validating README structure..."
 	@"$(PYTHON)" scripts/check_readme_style.py
+else ifeq ($(SUBCMD),md)
+	@echo "[INFO] Linting Markdown..."
+	@npx --yes markdownlint-cli2 "README.md" "**/README.md" "!submodules/**" "!.venv/**" "!.pytest_cache/**"
 else
 	@echo "[INFO] Running all checks..."
 	@"$(PYTHON)" -m ruff format --check $(PY_FILES)
 	@"$(PYTHON)" scripts/check_py_compile.py
 	@"$(PYTHON)" scripts/check_readme_style.py
+	@npx --yes markdownlint-cli2 "README.md" "**/README.md" "!submodules/**" "!.venv/**" "!.pytest_cache/**"
 endif
 	@echo "[OK] Check passed"
 
@@ -388,12 +402,15 @@ help:
 	@echo "  make install dev             Install with dev dependencies"
 	@echo ""
 	@echo "  make lint                    Lint checks (ruff)"
+	@echo "  make lint-md                 Lint Markdown files"
 	@echo "  make format                  Auto-format code (ruff)"
+	@echo "  make format-md               Auto-fix Markdown lint issues"
 	@echo ""
-	@echo "  make check                   Run all checks (format, compile, readme)"
+	@echo "  make check                   Run all checks (format, compile, readme, markdown)"
 	@echo "  make check format            Check formatting only"
 	@echo "  make check py                Compile-check all Python files"
 	@echo "  make check readme            Validate README structure"
+	@echo "  make check md                Lint Markdown files"
 	@echo ""
 	@echo "  make validate                Validate generated examples against SHACL"
 	@echo ""
