@@ -266,6 +266,13 @@ endif
 
 COMPOSE_WIZARD := podman compose -f docker-compose.wizard.yml -p sl58-wizard
 
+# Optional: mount corporate Maven / npm config into container builds.
+#   make wizard MAVEN_SETTINGS=~/.m2 NPM_CONFIG=~/.npmrc
+# When either is set, images are built individually with --volume flags
+# before starting compose (podman-compose does not support build volumes).
+MAVEN_SETTINGS ?=
+NPM_CONFIG     ?=
+
 wizard:
 ifeq ($(SUBCMD),stop)
 	@$(COMPOSE_WIZARD) down
@@ -301,7 +308,37 @@ else
 	p.write_text(src.replace(bad, fix)) if bad in src else None; \
 	" 2>/dev/null || true
 	@echo "[INFO] Building and starting SD Creation Wizard..."
-	@if $(COMPOSE_WIZARD) up --build -d; then \
+	@vol_args=""; \
+	if [ -n "$(MAVEN_SETTINGS)" ]; then \
+		_p=$$(eval echo "$(MAVEN_SETTINGS)"); \
+		vol_args="$$vol_args --volume $$_p:/root/.m2:z"; \
+	fi; \
+	if [ -n "$(NPM_CONFIG)" ]; then \
+		_p=$$(eval echo "$(NPM_CONFIG)"); \
+		vol_args="$$vol_args --volume $$_p:/root/.npmrc:z"; \
+	fi; \
+	build_ok=true; \
+	if [ -n "$$vol_args" ]; then \
+		echo "[INFO] Custom build volumes:$$vol_args"; \
+		podman build $$vol_args \
+			-f submodules/sd-creation-wizard-api/deployment/docker/Dockerfile \
+			-t sd-creation-wizard-api:local \
+			submodules/sd-creation-wizard-api || build_ok=false; \
+		if $$build_ok; then \
+			podman build $$vol_args \
+				-f submodules/sd-creation-wizard-frontend/deployment/docker/Dockerfile \
+				-t sd-creation-wizard:local \
+				submodules/sd-creation-wizard-frontend || build_ok=false; \
+		fi; \
+	fi; \
+	if ! $$build_ok; then \
+		echo ""; \
+		echo "[ERR] Image build failed. Check the errors above."; \
+		exit 1; \
+	fi; \
+	compose_build=""; \
+	if [ -z "$$vol_args" ]; then compose_build="--build"; fi; \
+	if $(COMPOSE_WIZARD) up $$compose_build -d; then \
 		echo ""; \
 		echo "[OK] Wizard is running:"; \
 		echo "  Frontend: http://localhost:4200"; \
@@ -314,7 +351,7 @@ else
 		echo ""; \
 		echo "  Common causes:"; \
 		echo "    - Podman machine not running  →  podman machine start"; \
-		echo "    - Corporate proxy             →  see README \"Corporate Proxy\" section"; \
+		echo "    - Corporate proxy             →  see README \"Corporate Network\" section"; \
 		echo "    - Port already in use          →  make wizard stop, then retry"; \
 		exit 1; \
 	fi
@@ -368,6 +405,8 @@ help:
 	@echo "  make wizard                  Start SD Creation Wizard (Podman, auto-setup if needed)"
 	@echo "  make wizard stop             Stop the wizard containers"
 	@echo "  make setup wizard            Install Podman + compose provider (called by wizard)"
+	@echo "  make wizard MAVEN_SETTINGS=~/.m2 NPM_CONFIG=~/.npmrc"
+	@echo "                               Build with custom Maven/npm config (corporate mirrors)"
 	@echo ""
 	@echo "  make clean                   Remove build artifacts and caches"
 	@echo "  make clean all               Clean + remove venv and submodules (full reset)"

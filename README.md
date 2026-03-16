@@ -285,6 +285,74 @@ podman machine ssh "curl -s -o /dev/null -w '%{http_code}' --proxy http://127.0.
 > **Note:** The SSH tunnel must be re-established after each reboot or Podman
 > machine restart. Steps 2 and 3 persist across restarts.
 
+### Corporate registry mirrors
+
+When direct access to public registries (Docker Hub, Maven Central, npmjs.org)
+is blocked, you can use your organisation's registry mirrors instead.
+
+**1. Base images — pre-pull and re-tag**
+
+If `docker.io` is blocked, pull the four required images from your corporate
+Docker mirror, then tag them with their standard names so the Dockerfiles
+resolve locally:
+
+```bash
+MIRROR=registry.example.com/docker-hub-proxy
+
+for img in maven:3.9.6-eclipse-temurin-21 eclipse-temurin:21-jre-alpine \
+           node:18-alpine nginx:1.17.8-alpine; do
+    podman pull "$MIRROR/library/$img"
+    podman tag  "$MIRROR/library/$img" "docker.io/library/$img"
+done
+```
+
+**2. Maven mirror — mount `~/.m2` into the build**
+
+Configure your corporate Maven mirror in `~/.m2/settings.xml`:
+
+```xml
+<settings>
+  <mirrors>
+    <mirror>
+      <id>corporate-central</id>
+      <mirrorOf>*</mirrorOf>
+      <url>https://registry.example.com/maven-central-proxy/</url>
+    </mirror>
+  </mirrors>
+</settings>
+```
+
+Then pass it to the wizard build:
+
+```bash
+make wizard MAVEN_SETTINGS=~/.m2
+```
+
+**3. npm mirror — mount `.npmrc` into the build**
+
+Create a file (e.g. `~/.npmrc-mirror`) with your corporate npm registry:
+
+```ini
+registry=https://registry.example.com/npm-proxy/
+//registry.example.com/npm-proxy/:_authToken=<TOKEN>
+```
+
+Then pass it to the wizard build:
+
+```bash
+make wizard NPM_CONFIG=~/.npmrc-mirror
+```
+
+**4. Combining all options**
+
+```bash
+make wizard MAVEN_SETTINGS=~/.m2 NPM_CONFIG=~/.npmrc-mirror
+```
+
+When `MAVEN_SETTINGS` or `NPM_CONFIG` is set, the Makefile builds each image
+individually with `podman build --volume` (which mounts the config into the
+build container) and then starts compose without `--build`.
+
 ### Ports
 
 | Service  | URL                    |
