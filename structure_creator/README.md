@@ -7,12 +7,12 @@ Builds the asset folder/file structure from frontend metadata and creates a mani
 ## Usage
 
 ```bash
-python -m structure_creator.main <uploaded_files.json> -out <structure.json> -path <asset_dir> -asset_json <asset_instance.json> -asset_extractor <extractor.json>
+python -m structure_creator.main <input_manifest.json> -out <structure.json> -path <asset_dir> -asset_json <asset_instance.json> -asset_extractor <extractor.json>
 ```
 
 ## Arguments
 
-- `filename` (required): Frontend JSON describing files/categories.
+- `filename` (required): Path to `input_manifest.json`.
 - `-out` (required): Output JSON file for generated manifest structure data.
 - `-path` (required): Target asset directory used for copy/organization.
 - `-asset_json` (required): Asset JSON-LD file path (used for DID update).

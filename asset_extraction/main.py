@@ -296,7 +296,7 @@ def main():
     parser.add_argument(
         "filename",
         type=str,
-        help="filename of input_manifest.json or uploadedFiles.json",
+        help="path to input_manifest.json",
     )
     parser.add_argument(
         "-config", type=str, required=True, help="config path for sub tools."

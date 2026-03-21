@@ -468,7 +468,7 @@ def main():
         description="the folder structure is completed from the user info and a metadata table is created for the manifest",
     )
     parser.add_argument(
-        "filename", help="filename of input_manifest.json or uploadedFiles.json."
+        "filename", help="path to input_manifest.json."
     )
     parser.add_argument("-out", required=True, help="json file for manifest.")
     parser.add_argument("-path", required=True, help="path to copy/parse data.")
@@ -498,7 +498,7 @@ def main():
     if not data_path.exists():
         raise FileNotFoundError(f"data path {data_path} not exists")
 
-    # read json (supports both input_manifest.json and legacy uploadedFiles.json)
+    # read input_manifest.json
     user_data = load_input_file(user_input_file)
 
     # get asset info (uuid, recordingTime)

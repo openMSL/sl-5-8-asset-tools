@@ -146,8 +146,7 @@ make generate opendrive
 ## Input Manifest
 
 The pipeline accepts an `input_manifest.json` (JSON-LD) that describes the asset
-files, their categories and access roles.  A legacy `uploadedFiles.json` array
-format is also supported for backward compatibility.
+files, their categories and access roles.
 
 Minimal `input_manifest.json` example:
 

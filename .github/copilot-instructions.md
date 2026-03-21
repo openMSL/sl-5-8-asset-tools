@@ -77,7 +77,7 @@ make run openscenario
 ## Pipeline Flow (OpenDRIVE / HD Map)
 
 ```
-uploadedFiles.json
+input_manifest.json
   → meta_data_extractor     → temp/{name}_extractor.json
   → jsonLD_creator           → temp/hdmap.json
   → shacl_combiner           → temp/hdmap.ttl
@@ -93,38 +93,6 @@ uploadedFiles.json
   → jsonLD_validator_omb     → final validation
   → create asset.zip
 ```
-
-## uploadedFiles.json Format
-
-Frontend-generated JSON describing each uploaded file:
-
-```json
-[
-  {
-    "filename": "my_road.xodr",
-    "type": "Asset",
-    "category": "isSimulationData",
-    "did": "did:key:z6Mk..."
-  },
-  {
-    "filename": "documentation.txt",
-    "type": "Document",
-    "category": "isDocumentation"
-  }
-]
-```
-
-**Supported category → type mappings:**
-
-| Category | Types |
-|----------|-------|
-| `isSimulationData` | `Asset` |
-| `isDocumentation` | `Document` |
-| `isMedia` | `Image`, `Video`, `3DPreview`, `Routing` |
-| `isMetadata` | `MetaData` |
-| `isValidationReport` | `Validation` |
-| `isLicense` | `License` |
-| `isMiscellaneous` | `Service` |
 
 ## Output Asset Structure (EVES-003)
 
