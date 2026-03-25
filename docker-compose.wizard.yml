@@ -7,6 +7,11 @@ services:
     container_name: sd-creation-wizard-api
     ports:
       - "8080:8080"
+    volumes:
+      - ./submodules/ontology-management-base:/omb:ro
+    environment:
+      - GX4FM_LOCAL_PATH=/omb
+      - GX4FM_SHAPES_ROOT=artifacts
 
   sd-creation-wizard:
     build:
