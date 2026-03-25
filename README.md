@@ -1,53 +1,62 @@
 # Asset Tools
 
 ## Overview
-This repository contains tools to analyze, transform, and package asset data into an `asset.zip` archive for marketplace workflows (for example Envited Marketplace).
+
+This repository contains tools to analyze, transform, and package asset data into CID-named `.zip` archives for marketplace workflows (for example Envited Marketplace).
 
 The tools are primarily used by the asset service pipeline in:
-- https://github.com/openMSL/sl-5-7-asset-services
+
+- <https://github.com/openMSL/sl-5-7-asset-services>
 
 ## Supported Formats
+
 - ASAM OpenDRIVE (`.xodr`)
 - ASAM OpenSCENARIO XML (`.xosc`)
-- 3D environment model metadata inputs
+- 3D environment model archives (`.zip`, `.7z`) with a companion `statistic_3dModel.json` metadata file in the same input folder
 
 ## Pipeline Modules
+
 The following modules are used in the asset archive pipeline.
 
 - [asset_extraction](asset_extraction/README.md): Pipeline entrypoint and orchestrator.
 - [meta_data_extractor](meta_data_extractor/README.md): Extracts metadata from asset files.
 - [jsonLD_creator](jsonLD_creator/README.md): Creates JSON-LD from attribute JSON.
 - [shacl_combiner](shacl_combiner/README.md): Combines required shacl shapes.
-- [wizard-caller](wizard-caller/README.md): SD Wizard integration (currently disabled in default flow).
+- [wizard_caller](wizard_caller/README.md): SHACL-driven CLI wizard for enriching JSON-LD interactively (disabled via config by default).
 - [jsonLD_validator](jsonLD_validator/README.md): Legacy validator (replaced by ontology-management-base in pipeline).
 - [qualitychecker_caller](qualitychecker_caller/README.md): Runs ASAM/OpenMSL quality checkers.
 - [xodr_routing_creator](xodr_routing_creator/README.md): Generates route and bounding box geometry.
-- [xodr_to_geojson_caller](xodr_to_geojson_caller/README.md): Calls VCS converter (currently disabled in default flow).
+- [xodr_to_geojson_caller](xodr_to_geojson_caller/README.md): Pure-Python OpenDRIVE to GeoJSON 3D preview converter.
 - [asset_reducer](asset_reducer/README.md): Reduces XML asset data for search indexing.
 - [structure_creator](structure_creator/README.md): Builds final archive structure and manifest input.
 
 ## Additional Modules
+
 - [utils](utils/README.md): Shared helper modules.
 - [xodr_calc_box](xodr_calc_box/README.md): Bounding box calculation helper.
 - [xodr_trim_to_box](xodr_trim_to_box/README.md): Trim OpenDRIVE by bounding box.
 - [ontologie_creator](ontologie_creator/README.md): Generate ontology/shacl from Excel table.
 
 ## Process Diagram
+
 ![AssetExtractor process](AssetExtractor_process.png)
 
 ## Configuration
+
 Pipeline behavior is configured through files in [`configs/`](configs).
 
 There are two configuration types:
 
 1. `process.json`
+
 - Defines module order and activation flags.
 - Each item contains:
   - `enable`: activate/deactivate module
   - `filename`: module config filename
   - `extensions`: supported asset extensions
 
-2. Module-specific config (for example `config_meta_data_extractor.json`)
+1. Module-specific config (for example `config_meta_data_extractor.json`)
+
 - Defines concrete call parameters for a module.
 - Core fields:
   - `name`
@@ -56,13 +65,15 @@ There are two configuration types:
   - `params` (`call`, `input`, `output`, `additional`)
 
 Supported placeholders:
-- `path`: path of input file
+
+- `path`: output base directory
 - `sub_path`: target data subfolder
 - `name`: asset filename stem
-- `asset_path`: full asset path
-- `asset_type`: asset extension
+- `asset_path`: directory containing the input manifest
+- `asset_type`: asset domain type (`hdmap`, `scenario`, `environment-model`)
 
 Example:
+
 ```json
 {
   "name": "xodr_routing_creator",
@@ -81,90 +92,276 @@ Example:
 ```
 
 ## Build
+
 Python 3.12+ is required.
 
-### Windows (PowerShell/CMD)
 ```bash
 git clone https://github.com/openMSL/sl-5-8-asset-tools.git
 cd sl-5-8-asset-tools
-git submodule update --init --recursive
-
-py -m venv .venv
-# PowerShell
-.\.venv\Scripts\Activate.ps1
-# or CMD
-.\.venv\Scripts\activate.bat
-
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-python -m pip install -e .\external\ontology-management-base
+make setup
 ```
 
-### Linux / macOS / Git Bash
-```bash
-git clone https://github.com/openMSL/sl-5-8-asset-tools.git
-cd sl-5-8-asset-tools
-git submodule update --init --recursive
+All dependencies are managed via `pyproject.toml` and installed automatically by `make setup`.
+When run from a git checkout, `make setup` also initializes and updates the configured git submodules automatically. Cloning with `--recurse-submodules` still works, but is no longer required.
 
-python3 -m venv .venv
-source .venv/bin/activate
+On Windows, run `make` from Git Bash or another POSIX `sh`-compatible shell.
 
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-python -m pip install -e ./external/ontology-management-base
-```
-
-### Install A Single Module
-```bash
-python -m pip install -r <module>/requirements.txt
-```
-
-### Developer Checks
-```bash
-make format
-make check
-```
+Run `make help` for the full list of available commands.
 
 ## Usage
-### Run Full Pipeline
+
+### Run Example Pipelines
+
+Two ready-to-run examples are included under `examples/`:
+
 ```bash
-python -m asset_extraction.main <uploadedFiles.json> -config <config_dir> -out <output_dir>
+make generate opendrive      # OpenDRIVE example  → examples/OpenDRIVE/output/ + examples/OpenDRIVE/<CID>.zip
+make generate openscenario   # OpenSCENARIO example → examples/OpenSCENARIO/output/ + examples/OpenSCENARIO/<CID>.zip
 ```
 
-### Examples
-OpenDRIVE example:
+### Run Pipeline for a Custom Input Directory
+
 ```bash
-python -m asset_extraction.main "./examples/OpenDRIVE/uploadedFiles.json" -config "./configs" -out "./examples/OpenDRIVE/output"
+make generate INPUT_DIR=path/to/input OUTPUT_DIR=path/to/output
 ```
 
-OpenSCENARIO example:
-```bash
-python -m asset_extraction.main "./examples/OpenSCENARIO/uploadedFiles.json" -config "./configs" -out "./examples/OpenSCENARIO/output"
+The `INPUT_DIR` must contain an `input_manifest.json`. This is the mode used by downstream asset repositories (e.g. `hd-map-asset-example`) to delegate pipeline execution.
+
+Each example follows the `input/` → `output/` convention:
+
+- `examples/<name>/input/` — input manifest, simulation data, media, docs, LICENSE
+- `examples/<name>/output/` — pipeline-generated EVES-003 asset (gitignored)
+
+By default the pipeline uses concise, stage-oriented logging. To inspect raw
+child command lines and full stdout/stderr, set `SL58_LOG_MODE=debug` before
+running `make generate ...`.
+
+PowerShell example:
+
+```powershell
+$env:SL58_LOG_MODE = "debug"
+make generate opendrive
 ```
 
-Each output asset folder should contain generated artifacts and `asset.zip`.
+## Input Manifest
 
-## uploadedFiles JSON Structure
-The `uploadedFiles.json` is generated by the frontend asset service and describes each provided file.
+The pipeline accepts an `input_manifest.json` (JSON-LD) that describes the asset
+files, their categories and access roles.
 
-Minimal entry example:
+Minimal `input_manifest.json` example:
+
 ```json
 {
-  "filename": "documentation.txt",
-  "type": "Document",
-  "category": "isDocumentation"
+  "@context": [
+    "https://w3id.org/ascs-ev/envited-x/manifest/v5/",
+    { "envited-x": "https://w3id.org/ascs-ev/envited-x/envited-x/v3/" }
+  ],
+  "@id": "did:key:z6Mk...",
+  "@type": "envited-x:Manifest",
+  "hasArtifacts": [
+    {
+      "@type": "Link",
+      "hasCategory": { "@id": "envited-x:isSimulationData" },
+      "hasAccessRole": { "@id": "envited-x:isOwner" },
+      "hasFileMetadata": {
+        "@type": "FileMetadata",
+        "filePath": "my-road.xodr",
+        "mimeType": "application/xml"
+      }
+    }
+  ],
+  "hasLicense": {
+    "@type": "Link",
+    "hasCategory": { "@id": "envited-x:isLicense" },
+    "hasAccessRole": { "@id": "envited-x:isPublic" },
+    "hasFileMetadata": {
+      "@type": "FileMetadata",
+      "filePath": "LICENSE",
+      "mimeType": "text/plain"
+    }
+  }
 }
 ```
 
-Supported category/type combinations:
-- `isSimulationData`: `Asset`
-- `isDocumentation`: `Document`
-- `isMedia`: `Image`, `Video`, `3DPreview`, `Routing`
-- `isMetadata`: `MetaData`
-- `isValidationReport`: `Validation`
-- `isLicense`: `License`
-- `isMiscellaneous`: `Service`
+Supported categories:
+
+- `isSimulationData`, `isDocumentation`, `isMedia`, `isMetadata`
+- `isValidationReport`, `isLicense`, `isMiscellaneous`
+
+## SD Creation Wizard
+
+The SD Creation Wizard provides a web UI for interactively enriching metadata
+using SHACL shapes. It runs as two containers (API + frontend) via Podman.
+
+```bash
+make wizard            # installs Podman if needed, builds and starts containers
+make wizard stop       # stops the containers
+make setup wizard      # install Podman + compose provider only (called by wizard)
+```
+
+`make wizard` performs automatic pre-flight checks:
+
+- Installs Podman if missing (via `winget` on Windows, `apt` on Linux)
+- Initialises and starts the Podman machine on Windows if needed
+- Installs `podman-compose` if no compose provider is found
+
+### Windows first-time setup
+
+The wizard containers require a Linux VM backend. On Windows this means
+**WSL2** (recommended) or **Hyper-V** (Windows Pro/Enterprise).
+
+```bash
+# Enable WSL2 (admin terminal, reboot required, one-time)
+wsl --install --no-distribution
+
+# After reboot, initialise and start the Podman machine
+podman machine init
+podman machine start
+```
+
+Or open **Podman Desktop** from the Start menu -- it will guide you through
+the machine setup. Then restart your shell and run `make wizard`.
+
+> **No WSL2 or Hyper-V?** Use the CLI wizard instead:
+>
+> ```bash
+> python -m wizard_caller.main metadata/hdmap.json -shacl temp/hdmap.ttl -enable true -out metadata/hdmap.json
+> ```
+>
+> This provides the same SHACL-driven metadata enrichment in the terminal.
+
+### Corporate proxy (Windows)
+
+If you are behind a corporate proxy (e.g. proxydetox, CNTLM, px-proxy) the
+Podman WSL VM cannot reach container registries by default because the proxy
+typically listens on `127.0.0.1` which is not shared with the VM.
+
+**Step 1 — Bridge the proxy into the VM via SSH tunnel**
+
+```bash
+# Find the Podman machine SSH port and identity file
+podman system connection list
+# Example output:
+#   podman-machine-default  ssh://user@127.0.0.1:42475/run/user/1000/podman/podman.sock  C:\Users\you\.local\...
+
+# Open a reverse tunnel (replace port and identity path from above)
+ssh -f -N -R 3128:127.0.0.1:3128 \
+    -i "C:\Users\you\.local\share\containers\podman\machine\machine" \
+    -p 42475 -o StrictHostKeyChecking=no user@127.0.0.1
+```
+
+Replace `3128` with your proxy port. The tunnel forwards the VM's
+`localhost:3128` to your Windows `localhost:3128`.
+
+**Step 2 — Configure proxy for the Podman service**
+
+```bash
+# Create a systemd drop-in for the user-level Podman service
+podman machine ssh "
+  sudo chown -R \$(whoami) ~/.config/systemd 2>/dev/null
+  mkdir -p ~/.config/systemd/user/podman.service.d
+  printf '[Service]\nEnvironment=HTTP_PROXY=http://127.0.0.1:3128\nEnvironment=HTTPS_PROXY=http://127.0.0.1:3128\nEnvironment=NO_PROXY=localhost,127.0.0.1\n' \
+    > ~/.config/systemd/user/podman.service.d/proxy.conf
+  systemctl --user daemon-reload
+  systemctl --user restart podman.service
+"
+```
+
+**Step 3 — Enable proxy pass-through for container builds**
+
+```bash
+podman machine ssh "
+  mkdir -p ~/.config/containers
+  printf '[engine]\nhttp_proxy = true\nenv = [\"HTTP_PROXY=http://127.0.0.1:3128\", \"HTTPS_PROXY=http://127.0.0.1:3128\", \"NO_PROXY=localhost,127.0.0.1\"]\n' \
+    > ~/.config/containers/containers.conf
+"
+```
+
+**Verify** the setup works:
+
+```bash
+podman machine ssh "curl -s -o /dev/null -w '%{http_code}' --proxy http://127.0.0.1:3128 https://registry-1.docker.io/v2/"
+# Expected output: 401 (authentication required — means the registry is reachable)
+```
+
+> **Note:** The SSH tunnel must be re-established after each reboot or Podman
+> machine restart. Steps 2 and 3 persist across restarts.
+
+### Corporate registry mirrors
+
+When direct access to public registries (Docker Hub, Maven Central, npmjs.org)
+is blocked, you can use your organisation's registry mirrors instead.
+
+**1. Base images — pre-pull and re-tag**
+
+If `docker.io` is blocked, pull the four required images from your corporate
+Docker mirror, then tag them with their standard names so the Dockerfiles
+resolve locally:
+
+```bash
+MIRROR=registry.example.com/docker-hub-proxy
+
+for img in maven:3.9.6-eclipse-temurin-21 eclipse-temurin:21-jre-alpine \
+           node:18-alpine nginx:1.17.8-alpine; do
+    podman pull "$MIRROR/library/$img"
+    podman tag  "$MIRROR/library/$img" "docker.io/library/$img"
+done
+```
+
+**2. Maven mirror — mount `~/.m2` into the build**
+
+Configure your corporate Maven mirror in `~/.m2/settings.xml`:
+
+```xml
+<settings>
+  <mirrors>
+    <mirror>
+      <id>corporate-central</id>
+      <mirrorOf>*</mirrorOf>
+      <url>https://registry.example.com/maven-central-proxy/</url>
+    </mirror>
+  </mirrors>
+</settings>
+```
+
+Then pass it to the wizard build:
+
+```bash
+make wizard MAVEN_SETTINGS=~/.m2
+```
+
+**3. npm mirror — mount `.npmrc` into the build**
+
+Create a file (e.g. `~/.npmrc-mirror`) with your corporate npm registry:
+
+```ini
+registry=https://registry.example.com/npm-proxy/
+//registry.example.com/npm-proxy/:_authToken=<TOKEN>
+```
+
+Then pass it to the wizard build:
+
+```bash
+make wizard NPM_CONFIG=~/.npmrc-mirror
+```
+
+**4. Combining all options**
+
+```bash
+make wizard MAVEN_SETTINGS=~/.m2 NPM_CONFIG=~/.npmrc-mirror
+```
+
+When `MAVEN_SETTINGS` or `NPM_CONFIG` is set, the Makefile builds each image
+individually with `podman build --volume` (which mounts the config into the
+build container) and then starts compose without `--build`.
+
+### Ports
+
+| Service  | URL                    |
+|----------|------------------------|
+| Frontend | <http://localhost:4200>   |
+| API      | <http://localhost:8080>   |
 
 ## Notes
-- On Linux, `qualitychecker_caller` may require additional runtime libraries for `TextReport`.
+
 - For module-specific usage and parameters, see each module README linked above.

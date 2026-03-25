@@ -1,27 +1,25 @@
 from pathlib import Path
-from urllib.parse import urlparse
-from multiformats import CID
-from multiformats.multihash import digest
 from PIL import Image
-from datetime import datetime
+from datetime import datetime, timezone
+from utils.cid import compute_file_cid
 from utils.http import url_from_path
 from utils.ids import create_uuid
 from utils.http import is_url, download_or_get_file
-from utils.json import write_json
+from utils.json import write_json, write_text
+from utils.input_manifest import load_input_file
 from utils.constants import (
     ENVITED_URL,
     MANIFEST_SCHEMA_VERSION,
-    GITHUB_RAW_URL,
-    GAIAX_ONTOLOGY_PART,
     DID_ADRESS,
 )
 
+import os
+
 import argparse
 import json
+import os
 import shutil
 import logging
-import os
-import requests
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +48,7 @@ CATEGORIES = {
     "isMedia": [
         {
             "type": "Image",
-            "extensions": ["png", "jpeg"],
+            "extensions": ["png", "jpeg", "jpg"],
             "folder": "media",
             "mask": "{name}_impression-{number}",
             "role": "isPublic",
@@ -99,7 +97,7 @@ CATEGORIES = {
         {
             "type": "License",
             "extensions": ["", "txt", "md"],
-            "folder": "../",
+            "folder": "",
             "mask": "LICENSE",
             "role": "isPublic",
         }
@@ -144,7 +142,7 @@ ASSET_TYPES = {
 
 MIME_TYPE = {
     "isManifest": {"json": "application/ld+json"},
-    "isLicense": {"": "text/html"},
+    "isLicense": {"": "text/plain"},
     "isSimulationData": {"": "application/x-{extension}"},
     "isMiscellaneous": {"bjson": "application/json"},
     "isDocumentation": {
@@ -156,6 +154,8 @@ MIME_TYPE = {
     "isMetadata": {"json": "application/ld+json"},
     "isMedia": {
         "png": "image/png",
+        "jpeg": "image/jpeg",
+        "jpg": "image/jpeg",
         "geojson": "application/x-geojson",
         "json": "application/json",
         "mp4": "video/mp4",
@@ -237,10 +237,16 @@ def create_file_data(
     else:
         relative_path = filename.relative_to(abs_data_path)
 
-        if os.path.exists(filename) and data_type != "isManifest":
-            file_meta_data["manifest:fileSize"] = os.path.getsize(filename.as_posix())
-            creation_ts = filename.stat().st_ctime
-            creation_dt = datetime.fromtimestamp(creation_ts)
+        if filename.exists() and data_type != "isManifest":
+            file_meta_data["manifest:fileSize"] = filename.stat().st_size
+
+            # In deterministic mode (SL58_DETERMINISTIC=1) use the source
+            # file's mtime; otherwise use the generated file's own time.
+            source_mtime = os.environ.get("SL58_SOURCE_MTIME")
+            if source_mtime:
+                creation_dt = datetime.fromtimestamp(int(source_mtime))
+            else:
+                creation_dt = datetime.fromtimestamp(filename.stat().st_ctime)
             formatted_creation_data = creation_dt.isoformat(timespec="seconds")
 
             if data_type == "isSimulationData":
@@ -249,17 +255,8 @@ def create_file_data(
                 file_meta_data["manifest:timestamp"] = formatted_creation_data
             else:
                 file_meta_data["manifest:timestamp"] = formatted_creation_data
-            # create IPFS CIDv1 identifier
-            with open(filename, "rb") as f:
-                data = f.read()
-            # create Multihash (SHA-256)
-            mh = digest(data, "sha2-256")
-            # create CIDv1 with code "raw"
-            cid = CID("base32", 1, "raw", bytes(mh))
-            # convert in Base32 coded string
-            cid_str = cid.encode("base32")
-            file_meta_data["manifest:cid"] = cid_str
-            file_meta_data["manifest:filePath"] = "ipfs://" + cid_str
+            file_meta_data["manifest:cid"] = compute_file_cid(filename)
+            file_meta_data["manifest:filePath"] = relative_path.as_posix()
 
             if data_type == "isMedia" and filename.suffix.lstrip(".") == "png":
                 img = Image.open(filename)
@@ -277,26 +274,6 @@ def create_file_data(
         )
 
     return file_data
-
-
-# register licence
-def register_licence(
-    data: dict,
-    filename: Path,
-    abs_data_path: Path,
-    category: str,
-    role: str,
-    data_type=None,
-):
-    data = create_file_data(filename, abs_data_path, category, role, None)
-    if data_type:
-        if data_type in data:
-            data[data_type].extend(data)
-        else:
-            data[data_type] = data
-    else:
-        data.clear()
-        data.update(data)
 
 
 # regrister asset
@@ -338,7 +315,7 @@ def register_folder(
 
         file_data = get_file_data_from_category(filename)  # add from scripts
         if not file_data:
-            return
+            continue
 
         category = file_data["category"]
         role = file_data["role"]
@@ -350,10 +327,10 @@ def register_folder(
         if category == "isMetadata":
             file_entry["manifest:iri"] = asset_info["did"]
             file_entry["skos:note"] = (
-                f'This is the domain metadata for a {asset_data["type"]}.'
+                f"This is the domain metadata for a {asset_data['type']}."
             )
             file_entry["sh:conformsTo"] = [
-                f'{ENVITED_URL}{asset_data["classname"]}/{SCHEMA_MANIFEST_VERSION}/ontology'
+                f"{ENVITED_URL}{asset_data['classname']}/{SCHEMA_MANIFEST_VERSION}/ontology"
             ]
 
         data.append(file_entry)
@@ -361,14 +338,7 @@ def register_folder(
 
 # fill mask element
 def fill_mask(filename: Path, file_data: dict, index: int) -> Path:
-    mask = file_data["mask"]
-    if (
-        file_data["type"] == "Document"
-        and filename.suffix == ".pdf"
-        and not filename.stem.endswith("_Documentation")
-    ):
-        mask = mask + "_Documentation"
-    return mask
+    return file_data["mask"]
 
 
 # create filename
@@ -380,8 +350,8 @@ def create_filename(
     mask = fill_mask(filename, file_data, index)
 
     if "{name}" in mask and "{file}" in mask:
-        common_prefix = os.path.commonprefix([basename, asset_name])
-        basename = basename[len(common_prefix) :]
+        common_prefix = "".join(c for c, d in zip(basename, asset_name) if c == d)
+        basename = basename[len(common_prefix) :].lstrip("_- ")
     mask = mask.replace(r"{name}", asset_name)
     mask = mask.replace(r"{file}", basename)
 
@@ -390,35 +360,6 @@ def create_filename(
 
     filename_new = f"{basename}{extension}"
     return Path(filename_new)
-
-
-#  updat ereadme
-def update_readme(
-    file_path_in: Path, file_path_out: Path, name_value: str, description_value: str
-) -> None:
-    # Read the entire content of the file using UTF-8 encoding
-    content = file_path_in.read_text(encoding="utf-8")
-
-    # Replace the placeholders with the given values
-    content = content.replace("< envited-x:DataResource:name >", name_value)
-    content = content.replace(
-        "< envited-x:DataResource:description >", description_value
-    )
-
-    # Write the updated content back to the file using UTF-8 encoding
-    file_path_out.write_text(content, encoding="utf-8")
-
-
-# download readme
-def download_readme(readme_url: str, filename_target: str) -> str:
-    # get file from github
-    response = requests.get(readme_url)
-    if response.status_code == 200:
-        content = response.text
-        with open(filename_target, "w", encoding="utf-8") as file:
-            file.write(content)
-    else:
-        raise FileNotFoundError(f"No readme files found in url: {readme_url}")
 
 
 # Helper function to safely retrieve nested keys from a dictionary.
@@ -460,10 +401,24 @@ def get_asset(user_data: dict) -> tuple[str, str]:
     for file in user_data:
         if file["category"] == "isSimulationData" and file["type"] == "Asset":
             asset_name = Path(file["filename"])
-            asset_extension = asset_name.suffix.lstrip(".")
+            asset_extension = asset_name.suffix.lstrip(".").lower()
             asset_name = asset_name.stem
             return asset_name, asset_extension
     return None, None
+
+
+def get_file_timestamp(filename: Path) -> str:
+    stat_result = filename.stat()
+    if hasattr(stat_result, "st_birthtime"):
+        timestamp = stat_result.st_birthtime
+    elif os.name == "nt":
+        timestamp = stat_result.st_ctime
+    else:
+        timestamp = stat_result.st_mtime
+
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat(
+        timespec="seconds"
+    )
 
 
 # get asset info (did, recordingTime)
@@ -478,6 +433,16 @@ def get_asset_info(asset_json: Path, asset_extractor: Path) -> dict:
         asset_json_data = json.load(file)
     asset_info = {}
     asset_info["did"] = asset_json_data["@id"]  # to get did
+    for key, value in asset_json_data.items():
+        if not isinstance(value, dict):
+            continue
+        if not key.endswith(":hasManifest"):
+            continue
+
+        manifest_did = value.get("iri", value.get("manifest:iri"))
+        if manifest_did:
+            asset_info["manifestDid"] = manifest_did
+            break
 
     # load asset extractor data
     if not asset_extractor.is_absolute():
@@ -502,7 +467,7 @@ def main():
         prog="main.py",
         description="the folder structure is completed from the user info and a metadata table is created for the manifest",
     )
-    parser.add_argument("filename", help="filename of json file from frontend.")
+    parser.add_argument("filename", help="path to input_manifest.json.")
     parser.add_argument("-out", required=True, help="json file for manifest.")
     parser.add_argument("-path", required=True, help="path to copy/parse data.")
     parser.add_argument(
@@ -531,33 +496,38 @@ def main():
     if not data_path.exists():
         raise FileNotFoundError(f"data path {data_path} not exists")
 
-    # read json
-    with open(user_input_file, "r") as file:
-        user_data = json.load(file)
-
-    manifest_uuid = create_uuid()
+    # read input_manifest.json
+    user_data = load_input_file(user_input_file)
 
     # get asset info (uuid, recordingTime)
     asset_json = Path(args.asset_json)
+    if not asset_json.is_absolute():
+        asset_json = asset_json.resolve()
     asset_info = get_asset_info(asset_json, Path(args.asset_extractor))
+    manifest_did = asset_info.get("manifestDid", "")
+    if isinstance(manifest_did, str) and manifest_did.startswith(DID_ADRESS):
+        manifest_uuid = manifest_did[len(DID_ADRESS) :]
+    else:
+        manifest_uuid = create_uuid()
 
     # initialize asset_name
     asset_name, asset_extension = get_asset(user_data)
     if not asset_name or not asset_extension:
-        raise FileNotFoundError(f"no asset found in {file}")
-
-    if asset_extension in ASSET_TYPES:
-        asset_data = ASSET_TYPES[asset_extension]
+        raise FileNotFoundError(f"no asset found in {user_input_file}")
+    if asset_extension not in ASSET_TYPES:
+        raise ValueError(f"unsupported asset extension '{asset_extension}'")
+    asset_data = ASSET_TYPES[asset_extension]
 
     # copy files
     upload_folder = user_input_file.parent
     indexImage = 1
     license_data = None
+    license_dest = None
     for file in user_data:
         filename = Path(file["filename"])
 
-        # no path elements?
-        if len(filename.parts) == 1:
+        # resolve relative paths against the upload folder
+        if not filename.is_absolute():
             filename = upload_folder / filename
 
         # get cat, type data
@@ -574,7 +544,7 @@ def main():
         dest_name = create_filename(
             Path(dest_name), asset_name, cat_type_data, indexImage
         )
-        if category == "visualization" and typ == "Image":
+        if category == "isMedia" and typ == "Image":
             indexImage = indexImage + 1  # increase image index for image mask
 
         # destination filename
@@ -590,8 +560,8 @@ def main():
         shutil.copy(source, dest)
 
         if category == "isLicense":
-            license_data = {}
             license_data = file
+            license_dest = dest
 
     # create json file for jsonLD creator
     data = {}
@@ -601,6 +571,8 @@ def main():
     data_group = []
     data["manifest:hasArtifacts"] = data_group
     for sub_folder in data_path.iterdir():
+        if sub_folder.is_file():
+            continue
         relative_path = str(sub_folder.relative_to(data_path))
         if relative_path == "temp":
             continue
@@ -609,15 +581,15 @@ def main():
         )
 
     # register license
-    # TODO get license from file or user input link/type
-    # license_file = Path('https://www.mozilla.org/en-US/MPL/2.0/')
     if license_data is not None:
         licence_group = {}
         data["manifest:hasLicense"] = licence_group
+        license_path = license_dest if license_dest else Path(license_data["filename"])
+        license_base = data_path
         register_asset(
             licence_group,
-            Path(license_data["filename"]),
-            data_path,
+            license_path,
+            license_base,
             "isLicense",
             "isPublic",
         )
@@ -627,7 +599,7 @@ def main():
     data["manifest:hasManifestReference"] = manifest_group
     register_asset(
         manifest_group,
-        data_path / "manifest_reference.json",
+        data_path / "manifest.json",
         data_path,
         "isManifest",
         "isPublic",
@@ -638,26 +610,20 @@ def main():
         path.mkdir(parents=True, exist_ok=True)
 
     # create readme
-    script_path = Path(__file__).resolve()
-    readme_template = script_path.parent / "README_template.md"
-
-    readme_url = (
-        f"{GITHUB_RAW_URL}{GAIAX_ONTOLOGY_PART}/main/artifacts/envited-x/README.md"
-    )
-    download_readme(readme_url, readme_template)
     if asset_extension in ASSET_TYPES:
-        # get name + description from {asset_type}_instance.json
         classname = ASSET_TYPES[asset_extension]["classname"]
-        domainMetadata = (
-            filename_out.parent.parent / f"metadata/{classname}_instance.json"
-        )
+        domainMetadata = filename_out.parent.parent / f"metadata/{classname}.json"
         name, description = get_name_description_from_domainMetadata(
             domainMetadata, classname.lower()
         )
         if name and description:
             readme_file = filename_out.parent.parent / "README.md"
-            readme_file.write_bytes(readme_template.read_bytes())
-            update_readme(readme_template, readme_file, name, description)
+            readme_file.write_text(
+                f"# {name}\n\n{description}\n\n"
+                f"This asset conforms to [EVES-003]"
+                f"(https://ascs-ev.github.io/EVES/EVES-003/eves-003.html).\n",
+                encoding="utf-8",
+            )
 
     # write metadata json
     write_json(filename_out, data)
@@ -665,7 +631,7 @@ def main():
     # replace with uuid in json
     asset_content = asset_json.read_text(encoding="utf-8")
     asset_content = asset_content.replace("Manifest:uuid", f"Manifest:{manifest_uuid}")
-    asset_json.write_text(asset_content, encoding="utf-8")
+    write_text(asset_json, asset_content, encoding="utf-8")
 
 
 if __name__ == "__main__":

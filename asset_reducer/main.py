@@ -1,6 +1,6 @@
 from lxml import etree
 from pathlib import Path
-from utils.json import read_json, write_json
+from utils.json import write_json
 
 import argparse
 import logging
@@ -86,48 +86,9 @@ def process_element(element, mapping):
 def load_mapping_table(mapping_file: Path):
     if not Path(mapping_file).exists():
         raise FileNotFoundError(f"file '{mapping_file}' not exist.")
-    with open(mapping_file, "r") as f:
+    with mapping_file.open("r") as f:
         node_mapping = json.load(f)
     return node_mapping
-
-
-# convert, parse json attrib and child to xml
-def json_to_xml_add_attributes_and_children(parent, data):
-    for key, value in data.items():
-        if isinstance(value, dict):
-            child = etree.SubElement(parent, key)
-            json_to_xml_add_attributes_and_children(child, value)
-        elif isinstance(value, list):
-            json_to_xml_handle_list(parent, key, value)
-        else:
-            parent.set(key, str(value))
-
-
-# convert, parse json list to xml
-def json_to_xml_handle_list(parent, key, data_list):
-    for item in data_list:
-        element = etree.SubElement(parent, key)
-        if isinstance(item, dict):
-            json_to_xml_add_attributes_and_children(element, item)
-        else:
-            element.text = str(item)
-
-
-# convert json to xml
-def json_to_xml(json_data):
-    root = etree.Element(ASSET_TYPE)
-
-    for item in json_data:
-        for key, value in item.items():
-            element = etree.SubElement(root, key)
-            if isinstance(value, dict):
-                json_to_xml_add_attributes_and_children(element, value)
-            elif isinstance(value, list):
-                json_to_xml_handle_list(element, key, value)
-            else:
-                element.text = str(value)
-
-    return root
 
 
 def main():
@@ -173,27 +134,6 @@ def main():
 
     # write to json file
     write_json(output_json_file, json_data, binary=True)
-
-    # test to read json, convert to xml and find nodes
-    debug = False
-    if debug:
-        # read json
-        binary = False
-        json_read_data = read_json(output_json_file, binary)
-        # convert to xml
-        root_read = json_to_xml(json_read_data)
-
-        # write as xml
-        xml_str = etree.tostring(
-            root_read, pretty_print=True, encoding="utf-8", xml_declaration=True
-        )
-        with open(output_json_file, "wb") as f:
-            f.write(xml_str)
-
-        # find node
-        header = root_read.find("./header")
-        if header is not None:
-            logger.info("header found")
 
 
 if __name__ == "__main__":

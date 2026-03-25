@@ -1,28 +1,41 @@
+"""OpenDRIVE to GeoJSON converter.
+
+Converts OpenDRIVE (.xodr) files into GeoJSON format, producing separate
+FeatureCollections for reference lines, lanes, roads, lane sections,
+objects, signals, road markings, and junctions.
+
+This is a pure-Python re-implementation of the VCS opendriveconverter
+(https://github.com/virtualcitySYSTEMS/opendriveconverter).
+"""
+
 from pathlib import Path
-from lxml import etree
-from utils.subprocess import run_command
 
 import argparse
 import logging
 
-DEBUG = False
-
 logger = logging.getLogger(__name__)
-
-ASAM_ODR_VERSION_URL: str = "http://www.asam.de/ODR/16/"
 
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="main.py",
-        description="Calls the java tool from VCS https://github.com/virtualcitySYSTEMS/opendriveconverter to convert an OpenDRIVE file into a geojson.",
+        prog="xodr_to_geojson_caller",
+        description="Convert an OpenDRIVE (.xodr) file into GeoJSON files.",
     )
-    parser.add_argument("filename", help="filename of OpenDRIVE file")
-    parser.add_argument("-out", required=True, help="geojson file")
+    parser.add_argument("filename", help="path to the OpenDRIVE (.xodr) input file")
+    parser.add_argument(
+        "-out", required=True, help="output directory for GeoJSON files"
+    )
     parser.add_argument(
         "-path",
-        required=True,
-        help="path to the temp folder for a temporary opendrive with customized header.",
+        required=False,
+        default=None,
+        help="(unused, kept for backward compatibility with pipeline)",
+    )
+    parser.add_argument(
+        "-step",
+        type=float,
+        default=0.2,
+        help="discretisation step size in meters (default: 0.2)",
     )
     args = parser.parse_args()
 
@@ -30,39 +43,31 @@ def main():
     if not xodr_file.is_absolute():
         xodr_file = xodr_file.resolve()
     if not xodr_file.exists():
-        raise FileNotFoundError(f"json file {xodr_file} not exists")
+        raise FileNotFoundError(f"OpenDRIVE file not found: {xodr_file}")
 
-    filename_out = Path(args.out)
-    temp_path = Path(args.path)
+    output_dir = Path(args.out)
+    if output_dir.suffix == ".geojson" or output_dir.suffix == ".json":
+        # If -out points to a file, use its parent as output dir
+        output_dir = output_dir.parent
 
-    # fix header
-    tree = etree.parse(xodr_file)
-    root = tree.getroot()
-    root.set("xmlns", ASAM_ODR_VERSION_URL)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    # write temp file
-    new_temp_file = temp_path / "geojson"
-    new_temp_file.mkdir(parents=True, exist_ok=True)
-    new_temp_file = new_temp_file / xodr_file.name
-    with open(new_temp_file, "wb") as f:
-        tree.write(f, xml_declaration=True, encoding="UTF-8", pretty_print=True)
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-    # call java script
-    script_call = []
-    script_call.append("java")
-    script_call.append("-jar")
-    if DEBUG:
-        script_call.append(
-            "E:/Data/Customer/GaiaX/GIT/provider-tools/asset_extraction/vcs-odr-converter-1.0.0.jar"
-        )
-    else:
-        script_call.append("/app/java/vcs-odr-converter-1.0.0.jar")
+    logger.info("Parsing %s", xodr_file)
+    from xodr_to_geojson_caller.parser.xodr_parser import parse_opendrive
 
-    script_call.append(new_temp_file.as_posix())
-    script_call.append(filename_out.parent.as_posix())
+    odr = parse_opendrive(xodr_file)
+    logger.info(
+        "Parsed %d road(s), %d junction(s)",
+        len(odr.roads),
+        len(odr.junctions),
+    )
 
-    # run
-    run_command(cmd=script_call, name="vcs-odr-converter")
+    from xodr_to_geojson_caller.converter.geojson import convert_all
+
+    convert_all(odr, output_dir=output_dir, step=args.step)
+    logger.info("Done. Output written to %s", output_dir)
 
 
 if __name__ == "__main__":

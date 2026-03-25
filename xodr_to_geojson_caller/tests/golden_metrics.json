@@ -1,0 +1,50 @@
+{
+  "breakLines.json": {
+    "feature_count": 5,
+    "geometry_types": [
+      "LineString"
+    ]
+  },
+  "junctions.json": {
+    "feature_count": 0,
+    "geometry_types": []
+  },
+  "lanes.json": {
+    "feature_count": 4,
+    "geometry_types": [
+      "Polygon"
+    ]
+  },
+  "laneSections.json": {
+    "feature_count": 1,
+    "geometry_types": [
+      "Polygon"
+    ]
+  },
+  "objects.json": {
+    "feature_count": 0,
+    "geometry_types": []
+  },
+  "refLine.json": {
+    "feature_count": 1,
+    "geometry_types": [
+      "LineString"
+    ]
+  },
+  "roadMarks.json": {
+    "feature_count": 3,
+    "geometry_types": [
+      "Polygon"
+    ]
+  },
+  "roads.json": {
+    "feature_count": 1,
+    "geometry_types": [
+      "Polygon"
+    ]
+  },
+  "signals.json": {
+    "feature_count": 0,
+    "geometry_types": []
+  }
+}

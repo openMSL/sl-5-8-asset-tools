@@ -1,0 +1,85 @@
+{
+  "@context": [
+    "https://w3id.org/ascs-ev/envited-x/manifest/v5/",
+    {
+      "envited-x": "https://w3id.org/ascs-ev/envited-x/envited-x/v3/"
+    }
+  ],
+  "@id": "did:key:z6MkghGABERnypYxYg5FZhZf7D9H69P74WRp6b5xBtACNu",
+  "@type": "envited-x:Manifest",
+  "hasArtifacts": [
+    {
+      "@type": "Link",
+      "hasCategory": {
+        "@id": "envited-x:isSimulationData"
+      },
+      "hasAccessRole": {
+        "@id": "envited-x:isOwner"
+      },
+      "hasFileMetadata": {
+        "@type": "FileMetadata",
+        "filePath": "NCAP_AEB_C2C_CCFhol_2023.xosc",
+        "mimeType": "application/xml"
+      }
+    },
+    {
+      "@type": "Link",
+      "hasCategory": {
+        "@id": "envited-x:isDocumentation"
+      },
+      "hasAccessRole": {
+        "@id": "envited-x:isPublic"
+      },
+      "hasFileMetadata": {
+        "@type": "FileMetadata",
+        "filePath": "documentation.txt",
+        "mimeType": "text/plain"
+      }
+    },
+    {
+      "@type": "Link",
+      "hasCategory": {
+        "@id": "envited-x:isMedia"
+      },
+      "hasAccessRole": {
+        "@id": "envited-x:isPublic"
+      },
+      "hasFileMetadata": {
+        "@type": "FileMetadata",
+        "filePath": "screenshot.jpg",
+        "mimeType": "image/jpeg"
+      }
+    }
+  ],
+  "hasReferencedArtifacts": [
+    {
+      "@type": "Link",
+      "hasCategory": {
+        "@id": "envited-x:isSimulationData"
+      },
+      "hasAccessRole": {
+        "@id": "envited-x:isPublic"
+      },
+      "hasFileMetadata": {
+        "@type": "FileMetadata",
+        "filePath": "__OPENDRIVE_ASSET_PATH__",
+        "mimeType": "application/xml",
+        "cid": "__OPENDRIVE_ASSET_CID__"
+      }
+    }
+  ],
+  "hasLicense": {
+    "@type": "Link",
+    "hasCategory": {
+      "@id": "envited-x:isLicense"
+    },
+    "hasAccessRole": {
+      "@id": "envited-x:isPublic"
+    },
+    "hasFileMetadata": {
+      "@type": "FileMetadata",
+      "filePath": "LICENSE",
+      "mimeType": "text/plain"
+    }
+  }
+}

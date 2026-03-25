@@ -1,0 +1,13 @@
+{
+    "name": "json syntax validator from ontology-management-base",
+    "environment type": "python",
+    "data folder": "",
+    "params": {
+        "call": "src.tools.validators.validation_suite",
+        "input": {"--data-paths": "{path}/temp/{name}_extractor.json"},
+        "additional": {
+            "--run": "check-syntax",
+            "--artifacts": "submodules/ontology-management-base/artifacts"
+        }
+    }
+}

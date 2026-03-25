@@ -1,9 +1,0 @@
-{
-	"name" : "jsonLD validator",
-	"environment type" : "python",
-	"data folder" : "",
-	"params" : 	{
-		"call" : "jsonLD_validator.main",
-		"input" : {"" : "{path}/manifest_reference.json"}
-	}
-}

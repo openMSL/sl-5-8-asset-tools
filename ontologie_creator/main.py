@@ -8,7 +8,7 @@ from utils.constants import GAIAX_CORE_NS, GAIAX_TRUST_NS, SHACL_NS
 import pandas as pd
 import argparse
 import logging
-import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -587,14 +587,14 @@ def main():
     args = parser.parse_args()
 
     table_file = args.table
-    if not os.path.isfile(table_file):
+    if not Path(table_file).is_file():
         raise FileNotFoundError(f"table file {table_file} not exists")
 
     attributes = read_from_excel(table_file)
 
     #  write turtle files (ontologie and shacl)
-    if not os.path.exists(args.out):
-        os.makedirs(args.out)
+    out_path = Path(args.out)
+    out_path.mkdir(parents=True, exist_ok=True)
 
     # for each category
     for cat, cat_data in attributes.items():

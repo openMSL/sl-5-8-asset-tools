@@ -4,9 +4,11 @@ from datetime import datetime
 from pathlib import Path
 from lxml import etree
 from enum import Enum
+from ..gaiax import enrich_resource_description
 from utils.ids import create_uuid
 from utils.json import write_json
 from utils.constants import (
+    DID_ADRESS,
     ENVITED_URL,
     ENVITEDX_SCHEMA_VERSION,
     OSC_SCHEMA_VERSION,
@@ -17,7 +19,6 @@ import xml.etree.ElementTree as ET
 import logging
 import typing
 import json
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,6 @@ class VecTagType(Enum):
 
 
 class OpenSCENARIO:
-
     def __init__(self) -> None:
         self.scenario_file: Path = None
         self.scenario_et: ET.Element = None
@@ -118,7 +118,6 @@ class OpenSCENARIO:
 
 
 class TagData(ABC):
-
     def __init__(self) -> None:
         super().__init__()
         self.k = "tag_data"
@@ -133,7 +132,6 @@ class TagData(ABC):
 
 
 class StringTag(TagData):
-
     def __init__(self, value: str) -> None:
         super().__init__()
         self.value: str = value
@@ -146,7 +144,6 @@ class StringTag(TagData):
 
 
 class BooleanTagValue:
-
     def __init__(
         self,
         value: bool,
@@ -175,7 +172,6 @@ class BooleanTagValue:
 
 
 class BooleanTag(TagData):
-
     def __init__(self, values: typing.List[BooleanTagValue]) -> None:
         super().__init__()
         self.values: typing.List[BooleanTagValue] = values
@@ -190,7 +186,6 @@ class BooleanTag(TagData):
 
 
 class NumTagValue:
-
     def __init__(
         self,
         value: float,
@@ -219,7 +214,6 @@ class NumTagValue:
 
 
 class NumTag(TagData):
-
     def __init__(self, values: typing.List[NumTagValue]) -> None:
         super().__init__()
         self.values: typing.List[NumTagValue] = values
@@ -234,7 +228,6 @@ class NumTag(TagData):
 
 
 class TextTagValue:
-
     def __init__(
         self,
         value: str,
@@ -263,7 +256,6 @@ class TextTagValue:
 
 
 class TextTag(TagData):
-
     def __init__(self, values: typing.List[TextTagValue]) -> None:
         super().__init__()
         self.values: typing.List[TextTagValue] = values
@@ -282,7 +274,6 @@ class TextTag(TagData):
 
 
 class VecTagValue:
-
     def __init__(
         self,
         value: typing.List,
@@ -311,7 +302,6 @@ class VecTagValue:
 
 
 class VecTag(TagData):
-
     def __init__(self, values: typing.List[VecTagValue]) -> None:
         super().__init__()
         self.values: typing.List[VecTagValue] = values
@@ -385,7 +375,11 @@ def load_openscenario_file(osc_path: Path) -> OpenSCENARIO:
         # try local
         osc.map_location = (osc_path.parent / Path(filepath).name).resolve()
         if not osc.map_location.exists():
-            raise FileNotFoundError(f"map not exist {osc.map_location}")
+            logger.warning(
+                f"Referenced map not found locally: {osc.map_location} "
+                f"— treating as external asset reference"
+            )
+            osc.map_location = None
 
     if ".//CatalogLocations" in sc:
         for catalog in sc.find(".//CatalogLocations"):
@@ -458,10 +452,13 @@ def add_resources(
     scenario: OpenSCENARIO, resources: typing.Dict, metadata_config: typing.Dict
 ) -> str:
     uuid_map = create_uuid()
-    relative_path = Path(scenario.map_location).relative_to(
-        scenario.scenario_file.parent
-    )
-    resources[uuid_map] = get_conf_value(metadata_config, "map/location", relative_path)
+    if scenario.map_location is not None:
+        relative_path = Path(scenario.map_location).relative_to(
+            scenario.scenario_file.parent
+        )
+        resources[uuid_map] = get_conf_value(
+            metadata_config, "map/location", relative_path
+        )
     for catalogs in scenario.catalog_locations.values():
         for catalog in catalogs:
             resources[create_uuid()] = Path(catalog).relative_to(
@@ -554,7 +551,8 @@ def analyze_environment(
         time = time_of_day.attrib["dateTime"]
         try:
             dt = datetime.strptime(time, "%Y-%m-%dT%H:%M:%S")
-        except:
+            time_list.append(dt)
+        except Exception:
             logger.exception(f"Unknown datetime of environment: {time}")
 
 
@@ -805,7 +803,7 @@ def analyze_road_user(child: ET.Element, road_users: set):
             road_users.add("VehicleVan")
         else:
             logger.warning(
-                f'Unknown vehicle category {child.attrib["vehicleCategory"]}'
+                f"Unknown vehicle category {child.attrib['vehicleCategory']}"
             )
         if "role" in child.attrib:
             if (
@@ -829,7 +827,7 @@ def analyze_road_user(child: ET.Element, road_users: set):
             road_users.add("VehicleWheelchair")
         else:
             logger.warning(
-                f'Unknown pedestrian category {child.attrib["pedestrianCategory"]}'
+                f"Unknown pedestrian category {child.attrib['pedestrianCategory']}"
             )
     elif child.tag == "MiscObject":
         road_users.add("RoadUser")  # ?
@@ -1254,7 +1252,7 @@ def add_tags(
                     get_conf_value(
                         metadata_config,
                         "openlabel/tags/scenarioDefinition",
-                        f'OpenSCENARIO {header.attrib["revMajor"]}.{header.attrib["revMinor"]}',
+                        f"OpenSCENARIO {header.attrib['revMajor']}.{header.attrib['revMinor']}",
                     )
                 )
             ]
@@ -1270,7 +1268,7 @@ def add_tags(
                     get_conf_value(
                         metadata_config,
                         "openlabel/tags/scenarioDefinitionLanguageURI",
-                        f'https://www.asam.net/static_downloads/ASAM_OpenSCENARIO_V{header.attrib["revMajor"]}.{header.attrib["revMinor"]}.0_Model_Documentation/modelDocumentation/',
+                        f"https://www.asam.net/static_downloads/ASAM_OpenSCENARIO_V{header.attrib['revMajor']}.{header.attrib['revMinor']}.0_Model_Documentation/modelDocumentation/",
                     )
                 )
             ]
@@ -1439,7 +1437,7 @@ def get_scenario_files(scenario_dir: Path):
                 logger.debug(
                     f"Not analyzing {osc_file} since it is not a Scenario (probably a catalog)"
                 )
-        except:
+        except Exception:
             logger.exception(
                 f"Could not read {osc_file} - not generating meta data for it."
             )
@@ -1492,9 +1490,9 @@ def register_links(links_dic, dict_name, links):
             file_meta_data = dict()
             link_data["manifest:fileMetaData"] = file_meta_data
             file_meta_data["manifest:uri"] = link
-            file_meta_data["manifest:filename"] = os.path.basename(link)
-            if os.path.exists(link):
-                file_meta_data["manifest:fileSize"] = os.path.getsize(link)
+            file_meta_data["manifest:filename"] = Path(link).name
+            if Path(link).exists():
+                file_meta_data["manifest:fileSize"] = Path(link).stat().st_size
             links_data.append(link_data)
         links_dic[dict_name] = links_data
 
@@ -1512,6 +1510,7 @@ def get_resource_description_data(
     fill_from_header_value(
         description_dict, "gx:description", sc_header, ["description"], default_value
     )
+    enrich_resource_description(description_dict, file_path)
 
     # TODO add to description?
     additional_dict = dict()
@@ -1538,7 +1537,9 @@ def get_format_data(dictonary: dict, osc: OpenSCENARIO, default_value: str = "Un
         sc_header,
         ["revMajor", "revMinor"],
         default_value,
-        lambda sc_header, _: f'{sc_header.attrib["revMajor"]}.{sc_header.attrib["revMinor"]}',
+        lambda sc_header, _: (
+            f"{sc_header.attrib['revMajor']}.{sc_header.attrib['revMinor']}"
+        ),
     )
 
 
@@ -1629,7 +1630,7 @@ def get_content_data(
         for signal in osc.map_et.findall(".//signal"):
             if signal.attrib["country"] != "OpenDRIVE":
                 country_specific_sign.add(
-                    f'{signal.attrib["country"]}:{signal.attrib["type"]}'
+                    f"{signal.attrib['country']}:{signal.attrib['type']}"
                 )
     if len(country_specific_sign):
         content_dict[f"{get_name_lower()}:countrySpecificSign"] = ", ".join(
@@ -1697,7 +1698,7 @@ def get_quantity_data(
     for controller in controllers:
         if "controllerType" in controller.attrib:
             controller_names.add(
-                f'{controller.attrib["controllerType"]}: {controller.attrib["name"]}'
+                f"{controller.attrib['controllerType']}: {controller.attrib['name']}"
             )
         else:
             controller_names.add(controller.attrib["name"])
@@ -1728,14 +1729,12 @@ def set_manifest_data(
     hasManifest_dict["manifest:hasAccessRole"] = "envited-x:isPublic"
     hasManifest_dict["manifest:hasCategory"] = "envited-x:isManifest"
     hasManifest_dict["manifest:hasFileMetadata"] = {
-        "manifest:filePath": "./base-references/scenario_manifest_reference.json",
+        "manifest:filePath": "../manifest.json",
         "manifest:mimeType": "application/ld+json",
     }
-    hasManifest_dict["manifest:iri"] = (
-        "did:web:test.fixture.net:Manifest:test_scenario_manifest_reference"
-    )
+    hasManifest_dict["manifest:iri"] = f"{DID_ADRESS}{create_uuid()}"
     hasManifest_dict["skos:note"] = (
-        "Ensure that manifest_reference.json contains all required categories: simulationData, documentation, metadata, media."
+        "Ensure that manifest.json contains all required categories: simulationData, documentation, metadata, media."
     )
     hasManifest_dict["sh:conformsTo"] = [
         f"https://w3id.org/ascs-ev/envited-x/envited-x/{ENVITEDX_SCHEMA_VERSION}/",
@@ -1743,66 +1742,23 @@ def set_manifest_data(
     ]
 
     return
-    # TODO Write links to a separate file to add this to the manifest json
-
-    # links
-    # get catalog
-    links = list()
-    catalog_locations = osc.scenario_et.find(".//CatalogLocations")
-    if catalog_locations is not None:
-        for catalog in catalog_locations:
-            path = catalog.find("Directory").attrib["path"]
-            if len(path):
-                links.append(path)
-    # register
-    register_links(hasManifest_dict, f"{get_name_lower()}:catalogs", links)
-    links.clear()
-
-    # environment model
-    scene_graph_file = osc.scenario_et.find(".//SceneGraphFile")
-    if scene_graph_file is not None:
-        links.append(scene_graph_file.attrib["filepath"])
-    # register
-    register_links(hasManifest_dict, f"{get_name_lower()}:environmentModels", links)
-    links.clear()
-
-    # trafficSpace
-    road_network = osc.scenario_et.find(".//LogicFile")
-    if road_network is not None:
-        links.append(road_network.attrib["filepath"])
-    # register
-    register_links(hasManifest_dict, f"{get_name_lower()}:trafficSpace", links)
-    links.clear()
-
-    ### licence
-    sc_header = osc.scenario_et.find(".//FileHeader")
-    if sc_header is not None:
-        license = sc_header.find(".//License")
-        if license is not None:
-            links_data = list()
-            link_data = dict()
-            link_data["manifest:type"] = "Document"
-            # meta_data_dict['licence_type'] = license.attrib['name']
-            if "resource" in license.attrib:
-                link_data["manifest:url"] = license.attrib["resource"]
-            links_data.append(link_data)
 
 
 def convert_env_to_string(env: etree._Element) -> str:
     val = ""
     tod = env.find("TimeOfDay")
-    val += f'time of day: {tod.attrib["dateTime"]}'
+    val += f"time of day: {tod.attrib['dateTime']}"
     weather = env.find("Weather")
-    val += f', 	CloudState: {weather.attrib["cloudState"]}'
+    val += f", 	CloudState: {weather.attrib['cloudState']}"
     sun = weather.find("Sun")
-    val += f', 	sun intensity: {sun.attrib["intensity"]}'
-    val += f', 	sun azimuth: {sun.attrib["azimuth"]}'
-    val += f', 	sun elevation: {sun.attrib["elevation"]}'
+    val += f", 	sun intensity: {sun.attrib['intensity']}"
+    val += f", 	sun azimuth: {sun.attrib['azimuth']}"
+    val += f", 	sun elevation: {sun.attrib['elevation']}"
     fog = weather.find("Fog")
-    val += f', 	visuale range: {fog.attrib["visualRange"]}'
+    val += f", 	visuale range: {fog.attrib['visualRange']}"
     precipitation = weather.find("Precipitation")
-    val += f', 	precipitation type: {precipitation.attrib["precipitationType"]}'
-    val += f', 	precipitation intensity: {precipitation.attrib["intensity"]}'
+    val += f", 	precipitation type: {precipitation.attrib['precipitationType']}"
+    val += f", 	precipitation intensity: {precipitation.attrib['intensity']}"
     return val
 
 
@@ -1840,22 +1796,22 @@ def extract_meta_data(file: Path) -> Tuple[bool, dict]:
     try:
         with open(file, "r") as f:
             _ = f.read()
-    except:
+    except Exception:
         logger.exception(f"Cannot read file {file.absolute()}")
-        return False
+        return False, {}
 
     # parse xml
     try:
         osc = load_openscenario_file(file)
-    except:
+    except Exception:
         logger.exception(f"Cannot parse XML from file {file.absolute()}")
-        return False
+        return False, {}
 
     try:
         attributes = get_meta_data(osc, file)
-    except:
+    except Exception:
         logger.exception(f"Cannot extract from file {file.absolute()}")
-        return False
+        return False, {}
 
     logger.info(f"Extract from file {file}")
     return True, attributes

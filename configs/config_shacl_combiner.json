@@ -4,7 +4,7 @@
 	"data folder" : "metadata",
 	"params" : 	{
 		"call" : "shacl_combiner.main",
-		"input" : {"" : "{path}/temp/{asset_type}_instance.json"},
+		"input" : {"" : "{path}/temp/{asset_type}.json"},
 		"output" : {"-out" : "{path}/temp"}
 	}
 }

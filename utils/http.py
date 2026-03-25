@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse
 from utils.constants import (
     GITHUB_URL,
     GITHUB_RAW_URL,
     ENVITED_URL,
-    ENVITED_DOWNLOAD_URL,
     SHACL_FOLDER_NAME,
     SHACLE_NAME,
 )
@@ -17,16 +16,28 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+# Resolve OMB artifacts relative to this file's location
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+OMB_ARTIFACTS = _PROJECT_ROOT / "submodules" / "ontology-management-base" / "artifacts"
+
 
 def download_or_get_file(filename: Path, out_path: Path) -> Path:
-    """get filename, if url download file first and get local filename"""
+    """get filename, if url download file first and get local filename.
+
+    Relative paths are resolved against *out_path* (typically the
+    directory that contains the manifest), not against the current
+    working directory.
+    """
 
     if is_url(filename):
         filename = Path(
             download_file(normalize_url(str(filename)), out_path, filename.name)
         )
 
-    filename = filename.resolve()
+    if not filename.is_absolute():
+        filename = (out_path / filename).resolve()
+    else:
+        filename = filename.resolve()
     return filename
 
 
@@ -54,30 +65,8 @@ def url_from_path(path: Path) -> str:
 def github_to_raw(url: str) -> str:
     """Convert GitHub blob URL to raw URL if needed."""
 
-    org_url = url
     if "github.com" in url and "/blob/" in url:
         url = url.replace(GITHUB_URL, GITHUB_RAW_URL).replace("/blob/", "/")
-
-    # old
-    old_url = org_url.strip()
-    p = urlparse(old_url)
-
-    # Already raw
-    if p.netloc == "raw.githubusercontent.com":
-        old_url = old_url
-
-    if p.netloc != "github.com":
-        old_url = old_url  # Not GitHub; leave as-is
-
-    parts = [x for x in p.path.split("/") if x]
-    # Expect: org, repo, "blob", ref, ...path
-    if len(parts) >= 5 and parts[2] == "blob":
-        org, repo, ref = parts[0], parts[1], parts[3]
-        file_path = "/".join(parts[4:])
-        old_url = f"https://raw.githubusercontent.com/{org}/{repo}/{ref}/{file_path}"
-
-    if old_url != url:
-        print("not equal")
 
     return url
 
@@ -117,15 +106,32 @@ def download_file(url_path: str, out_path: Path, filename: str) -> Path:
 
 
 def download_shacl(url_path: str, shacl_name: str) -> Path:
-    """Download a SHACL file from URL into local shacls folder if missing."""
+    """Resolve a SHACL file from local OMB artifacts or download as fallback."""
 
+    # 1. Try local OMB artifacts (domain shapes)
+    omb_shacl = OMB_ARTIFACTS / shacl_name / f"{shacl_name}{SHACLE_NAME}"
+    if omb_shacl.exists():
+        logger.info(f"Using local OMB artifact: {omb_shacl}")
+        return omb_shacl
+
+    # 2. Try local OMB imports (W3C vocabularies like sh, rdf, owl)
+    omb_import = OMB_ARTIFACTS.parent / "imports" / shacl_name / f"{shacl_name}.owl.ttl"
+    if omb_import.exists():
+        logger.info(f"Using local OMB import: {omb_import}")
+        return omb_import
+
+    # 3. Try local cache (from a previous download)
     filename = f"{shacl_name}{SHACLE_NAME}"
-    local_path = Path(f"{SHACL_FOLDER_NAME}")
+    local_path = _PROJECT_ROOT / SHACL_FOLDER_NAME
     local_filepath = local_path / filename
 
     if local_filepath.exists():
         return local_filepath
 
+    # 4. Fallback: download from remote URL
+    logger.warning(
+        f"SHACL '{shacl_name}' not found in OMB artifacts, downloading from {url_path}"
+    )
     if not url_path.endswith("ttl"):
         url_path = url_path + "shapes"
 

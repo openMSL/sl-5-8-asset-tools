@@ -1,0 +1,90 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sl-5-8-asset-tools"
+version = "0.1.0"
+description = "Tools to analyze, transform, and package simulation asset data into EVES-003 conformant archives"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.12"
+
+dependencies = [
+    "colorlog",
+    "geopy",
+    "lxml",
+    "multiformats",
+    "pandas",
+    "Pillow",
+    "pyproj",
+    "pyshacl>=0.31.0",
+    "rdflib>=7.5.0",
+    "requests",
+    "simplekml",
+    "sympy",
+]
+
+[project.optional-dependencies]
+qc = [
+    "asam-qc-baselib@git+https://github.com/asam-ev/qc-baselib-py@v1.1.0",
+    # Pinned to fork pending upstream PR asam-ev/qc-opendrive#139.
+    # Switch back to @v1.0.0 (or newer) once the PR is merged.
+    "asam-qc-opendrive@git+https://github.com/jdsika/qc-opendrive@fix-contact-point-missing-road-link",
+    "asam-qc-openscenarioxml@git+https://github.com/asam-ev/qc-openscenarioxml@v1.0.0",
+    "openmsl-qc-opendrive@git+https://github.com/openMSL/sl-5-9-openmsl-qc-opendrive@main",
+]
+qc-deps = [
+    "pyclothoids",
+    "transforms3d",
+    "xmlschema",
+    "semver",
+    "pydantic-xml",
+    "scipy",
+]
+dev = [
+    "ruff",
+    "pre-commit",
+    "pytest",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+# Match the old .flake8 ignore list — tighten incrementally
+ignore = [
+    "E501",   # line too long (formatter handles it)
+    "E722",   # bare except (15 pre-existing)
+    "E741",   # ambiguous variable name (pre-existing)
+    "F401",   # unused imports (34 pre-existing)
+    "F601",   # duplicate key in dict (1 pre-existing)
+    "F841",   # unused variables (17 pre-existing)
+    "F541",   # f-string without placeholders (16 pre-existing)
+    "E266",   # too many leading '#' for block comment
+    "E712",   # comparison to True/False
+    "E713",   # test for membership should be 'not in x'
+    "E721",   # do not compare types, use isinstance()
+    "F811",   # redefinition of unused name
+    "F821",   # undefined name (1 pre-existing in extract_osc.py)
+]
+per-file-ignores = {"__init__.py" = ["F401"]}
+
+[tool.setuptools.packages.find]
+include = [
+    "asset_extraction*",
+    "asset_reducer*",
+    "jsonLD_creator*",
+    "jsonLD_validator*",
+    "meta_data_extractor*",
+    "ontologie_creator*",
+    "qualitychecker_caller*",
+    "shacl_combiner*",
+    "structure_creator*",
+    "utils*",
+    "wizard_caller*",
+    "xodr_calc_box*",
+    "xodr_routing_creator*",
+    "xodr_to_geojson_caller*",
+    "xodr_trim_to_box*",
+]

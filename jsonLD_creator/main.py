@@ -1,16 +1,4 @@
-# import debugpy
-
-# debugpy, listening on port 5678
-# debugpy.listen(("0.0.0.0", 5678))
-# print("Waiting for debugger to attach...")
-
-# debugpy.wait_for_client()
-
-# debugpy.breakpoint()
-
-
-from datetime import datetime
-from rdflib.namespace import SH, XSD
+from rdflib.namespace import SH
 from rdflib import Graph, URIRef
 from collections import defaultdict
 from pathlib import Path
@@ -26,12 +14,8 @@ import logging
 import argparse
 import operator
 
-# logging.basicConfig(
-#    level=logging.DEBUG,
-#    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-# )
-
 logger = logging.getLogger(__name__)
+SHACL_CACHE_DIR = Path(__file__).resolve().parent.parent / SHACL_FOLDER_NAME
 
 
 # global config value with all shacls, dicts and jsonLD output
@@ -104,7 +88,6 @@ def collect_nodes(shape: Any, visited: set | None = None) -> List[str]:
 
     if isinstance(shape, dict):
         for k, v in shape.items():
-
             # SHACL-node / SHACL-class
             if k.endswith(f"{SHACL_NS}node"):
                 if isinstance(v, str):
@@ -178,7 +161,7 @@ def get_value_type(key: str, shacl_values: dict) -> str:
         "languageIn",
     ]
 
-    # Explizit: sh:nodeKind sh:IRI → @id
+    # Explicit: sh:nodeKind sh:IRI -> @id
     node_kind = get_value("nodeKind", shacl_values)
     if node_kind and str(node_kind).endswith("IRI"):
         return "@id"
@@ -309,7 +292,7 @@ def create_property(
             # Lists of literals can stay as plain JSON values
             jsonLD_dict[key] = value
 
-        logger.debug(f'{" " * level * 3}add prop {key}')
+        logger.debug(f"{' ' * level * 3}add prop {key}")
         return
 
     # Handle single values
@@ -333,7 +316,7 @@ def create_property(
     else:
         jsonLD_dict[key] = value
 
-    logger.debug(f'{" " * level * 3}add prop {key}')
+    logger.debug(f"{' ' * level * 3}add prop {key}")
 
 
 # from 'https://ontologies.envited-x.net/manifest/v5/ontology#hasManifestReference'
@@ -400,7 +383,7 @@ def create_node(
     else:
         lsonLD[key] = node
 
-    logger.debug(f'{" " * level * 3}add node {key}')
+    logger.debug(f"{' ' * level * 3}add node {key}")
     return node
 
 
@@ -442,6 +425,22 @@ def _inject_manifest_mapping_candidates(nodes: list | None) -> list:
             nodes.append(uri)
 
     return nodes
+
+
+def _extend_shape_with_additional_nodes(
+    shape_value: list[dict], additional_nodes: list[str]
+) -> list[dict]:
+    merged_shape = list(shape_value)
+    for node in additional_nodes:
+        namespace_sub, _ = get_namespace_name_from_url(node)
+        if not namespace_sub:
+            continue
+
+        additional_shape = get_shacl_shape(namespace_sub, node)
+        if additional_shape:
+            merged_shape.extend(additional_shape)
+
+    return merge_property_constraints(merged_shape)
 
 
 def class_types_from_shacl(shacl_values: dict) -> Union[str, None]:
@@ -578,6 +577,12 @@ def register_key(
                 uri, ns_sub, type_name, shape_val = best_node
                 used_ns, _ = get_namespace_name_from_url(path)
 
+                if key.endswith(":hasResourceDescription"):
+                    shape_val = _extend_shape_with_additional_nodes(
+                        shape_val,
+                        [f"{GX_NS}VirtualResourceShape"],
+                    )
+
                 # Determine the LD-type string (e.g., manifest:Link or hdmap:ResourceDescription)
                 type_without_shape = type_name.replace("Shape", "")
                 # Special handling for Link typing
@@ -600,8 +605,7 @@ def register_key(
                     del meta_data[key]
 
     elif is_required:
-        # TODO write empty node
-        test = 0
+        pass  # empty required nodes are omitted for now
 
 
 # register list of key + value to json ld
@@ -673,8 +677,7 @@ def register_list(
             lsonLD_dict[key] = created_nodes
 
     elif is_required:
-        # TODO write empty node
-        test = 0
+        pass  # empty required nodes are omitted for now
 
 
 # Comments in English as requested
@@ -850,12 +853,41 @@ def getPrefixes(shacl_graph: Graph) -> dict:
     return prefixes
 
 
+def is_supported_shacl_namespace(url: str) -> bool:
+    namespace = str(url)
+    return namespace.startswith(ENVITED_URL) or namespace.startswith(GX_NS)
+
+
+def register_shacl_dependencies(
+    root_key: str, shacl_definitions: dict, extra_prefixes: dict | None = None
+) -> None:
+    pending_keys = [root_key]
+
+    while pending_keys:
+        current_key = pending_keys.pop(0)
+        graph_data = shacl_definitions.get(current_key)
+        if graph_data is None:
+            continue
+
+        prefixes = getPrefixes(graph_data["graph"])
+        if current_key == root_key and extra_prefixes:
+            prefixes.update(extra_prefixes)
+
+        for key, value in prefixes.items():
+            if key in shacl_definitions:
+                continue
+            if not is_supported_shacl_namespace(value):
+                continue
+
+            register_shacl(get_url_for_download(value), key, shacl_definitions)
+            pending_keys.append(key)
+
+
 # use shacls and extracted data to create json ld dict
 def process_graph(schema_namespace, schema_name, meta_data):
     config.JSON_OUT = defaultdict(list)
     # get shacl for asset
     if schema_namespace.lower() in config.SHACLS:
-
         shacl_graph_data = config.SHACLS[schema_namespace.lower()]
 
         config.JSON_OUT["@context"] = shacl_graph_data["prefixes"]
@@ -913,8 +945,8 @@ def register_shacl(url_path: str, shacl_name: str, shacls):
             graph_data["prefixes"] = getPrefixes(graph)
 
             shacls[shacl_name] = graph_data
-    except:
-        raise FileNotFoundError(f"cannot read turtle file: {local_file_path}")
+    except Exception as exc:
+        raise RuntimeError(f"cannot read turtle file: {local_file_path}") from exc
 
 
 def convert_context_for_output(context: dict) -> list:
@@ -1018,9 +1050,11 @@ def main():
 
     # download shacl file
     if args.removeShacl:
-        shacl_folder = Path(SHACL_FOLDER_NAME)
+        shacl_folder = SHACL_CACHE_DIR
         if shacl_folder.exists():
             shutil.rmtree(shacl_folder)
+    config.SHACLS = {}
+    config.JSON_OUT = {}
     shacl_namespace = claim_data["shacl_schema"]
     shacl_url = claim_data["shacl_url"]
     del claim_data["shacl_schema"]
@@ -1034,22 +1068,23 @@ def main():
 
     # get gaiaX/envited prefixes
     shacl_data = shacl_definitions[shacl_namespace.lower()]
-    prefixes = get_prefixes(shacl_data["graph"])
+    prefixes = getPrefixes(shacl_data["graph"])
     # add special prefixes
     prefixes["sh"] = SHACL_NS
 
     # and download additional shacls
-    for key, value in prefixes.items():
-        if key not in shacl_definitions:
-            new_url_path = get_url_for_download(value)
-            register_shacl(new_url_path, key, shacl_definitions)
+    register_shacl_dependencies(
+        shacl_namespace.lower(),
+        shacl_definitions,
+        extra_prefixes={"sh": SHACL_NS},
+    )
     config.SHACLS = shacl_definitions
 
     # fill data in shacl structure
     try:
         process_graph(shacl_namespace, shacl_url, claim_data)
-    except:
-        raise Exception(f"Could not convert to json")
+    except Exception as exc:
+        raise RuntimeError("Could not convert to json") from exc
 
     # write claims as json id to output
     output_path = Path(args.out)

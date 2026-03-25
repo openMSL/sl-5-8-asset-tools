@@ -9,29 +9,19 @@ Use Python 3.12 and format all Python files before committing.
 ### Setup
 
 ```bash
-python3 -m venv .venv_linux
-source .venv_linux/bin/activate
-python -m pip install -r requirements.txt
-python -m pip install -e ./external/ontology-management-base
-python -m pip install black
+make setup
 ```
 
 ### Format
 
 ```bash
-git ls-files '*.py' | xargs black
+make format
 ```
 
 ### Basic Verification
 
 ```bash
-python - <<'PY'
-import subprocess, py_compile
-files = subprocess.check_output(['git', 'ls-files', '*.py'], text=True).splitlines()
-for f in files:
-    py_compile.compile(f, doraise=True)
-print(f"Compiled {len(files)} Python files successfully.")
-PY
+make check
 ```
 
 ### Documentation Expectations

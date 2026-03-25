@@ -5,14 +5,8 @@ This guide defines formatting and documentation standards for this repository.
 ## Python Formatting
 
 - Use Python 3.12.
-- Use `black` as the canonical formatter.
+- Use `ruff` as the canonical formatter and linter.
 - Format all tracked Python files before commit:
-
-```bash
-git ls-files '*.py' | xargs black
-```
-
-Preferred shortcut:
 
 ```bash
 make format
@@ -58,6 +52,7 @@ Each module README should follow this section order:
 8. `## Notes` (optional)
 
 Rules:
+
 - Keep commands runnable as-is.
 - Match argument names and required flags to `main.py` exactly.
 - Use one fenced `bash` block per usage/install section.

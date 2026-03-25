@@ -1,3 +1,9 @@
-[submodule "external/ontology-management-base"]
-	path = external/ontology-management-base
+[submodule "submodules/ontology-management-base"]
+	path = submodules/ontology-management-base
 	url = https://github.com/ASCS-eV/ontology-management-base.git
+[submodule "submodules/sd-creation-wizard-api"]
+	path = submodules/sd-creation-wizard-api
+	url = https://github.com/openMSL/sd-creation-wizard-api.git
+[submodule "submodules/sd-creation-wizard-frontend"]
+	path = submodules/sd-creation-wizard-frontend
+	url = https://github.com/openMSL/sd-creation-wizard-frontend.git
