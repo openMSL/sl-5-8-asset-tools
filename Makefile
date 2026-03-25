@@ -25,7 +25,7 @@ endif
 PY_FILES := $(shell git ls-files '*.py')
 
 # ── Subcommand support ───────────────────────────────────────────────
-# Enables:  make generate opendrive,  make check format,  make install dev
+# Enables:  make generate opendrive,  make check format
 SUBCMD = $(word 2,$(MAKECMDGOALS))
 
 # Example directory mapping for `make generate <example>`
@@ -122,14 +122,8 @@ $(ACTIVATE_SCRIPT): $(PYTHON)
 
 install:
 	$(call check_dev_setup)
-ifeq ($(SUBCMD),dev)
-	@"$(PYTHON)" -m pip install -e ".[dev]"
-else ifeq ($(SUBCMD),qc)
 	@git config --global core.longpaths true 2>/dev/null || true
-	@"$(PYTHON)" -m pip install -e ".[qc,qc-deps]"
-else
-	@"$(PYTHON)" -m pip install -e .
-endif
+	@"$(PYTHON)" -m pip install -e ".[dev,qc,qc-deps]"
 	@if [ -f "$(OMB)/pyproject.toml" ] || [ -f "$(OMB)/setup.py" ]; then \
 		"$(PYTHON)" -m pip install -e "$(OMB)"; \
 	else \
@@ -403,10 +397,8 @@ endif
 help:
 	@echo "sl-5-8-asset-tools -- Available Commands"
 	@echo ""
-	@echo "  make setup                   Create venv, init submodules, and install dependencies"
-	@echo "  make install                 Install package"
-	@echo "  make install dev             Install with dev dependencies"
-	@echo "  make install qc              Install quality checker tools (ASAM, OpenMSL)"
+	@echo "  make setup                   Create venv, init submodules, and install all dependencies"
+	@echo "  make install                 Reinstall all dependencies (dev, QC, OMB)"
 	@echo ""
 	@echo "  make lint                    Lint checks (ruff)"
 	@echo "  make lint-md                 Lint Markdown files"
@@ -445,7 +437,7 @@ help:
 
 # ── Catch-all for subcommand arguments ───────────────────────────────
 # Prevents "No rule to make target 'opendrive'" errors
-ifneq ($(filter setup generate check install wizard clean,$(firstword $(MAKECMDGOALS))),)
+ifneq ($(filter setup generate check wizard clean,$(firstword $(MAKECMDGOALS))),)
 %:
 	@:
 endif
