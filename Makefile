@@ -122,7 +122,7 @@ install:
 ifeq ($(SUBCMD),dev)
 	@"$(PYTHON)" -m pip install -e ".[dev]"
 else ifeq ($(SUBCMD),qc)
-	@git config core.longpaths true 2>/dev/null || true
+	@git config --global core.longpaths true 2>/dev/null || true
 	@"$(PYTHON)" -m pip install -e ".[qc,qc-deps]"
 else
 	@"$(PYTHON)" -m pip install -e .
