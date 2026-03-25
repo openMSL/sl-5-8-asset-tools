@@ -130,8 +130,8 @@ input_manifest.json
 
 ```bash
 make help              # Show all available commands
-make setup             # Create venv and install dependencies
-make install dev       # Install with dev dependencies
+make setup             # Create venv and install all dependencies
+make install           # Reinstall all dependencies (dev, QC, OMB)
 make lint              # Lint checks (ruff)
 make format            # Format Python (ruff)
 make check             # Run all checks (format, compile, readme style)
@@ -139,7 +139,7 @@ make check format      # Check formatting only
 make check py          # Compile-check all Python files
 make check readme      # Validate README structure
 make validate          # Run SHACL data conformance validation
-make run opendrive     # Run OpenDRIVE example pipeline
-make run openscenario  # Run OpenSCENARIO example pipeline
+make generate opendrive     # Run OpenDRIVE example pipeline
+make generate openscenario  # Run OpenSCENARIO example pipeline
 make clean             # Remove build artifacts and caches
 ```
