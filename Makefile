@@ -97,6 +97,9 @@ else
 		echo "[INFO] Dependencies missing -- reinstalling..."; \
 		"$(PYTHON)" -m pip install -e ".[dev]"; \
 	fi
+	@echo "[INFO] Installing quality checker tools..."
+	@git config --global core.longpaths true 2>/dev/null || true
+	@"$(PYTHON)" -m pip install -e ".[qc,qc-deps]"
 	@if [ -f "$(OMB)/pyproject.toml" ] || [ -f "$(OMB)/setup.py" ]; then \
 		echo "[INFO] Installing ontology-management-base..."; \
 		"$(PYTHON)" -m pip install -e "$(OMB)"; \
