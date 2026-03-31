@@ -6,7 +6,8 @@
 		"call" : "xodr_to_geojson_caller.main",
 		"output" : {"-out" : "{path}/{sub_path}/3d_preview/detailRoadNetwork.geojson"},
         "additional" : {
-			"-path" : "{path}/temp"
+			"-path" : "{path}/temp",
+			"-compact" : ""
 		}	
 	}
 }

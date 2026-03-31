@@ -62,10 +62,10 @@ def _feature_collection(features: list[dict]) -> dict:
     return {"type": "FeatureCollection", "features": features}
 
 
-def _write_geojson(data: dict, path: Path) -> None:
+def _write_geojson(data: dict, path: Path, compact: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        json.dump(data, f, indent=None if compact else 2, ensure_ascii=False)
     logger.info("Wrote %s (%d features)", path, len(data.get("features", [])))
 
 
@@ -309,16 +309,39 @@ def convert_all(
     odr: OpenDRIVE,
     output_dir: Path,
     step: float = 0.2,
+    converters: list[str] | None = None,
+    compact: bool = False,
 ) -> None:
-    """Run all converters and write GeoJSON files to output_dir."""
+    """Run converters and write GeoJSON files to output_dir.
+
+    Args:
+        odr: Parsed OpenDRIVE data.
+        output_dir: Directory to write output files.
+        step: Discretisation step size in metres.
+        converters: Optional list of converter filenames to run (e.g.
+            ``["refLine.json", "roads.json"]``).  ``None`` means all.
+        compact: If True, write compact JSON without indentation.
+    """
     transformer = create_transformer(odr.header.geo_reference.proj4)
 
-    for filename, converter in CONVERTERS.items():
+    selected = CONVERTERS
+    if converters is not None:
+        unknown = set(converters) - set(CONVERTERS)
+        if unknown:
+            logger.warning(
+                "Unknown converter(s) ignored: %s", ", ".join(sorted(unknown))
+            )
+        selected = {k: v for k, v in CONVERTERS.items() if k in converters}
+        if not selected:
+            logger.warning("No valid converters selected — nothing to do")
+            return
+
+    for filename, converter in selected.items():
         try:
             if converter in (convert_objects, convert_signals):
                 fc = converter(odr, transformer=transformer)
             else:
                 fc = converter(odr, transformer=transformer, step=step)
-            _write_geojson(fc, output_dir / filename)
+            _write_geojson(fc, output_dir / filename, compact=compact)
         except Exception:
             logger.exception("Failed to convert %s", filename)

@@ -15,8 +15,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Threshold (bytes) above which the step size is auto-scaled to keep
+# conversion time and output size reasonable.
+_AUTO_STEP_FILE_SIZE_THRESHOLD = 20 * 1024 * 1024  # 20 MB
+_AUTO_STEP_LARGE_FILE = 2.0  # meters
+
 
 def main():
+    from xodr_to_geojson_caller.converter.geojson import CONVERTERS
+
+    available = list(CONVERTERS.keys())
+
     parser = argparse.ArgumentParser(
         prog="xodr_to_geojson_caller",
         description="Convert an OpenDRIVE (.xodr) file into GeoJSON files.",
@@ -34,8 +43,21 @@ def main():
     parser.add_argument(
         "-step",
         type=float,
-        default=0.2,
-        help="discretisation step size in meters (default: 0.2)",
+        default=None,
+        help="discretisation step size in meters (default: 0.2, auto-scaled for large files)",
+    )
+    parser.add_argument(
+        "-converters",
+        nargs="*",
+        default=None,
+        metavar="NAME",
+        help=f"converters to run (default: all). Available: {', '.join(available)}",
+    )
+    parser.add_argument(
+        "-compact",
+        action="store_true",
+        default=False,
+        help="write compact JSON without indentation to reduce file size",
     )
     args = parser.parse_args()
 
@@ -54,6 +76,24 @@ def main():
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
+    # Auto-scale step size for large files to avoid excessive runtime / output.
+    # Only auto-scale when the user did not explicitly provide -step.
+    user_set_step = args.step is not None
+    step = args.step if user_set_step else 0.2
+    file_size = xodr_file.stat().st_size
+    if (
+        not user_set_step
+        and file_size > _AUTO_STEP_FILE_SIZE_THRESHOLD
+        and step < _AUTO_STEP_LARGE_FILE
+    ):
+        logger.info(
+            "Large file detected (%.1f MB) — auto-scaling step from %.2f m to %.1f m",
+            file_size / (1024 * 1024),
+            step,
+            _AUTO_STEP_LARGE_FILE,
+        )
+        step = _AUTO_STEP_LARGE_FILE
+
     logger.info("Parsing %s", xodr_file)
     from xodr_to_geojson_caller.parser.xodr_parser import parse_opendrive
 
@@ -66,7 +106,13 @@ def main():
 
     from xodr_to_geojson_caller.converter.geojson import convert_all
 
-    convert_all(odr, output_dir=output_dir, step=args.step)
+    convert_all(
+        odr,
+        output_dir=output_dir,
+        step=step,
+        converters=args.converters,
+        compact=args.compact,
+    )
     logger.info("Done. Output written to %s", output_dir)
 
 
