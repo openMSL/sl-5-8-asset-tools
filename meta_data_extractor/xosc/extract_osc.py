@@ -104,6 +104,8 @@ class OpenSCENARIO:
         self.map_location: Path = None
         self.map_et: ET.Element = None
         self.variables: typing.Dict[str, str] = {}
+        # Collected file references (map, catalogs, scene graph, controllers…)
+        self.file_references: typing.List[typing.Dict[str, str]] = []
 
     def __str__(self) -> str:
         ret = f"OpenSCENARIO: {self.scenario_file}\n\tMap: {self.map_location}\n\tCatalogs:\n"
@@ -358,6 +360,19 @@ def get_osc_value(el: ET.Element, key: str, osc: OpenSCENARIO) -> str:
     return value
 
 
+def _add_file_reference(
+    osc: OpenSCENARIO, ref_type: str, filepath: str, resolved: Path | None = None
+):
+    """Register a discovered file reference on the OpenSCENARIO object."""
+    entry: typing.Dict[str, str] = {"type": ref_type, "path": filepath}
+    if resolved is not None:
+        try:
+            entry["relativePath"] = str(resolved.relative_to(osc.scenario_file.parent))
+        except ValueError:
+            entry["relativePath"] = str(resolved)
+    osc.file_references.append(entry)
+
+
 def load_openscenario_file(osc_path: Path) -> OpenSCENARIO:
     osc = OpenSCENARIO()
     osc.scenario_file = osc_path.resolve()
@@ -366,31 +381,60 @@ def load_openscenario_file(osc_path: Path) -> OpenSCENARIO:
     osc.scenario_et = sc
     extract_variables(osc, sc)
 
+    # --- LogicFile (HD-map reference) ---
     logic_file = sc.find(".//LogicFile")
-    filepath = get_osc_value(logic_file, "filepath", osc)
-    osc.map_location = (osc_path.parent / filepath).resolve()
+    if logic_file is not None and "filepath" in logic_file.attrib:
+        filepath = get_osc_value(logic_file, "filepath", osc)
+        osc.map_location = (osc_path.parent / filepath).resolve()
 
-    logger.debug(f"Loading map {osc.map_location}")
-    if not osc.map_location.exists():
-        # try local
-        osc.map_location = (osc_path.parent / Path(filepath).name).resolve()
+        logger.debug(f"Loading map {osc.map_location}")
         if not osc.map_location.exists():
-            logger.warning(
-                f"Referenced map not found locally: {osc.map_location} "
-                f"— treating as external asset reference"
-            )
-            osc.map_location = None
+            # try local
+            osc.map_location = (osc_path.parent / Path(filepath).name).resolve()
+            if not osc.map_location.exists():
+                logger.warning(
+                    f"Referenced map not found locally: {osc.map_location} "
+                    f"— treating as external asset reference"
+                )
+                _add_file_reference(osc, "LogicFile", filepath)
+                osc.map_location = None
+            else:
+                _add_file_reference(osc, "LogicFile", filepath, osc.map_location)
+        else:
+            _add_file_reference(osc, "LogicFile", filepath, osc.map_location)
 
-    if ".//CatalogLocations" in sc:
-        for catalog in sc.find(".//CatalogLocations"):
-            if (
-                "path" not in catalog.find(".//Directory").attrib
-                or catalog.find(".//Directory").attrib["path"] == ""
-            ):
+    # --- SceneGraphFile (3-D environment model reference) ---
+    scene_graph = sc.find(".//SceneGraphFile")
+    if scene_graph is not None and "filepath" in scene_graph.attrib:
+        sg_path = get_osc_value(scene_graph, "filepath", osc)
+        resolved = (osc_path.parent / sg_path).resolve()
+        _add_file_reference(
+            osc, "SceneGraphFile", sg_path, resolved if resolved.exists() else None
+        )
+
+    # --- TrafficSignalController (informational, not a file reference) ---
+    # Controllers are defined inline in the XOSC or in the LogicFile (XODR).
+    # We record their names so downstream can list them as dependencies.
+    for tsc in sc.findall(".//TrafficSignalController"):
+        ref_el = tsc.find("Phase/TrafficSignalState")
+        if ref_el is not None:
+            entry: typing.Dict[str, str] = {
+                "type": "TrafficSignalController",
+                "name": tsc.attrib.get("name", ""),
+            }
+            osc.file_references.append(entry)
+
+    # --- CatalogLocations ---
+    catalog_locations_el = sc.find(".//CatalogLocations")
+    if catalog_locations_el is not None:
+        for catalog in catalog_locations_el:
+            dir_el = catalog.find("Directory")
+            if dir_el is None:
                 continue
-            location = (
-                osc_path.parent / catalog.find(".//Directory").attrib["path"]
-            ).resolve()
+            cat_path = dir_el.attrib.get("path", "")
+            if not cat_path:
+                continue
+            location = (osc_path.parent / cat_path).resolve()
             osc.catalogs[catalog.tag] = []
             osc.catalog_locations[catalog.tag] = []
             if location.is_dir():
@@ -399,9 +443,14 @@ def load_openscenario_file(osc_path: Path) -> OpenSCENARIO:
                         logger.debug(f"Loading catalog {file}")
                         osc.catalogs[catalog.tag].append(ET.parse(file).getroot())
                         osc.catalog_locations[catalog.tag].append(file)
+                        _add_file_reference(
+                            osc, f"Catalog:{catalog.tag}", str(file.name), file
+                        )
             elif location.is_file():
                 logger.debug(f"Loading catalog {location}")
                 osc.catalogs[catalog.tag].append(ET.parse(location).getroot())
+                osc.catalog_locations[catalog.tag].append(location)
+                _add_file_reference(osc, f"Catalog:{catalog.tag}", cat_path, location)
     return osc
 
 
@@ -1785,6 +1834,12 @@ def get_meta_data(
     )  # TODO currently empty
     # TODO DataSource with sourceType, sourceDescription
     set_manifest_data(meta_data_dict, osc)
+
+    # File references discovered in the OpenSCENARIO XML (map, catalogs,
+    # scene graph, controllers).  Downstream pipeline stages can use these
+    # to auto-populate manifest:hasReferencedArtifacts.
+    if osc.file_references:
+        meta_data_dict["scenario:fileReferences"] = osc.file_references
 
     return meta_data_dict
 
