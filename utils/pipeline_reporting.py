@@ -322,13 +322,39 @@ def _summarize_quality_checker(cmd: list[str], project_root: Path) -> StageSumma
             details=[f"Expected result: {_display_path(result_file, project_root)}"],
         )
 
-    tree = ET.parse(result_file)
+    try:
+        tree = ET.parse(result_file)
+    except ET.ParseError:
+        return StageSummary(
+            status="warn",
+            message="quality checks completed with malformed XQAR",
+            details=[f"Expected result: {_display_path(result_file, project_root)}"],
+        )
     bundle = tree.find(".//CheckerBundle")
     summary = bundle.get("summary", "").strip() if bundle is not None else ""
     compact = _compact_bundle_summary(summary)
 
     detail_path = str(result_file.with_suffix("")) + "_QCReport.txt"
     details = [f"Report: {_display_path(detail_path, project_root)}"]
+
+    # Detect internal checker errors (e.g. upstream checker bugs) and surface
+    # them as warnings so the pipeline continues but the user is informed.
+    # See https://github.com/openMSL/sl-5-8-asset-tools/issues/19.
+    error_checkers = [
+        c.get("checkerId", "unknown")
+        for c in tree.findall(".//Checker[@status='error']")
+    ]
+    if error_checkers:
+        details.append(
+            f"Internal errors in: {', '.join(error_checkers[:3])}"
+            + (f" (+{len(error_checkers) - 3} more)" if len(error_checkers) > 3 else "")
+        )
+        return StageSummary(
+            status="warn",
+            message=compact or "quality checks completed",
+            details=details,
+        )
+
     return StageSummary(message=compact or "quality checks completed", details=details)
 
 
