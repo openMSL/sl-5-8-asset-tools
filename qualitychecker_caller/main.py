@@ -168,10 +168,18 @@ def get_checker_bundle_summary(result_file: Path) -> str | None:
     return bundle.get("summary", "").strip() if bundle is not None else None
 
 
-def fail_on_internal_checker_errors(
+def warn_on_internal_checker_errors(
     app_name: str, result_file: Path, text_report: Path | None = None
 ) -> None:
-    """Stop the pipeline when the QC tool completed with internal checker errors."""
+    """Log a warning when the QC tool completed with internal checker errors.
+
+    Internal checker errors indicate bugs in individual checker code (e.g. an
+    upstream checker crashing on valid input) — not problems with the asset
+    being checked.  The XQAR report and text report are still generated, so
+    the pipeline can continue and users can review what went wrong.
+
+    See https://github.com/openMSL/sl-5-8-asset-tools/issues/19.
+    """
 
     errors = get_internal_checker_errors(result_file)
     if not errors:
@@ -182,8 +190,11 @@ def fail_on_internal_checker_errors(
         details += f"; ... ({len(errors)} total)"
 
     report_hint = f" See {text_report} for details." if text_report else ""
-    raise SystemExit(
-        f"{app_name} reported internal checker errors: {details}{report_hint}"
+    logger.warning(
+        "%s reported internal checker errors: %s%s",
+        app_name,
+        details,
+        report_hint,
     )
 
 
@@ -248,7 +259,7 @@ def main():
         text_report_path = Path(f"{output_file.with_suffix('')}_QCReport.txt")
         _generate_text_report(output_file, text_report_path)
 
-        fail_on_internal_checker_errors(app_name, output_file, text_report_path)
+        warn_on_internal_checker_errors(app_name, output_file, text_report_path)
         summary = get_checker_bundle_summary(output_file)
         if summary:
             logger.info("%s: %s", app_name, summary)
