@@ -463,6 +463,8 @@ def main():
     if extractor_json.exists():
         auto_refs = _refs_from_extractor(extractor_json)
         if auto_refs:
+            if refs is None:
+                refs = []
             refs.extend(auto_refs)
 
     if refs and manifest_path.exists():
