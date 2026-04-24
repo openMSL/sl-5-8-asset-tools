@@ -32,9 +32,7 @@ qc = [
     # Switch back to @v1.0.0 (or newer) once the PR is merged.
     "asam-qc-opendrive@git+https://github.com/jdsika/qc-opendrive@fix-contact-point-missing-road-link",
     "asam-qc-openscenarioxml@git+https://github.com/asam-ev/qc-openscenarioxml@v1.0.0",
-    # Pinned to fix branch pending upstream PR openMSL/sl-5-9-openmsl-qc-opendrive#1.
-    # Switch back to @main once the PR is merged.
-    "openmsl-qc-opendrive@git+https://github.com/openMSL/sl-5-9-openmsl-qc-opendrive@fix/object-outline-height-keyerror",
+    "openmsl-qc-opendrive@git+https://github.com/openMSL/sl-5-9-openmsl-qc-opendrive@main",
 ]
 qc-deps = [
     "pyclothoids",
