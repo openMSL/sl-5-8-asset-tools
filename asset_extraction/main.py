@@ -262,9 +262,10 @@ def _refs_from_extractor(
             continue
 
         # Determine access role: local paths inherit from parent asset,
-        # external references (DIDs, URLs) get isPublic.
+        # external references (DIDs, URLs) get isRegistered since their
+        # actual access level is governed by the referenced asset itself.
         if rel_path.startswith(("did:", "http://", "https://")):
-            role = "envited-x:isPublic"
+            role = "envited-x:isRegistered"
         else:
             role = asset_access_role
 

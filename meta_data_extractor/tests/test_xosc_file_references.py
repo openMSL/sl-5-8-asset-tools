@@ -188,7 +188,7 @@ class TestRefsFromExtractor:
         )
         assert refs[0]["hasAccessRole"]["@id"] == "envited-x:isOwner"
 
-    def test_external_refs_get_public_role(self, tmp_path):
+    def test_external_refs_get_registered_role(self, tmp_path):
         from asset_extraction.main import _refs_from_extractor
 
         extractor_data = {
@@ -206,7 +206,7 @@ class TestRefsFromExtractor:
         refs = _refs_from_extractor(
             extractor_json, asset_access_role="envited-x:isOwner"
         )
-        assert refs[0]["hasAccessRole"]["@id"] == "envited-x:isPublic"
+        assert refs[0]["hasAccessRole"]["@id"] == "envited-x:isRegistered"
 
     def test_returns_empty_when_no_references(self, tmp_path):
         from asset_extraction.main import _refs_from_extractor
