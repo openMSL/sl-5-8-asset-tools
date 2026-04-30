@@ -28,6 +28,9 @@ PY_FILES := $(shell git ls-files '*.py')
 # Enables:  make generate opendrive,  make check format
 SUBCMD = $(word 2,$(MAKECMDGOALS))
 
+# Allow parent makefiles to pass pipeline flags (e.g., -enable / -disable modules).
+PIPELINE_FLAGS ?=
+
 # Example directory mapping for `make generate <example>`
 EXAMPLE_opendrive    := OpenDRIVE
 EXAMPLE_openscenario := OpenSCENARIO
@@ -219,7 +222,8 @@ ifneq ($(INPUT_DIR),)
 		"$(INPUT_DIR)/input_manifest.json" \
 		-config "$(CURDIR)/configs" \
 		-out "$(OUTPUT_DIR)" \
-		$(if $(ZIP_DIR),-zip-dir "$(ZIP_DIR)")
+		$(if $(ZIP_DIR),-zip-dir "$(ZIP_DIR)") \
+		$(PIPELINE_FLAGS)
 	@echo "[OK] Pipeline complete -> $(OUTPUT_DIR)"
 else
 	@dir="$(EXAMPLE_$(SUBCMD))"; \
@@ -258,7 +262,8 @@ else
 			"$(CURDIR)/examples/$$dir/input/input_manifest.json" \
 			-config "$(CURDIR)/configs" \
 			-out   "$(CURDIR)/examples/$$dir/output" \
-			-zip-dir "$(CURDIR)/examples/$$dir" || status=$$?; \
+			-zip-dir "$(CURDIR)/examples/$$dir" \
+			$(PIPELINE_FLAGS) || status=$$?; \
 	fi; \
 	if [ -f "$$bak" ]; then \
 		mv "$$bak" "$(CURDIR)/examples/$$dir/input/input_manifest.json" || restore_status=$$?; \
@@ -417,6 +422,17 @@ help:
 	@echo "  make generate openscenario   Run OpenSCENARIO example pipeline"
 	@echo "  make generate INPUT_DIR=<path> OUTPUT_DIR=<path>"
 	@echo "                               Run pipeline for a custom input directory"
+	@echo ""
+	@echo "Pipeline module flags (pass via PIPELINE_FLAGS):"
+	@echo "  PIPELINE_FLAGS='-disable vcs_odr-converter' make generate opendrive"
+	@echo "                               Skip specific modules (blacklist)"
+	@echo "  PIPELINE_FLAGS='-enable meta_data_extractor structure_creator' make generate opendrive"
+	@echo "                               Run only specified modules (whitelist)"
+	@echo "  PIPELINE_FLAGS='-list-modules' make generate opendrive"
+	@echo "                               List available module IDs and exit"
+	@echo ""
+	@echo "  Note: xodr_to_geojson_caller (vcs_odr-converter) is disabled by default."
+	@echo "        Enable with: PIPELINE_FLAGS='-enable vcs_odr-converter'"
 	@echo ""
 	@echo "  make wizard                  Start SD Creation Wizard (Podman, auto-setup if needed)"
 	@echo "  make wizard stop             Stop the wizard containers"

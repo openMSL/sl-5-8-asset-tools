@@ -26,7 +26,7 @@ The following modules are used in the asset archive pipeline.
 - [jsonLD_validator](jsonLD_validator/README.md): Legacy validator (replaced by ontology-management-base in pipeline).
 - [qualitychecker_caller](qualitychecker_caller/README.md): Runs ASAM/OpenMSL quality checkers.
 - [xodr_routing_creator](xodr_routing_creator/README.md): Generates route and bounding box geometry.
-- [xodr_to_geojson_caller](xodr_to_geojson_caller/README.md): Pure-Python OpenDRIVE to GeoJSON 3D preview converter.
+- [xodr_to_geojson_caller](xodr_to_geojson_caller/README.md): Pure-Python OpenDRIVE to GeoJSON 3D preview converter (disabled by default; enable via `-enable vcs_odr-converter`).
 - [asset_reducer](asset_reducer/README.md): Reduces XML asset data for search indexing.
 - [structure_creator](structure_creator/README.md): Builds final archive structure and manifest input.
 
@@ -117,6 +117,32 @@ Two ready-to-run examples are included under `examples/`:
 ```bash
 make generate opendrive      # OpenDRIVE example  → examples/OpenDRIVE/output/ + examples/OpenDRIVE/<CID>.zip
 make generate openscenario   # OpenSCENARIO example → examples/OpenSCENARIO/output/ + examples/OpenSCENARIO/<CID>.zip
+```
+
+### Selective Module Execution
+
+Individual pipeline modules can be enabled or disabled at runtime using the
+`PIPELINE_FLAGS` variable:
+
+```bash
+# Skip a specific module
+make generate opendrive PIPELINE_FLAGS="-disable xodr_routing_creator"
+
+# Run only specific modules (whitelist)
+make generate opendrive PIPELINE_FLAGS="-enable meta_data_extractor structure_creator"
+
+# Enable GeoJSON 3D preview generation (disabled by default)
+make generate opendrive PIPELINE_FLAGS="-enable vcs_odr-converter"
+
+# List available module IDs
+make generate opendrive PIPELINE_FLAGS="-list-modules"
+```
+
+When calling the pipeline directly:
+
+```bash
+python -m asset_extraction.main input.json -config configs -out ./out -disable vcs_odr-converter
+python -m asset_extraction.main -config configs -list-modules
 ```
 
 ### Run Pipeline for a Custom Input Directory
