@@ -388,6 +388,50 @@ def compute_input_hash(input_dir: Path) -> str:
     return sha.hexdigest()
 
 
+# Characters unsafe on Windows (and : on macOS)
+_UNSAFE_CHARS = set('<>:"/\\|?*\0')
+# Windows reserved device names (case-insensitive)
+_RESERVED_NAMES = frozenset(
+    ["CON", "PRN", "AUX", "NUL"]
+    + [f"COM{i}" for i in range(1, 10)]
+    + [f"LPT{i}" for i in range(1, 10)]
+)
+
+
+def _validate_asset_name(name: str) -> None:
+    """Validate that an asset stem is safe as a directory name on all platforms.
+
+    Rules enforced (Windows + Linux + macOS compatible):
+    - Not empty
+    - No characters from: < > : " / \\ | ? * NUL
+    - Not a Windows reserved name (CON, PRN, NUL, COMx, LPTx)
+    - At most 255 characters (filesystem limit)
+    - Does not end with space or period (Windows strips them silently)
+    """
+    if not name:
+        raise ValueError("Asset filename stem is empty")
+
+    if len(name) > 255:
+        raise ValueError(
+            f"Asset name too long ({len(name)} chars, max 255): {name[:50]}..."
+        )
+
+    bad_chars = _UNSAFE_CHARS.intersection(name)
+    if bad_chars:
+        raise ValueError(
+            f"Asset name contains characters unsafe for cross-platform paths: "
+            f"{sorted(bad_chars)!r} in '{name}'"
+        )
+
+    if name.upper() in _RESERVED_NAMES or name.split(".")[0].upper() in _RESERVED_NAMES:
+        raise ValueError(f"Asset name is a Windows reserved device name: '{name}'")
+
+    if name[-1] in (" ", "."):
+        raise ValueError(
+            f"Asset name must not end with space or period (Windows incompatible): '{name}'"
+        )
+
+
 # get asset type extension
 def get_asset_type_extension(asset_file: Path) -> str:
     asset_type = asset_file.suffix.lstrip(".")  # Get file extension without the dot
@@ -520,8 +564,7 @@ def main():
 
     # create, cleanup output directory for the asset file
     asset_name = asset_file.stem
-    if "." in asset_name:
-        raise FileNotFoundError(f"File {asset_name} has points in name! Not supported!")
+    _validate_asset_name(asset_name)
 
     output_sub_dir = output_dir / asset_name
     if output_sub_dir.exists():
