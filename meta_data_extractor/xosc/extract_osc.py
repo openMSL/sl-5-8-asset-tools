@@ -145,10 +145,15 @@ def extract_meta_data(file: Path) -> Tuple[bool, dict]:
         logger.exception("Cannot decode %s", file)
         return False, {}
 
+    # Parse element tree for transforms that need raw XML access
+    element_tree = ET.parse(file).getroot()
+
     try:
         mapping = MappingConfig.from_yaml(_MAPPING_FILE)
         engine = ExtractionEngine()
-        extracted = engine.extract(data, mapping, context={"file_path": file})
+        extracted = engine.extract(
+            data, mapping, context={"file_path": file, "element_tree": element_tree}
+        )
     except Exception:
         logger.exception("Cannot extract metadata from %s", file)
         return False, {}

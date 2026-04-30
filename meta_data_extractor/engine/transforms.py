@@ -99,14 +99,16 @@ def collect_unique(data: Any, **kwargs) -> str:
 
 @register("collect_element_names")
 def collect_element_names(data: Any, **kwargs) -> str:
-    """Collect all unique element/tag names used in the document.
+    """Collect all unique descendant element/tag names used in the document.
 
-    Operates on the raw lxml tree passed via kwargs['element_tree'].
+    Operates on the raw ElementTree root passed via kwargs['element_tree'].
+    Excludes the root element itself (matching findall('.//')  behavior).
     """
     tree = kwargs.get("element_tree")
     if tree is None:
         return ""
-    names = sorted({elem.tag for elem in tree.iter() if isinstance(elem.tag, str)})
+    # Use findall('.//' ) to get descendants only (excludes root)
+    names = sorted({elem.tag for elem in tree.findall(".//")})
     return ", ".join(names)
 
 
@@ -222,7 +224,7 @@ def sum_div_1000(data: Any, **kwargs) -> float:
     if not isinstance(data, list):
         data = [data] if data else []
     total = sum(float(v) for v in data if v is not None)
-    return round(total / 1000, 3)
+    return total / 1000
 
 
 @register("collect_custom_commands")
@@ -287,7 +289,7 @@ def elevation_range(data: Any, **kwargs) -> str:
     if not isinstance(data, list):
         data = [data] if data else []
     if not data:
-        return ""
+        return 0.0
 
     global_min = float("inf")
     global_max = float("-inf")

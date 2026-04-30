@@ -177,6 +177,9 @@ class ExtractionEngine:
     def _collect(values: list[Any], collector: str) -> Any:
         """Aggregate a list of values according to the collector strategy."""
         if not values:
+            # count should return 0 for empty results, not None
+            if collector == "count":
+                return 0
             return None
 
         if collector == "first":

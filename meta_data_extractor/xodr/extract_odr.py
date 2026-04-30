@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Tuple
 
 import logging
+from datetime import datetime
 
 from ..engine.decoder import SchemaDecoder
 from ..engine.engine import ExtractionEngine
@@ -32,6 +33,26 @@ logger = logging.getLogger(__name__)
 
 _MAPPING_FILE = Path(__file__).resolve().parents[1] / "mappings" / "hdmap.yaml"
 _decoder = SchemaDecoder()
+
+_SUPPORTED_DATE_FORMATS = [
+    "%Y-%m-%d",
+    "%d-%m-%Y",
+    "%m-%d-%Y",
+    "%Y/%m/%d",
+    "%d.%m.%Y",
+    "%m/%d/%Y",
+    "%Y-%m-%dT%H:%M:%S",
+]
+
+
+def _parse_date(date_string: str) -> str | None:
+    """Parse a date string into ISO format, or return None if unrecognized."""
+    for fmt in _SUPPORTED_DATE_FORMATS:
+        try:
+            return datetime.strptime(date_string, fmt).isoformat()
+        except ValueError:
+            continue
+    return None
 
 
 def _strip_missing_geoidgrids(proj4: str) -> str:
@@ -104,10 +125,10 @@ def _build_georeference(data: dict) -> dict | None:
 
     # Bounding box from header attributes
     projection_location_dict: dict = {}
-    west = header.get("@west") or header.get("west")
-    east = header.get("@east") or header.get("east")
-    south = header.get("@south") or header.get("south")
-    north = header.get("@north") or header.get("north")
+    west = header.get("@west", header.get("west"))
+    east = header.get("@east", header.get("east"))
+    south = header.get("@south", header.get("south"))
+    north = header.get("@north", header.get("north"))
 
     if all(v is not None for v in (west, east, south, north)):
         try:
@@ -190,7 +211,9 @@ def extract_meta_data(file: Path) -> Tuple[bool, dict]:
     if isinstance(header, dict):
         date_str = header.get("@date")
         if date_str:
-            meta_data_dict["recordingTime"] = date_str
+            meta_data_dict["recordingTime"] = _parse_date(date_str)
+        else:
+            meta_data_dict["recordingTime"] = "Unknown"
 
     # Domain specification
     domain: dict = {}
@@ -219,6 +242,7 @@ def extract_meta_data(file: Path) -> Tuple[bool, dict]:
         "hdmap:numberOutlines",
         "hdmap:numberObjects",
         "hdmap:numberTrafficLights",
+        "hdmap:numberTrafficSigns",
         "hdmap:elevationRange",
     ):
         if key in extracted:

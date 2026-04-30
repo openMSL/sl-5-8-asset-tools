@@ -81,6 +81,11 @@ mappings:
     collector: count
     type: int
 
+  hdmap:numberTrafficSigns:
+    path: "road[*].signals.signal[*]"
+    collector: count
+    type: int
+
   hdmap:elevationRange:
     path: "road[*].elevationProfile.elevation[*]"
     transform: elevation_range
