@@ -226,9 +226,15 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
     )
 
 
-def _refs_from_extractor(extractor_json: Path) -> list[dict]:
+def _refs_from_extractor(
+    extractor_json: Path, asset_access_role: str = "envited-x:isPublic"
+) -> list[dict]:
     """Build input-manifest-style reference dicts from extractor-discovered
-    file references (``scenario:fileReferences``)."""
+    file references (``scenario:fileReferences``).
+
+    Local (relative) paths inherit the access role of the parent asset file.
+    External references (DIDs, URLs) default to ``envited-x:isPublic``.
+    """
     try:
         with extractor_json.open("r", encoding="utf-8") as f:
             data = json.load(f)
@@ -254,12 +260,20 @@ def _refs_from_extractor(extractor_json: Path) -> list[dict]:
         rel_path = entry.get("relativePath", entry.get("path", ""))
         if not rel_path:
             continue
+
+        # Determine access role: local paths inherit from parent asset,
+        # external references (DIDs, URLs) get isPublic.
+        if rel_path.startswith(("did:", "http://", "https://")):
+            role = "envited-x:isPublic"
+        else:
+            role = asset_access_role
+
         suffix = Path(rel_path).suffix.lower()
         refs.append(
             {
                 "@type": "Link",
                 "hasCategory": {"@id": "envited-x:isSimulationData"},
-                "hasAccessRole": {"@id": "envited-x:isPublic"},
+                "hasAccessRole": {"@id": role},
                 "hasFileMetadata": {
                     "@type": "FileMetadata",
                     "filePath": rel_path,
@@ -268,6 +282,34 @@ def _refs_from_extractor(extractor_json: Path) -> list[dict]:
             }
         )
     return refs
+
+
+def _get_asset_access_role(uploaded_file: Path) -> str:
+    """Look up the access role of the simulation-data artifact in the input manifest.
+
+    Returns the full prefixed @id (e.g. 'envited-x:isOwner') or falls back
+    to 'envited-x:isPublic' if not determinable.
+    """
+    fallback = "envited-x:isPublic"
+    try:
+        with uploaded_file.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return fallback
+
+    artifacts = data.get("hasArtifacts", data.get("manifest:hasArtifacts", []))
+    if not isinstance(artifacts, list):
+        artifacts = [artifacts]
+
+    for link in artifacts:
+        cat = link.get("hasCategory", link.get("manifest:hasCategory", {}))
+        cat_id = cat.get("@id", "") if isinstance(cat, dict) else str(cat)
+        if "isSimulationData" in cat_id:
+            role = link.get("hasAccessRole", link.get("manifest:hasAccessRole", {}))
+            role_id = role.get("@id", "") if isinstance(role, dict) else str(role)
+            if role_id:
+                return role_id
+    return fallback
 
 
 def _format_reference(ref: dict) -> dict:
@@ -562,7 +604,8 @@ def main():
     # references).  These are merged with any user-provided references.
     extractor_json = output_sub_dir / "temp" / f"{asset_name}_extractor.json"
     if extractor_json.exists():
-        auto_refs = _refs_from_extractor(extractor_json)
+        asset_role = _get_asset_access_role(uploaded_file)
+        auto_refs = _refs_from_extractor(extractor_json, asset_access_role=asset_role)
         if auto_refs:
             if refs is None:
                 refs = []

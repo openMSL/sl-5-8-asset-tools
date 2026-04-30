@@ -168,6 +168,46 @@ class TestRefsFromExtractor:
         assert refs[1]["hasFileMetadata"]["filePath"] == "models/scene.gltf"
         assert refs[1]["hasFileMetadata"]["mimeType"] == "model/gltf+json"
 
+    def test_local_refs_inherit_access_role(self, tmp_path):
+        from asset_extraction.main import _refs_from_extractor
+
+        extractor_data = {
+            "scenario:fileReferences": [
+                {
+                    "type": "LogicFile",
+                    "path": "map/road.xodr",
+                    "relativePath": "map/road.xodr",
+                },
+            ]
+        }
+        extractor_json = tmp_path / "test_extractor.json"
+        extractor_json.write_text(json.dumps(extractor_data), encoding="utf-8")
+
+        refs = _refs_from_extractor(
+            extractor_json, asset_access_role="envited-x:isOwner"
+        )
+        assert refs[0]["hasAccessRole"]["@id"] == "envited-x:isOwner"
+
+    def test_external_refs_get_public_role(self, tmp_path):
+        from asset_extraction.main import _refs_from_extractor
+
+        extractor_data = {
+            "scenario:fileReferences": [
+                {
+                    "type": "LogicFile",
+                    "path": "did:key:z6Mk.../road.xodr",
+                    "relativePath": "did:key:z6Mk.../road.xodr",
+                },
+            ]
+        }
+        extractor_json = tmp_path / "test_extractor.json"
+        extractor_json.write_text(json.dumps(extractor_data), encoding="utf-8")
+
+        refs = _refs_from_extractor(
+            extractor_json, asset_access_role="envited-x:isOwner"
+        )
+        assert refs[0]["hasAccessRole"]["@id"] == "envited-x:isPublic"
+
     def test_returns_empty_when_no_references(self, tmp_path):
         from asset_extraction.main import _refs_from_extractor
 
@@ -182,3 +222,40 @@ class TestRefsFromExtractor:
 
         refs = _refs_from_extractor(tmp_path / "nonexistent.json")
         assert refs == []
+
+
+class TestGetAssetAccessRole:
+    """Test _get_asset_access_role helper."""
+
+    def test_extracts_owner_role(self, tmp_path):
+        from asset_extraction.main import _get_asset_access_role
+
+        manifest = {
+            "@context": ["https://example.org/"],
+            "hasArtifacts": [
+                {
+                    "@type": "Link",
+                    "hasCategory": {"@id": "envited-x:isSimulationData"},
+                    "hasAccessRole": {"@id": "envited-x:isOwner"},
+                    "hasFileMetadata": {"filePath": "test.xosc"},
+                }
+            ],
+        }
+        f = tmp_path / "input_manifest.json"
+        f.write_text(json.dumps(manifest), encoding="utf-8")
+
+        assert _get_asset_access_role(f) == "envited-x:isOwner"
+
+    def test_fallback_to_public(self, tmp_path):
+        from asset_extraction.main import _get_asset_access_role
+
+        manifest = {"@context": ["https://example.org/"], "hasArtifacts": []}
+        f = tmp_path / "input_manifest.json"
+        f.write_text(json.dumps(manifest), encoding="utf-8")
+
+        assert _get_asset_access_role(f) == "envited-x:isPublic"
+
+    def test_handles_missing_file(self, tmp_path):
+        from asset_extraction.main import _get_asset_access_role
+
+        assert _get_asset_access_role(tmp_path / "nope.json") == "envited-x:isPublic"
