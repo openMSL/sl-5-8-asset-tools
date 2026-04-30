@@ -232,3 +232,63 @@ class TestListModulesCLI:
         )
         assert result.returncode != 0
         assert "mutually exclusive" in result.stderr
+
+
+# ── Asset name validation tests ──────────────────────────────────────
+
+from asset_extraction.main import _validate_asset_name
+
+
+class TestValidateAssetName:
+    """Cross-platform filename safety checks."""
+
+    def test_normal_name_passes(self):
+        _validate_asset_name("StraightRoad_NCAP")
+
+    def test_dots_in_name_allowed(self):
+        _validate_asset_name("deceleration_plot_ve0_25_gx_0.25")
+        _validate_asset_name("cutin_plot_03_ve0_60_dv0_30_dx0_15.0_vy_1.8")
+
+    def test_hyphens_and_uppercase(self):
+        _validate_asset_name("SCEN-95B774BAC0A9")
+
+    def test_empty_name_rejected(self):
+        with pytest.raises(ValueError, match="empty"):
+            _validate_asset_name("")
+
+    def test_too_long_rejected(self):
+        with pytest.raises(ValueError, match="too long"):
+            _validate_asset_name("a" * 256)
+
+    def test_max_length_allowed(self):
+        _validate_asset_name("a" * 255)
+
+    def test_unsafe_chars_rejected(self):
+        for char in '<>:"/\\|?*':
+            with pytest.raises(ValueError, match="unsafe"):
+                _validate_asset_name(f"test{char}name")
+
+    def test_null_byte_rejected(self):
+        with pytest.raises(ValueError, match="unsafe"):
+            _validate_asset_name("test\x00name")
+
+    def test_windows_reserved_names_rejected(self):
+        for name in ["CON", "con", "PRN", "AUX", "NUL", "COM1", "LPT9"]:
+            with pytest.raises(ValueError, match="reserved"):
+                _validate_asset_name(name)
+
+    def test_reserved_with_extension_rejected(self):
+        with pytest.raises(ValueError, match="reserved"):
+            _validate_asset_name("CON.xodr")
+
+    def test_trailing_space_rejected(self):
+        with pytest.raises(ValueError, match="end with"):
+            _validate_asset_name("test ")
+
+    def test_trailing_period_rejected(self):
+        with pytest.raises(ValueError, match="end with"):
+            _validate_asset_name("test.")
+
+    def test_leading_dot_allowed(self):
+        # Hidden files on Unix are unusual but not invalid
+        _validate_asset_name(".hidden_asset")
