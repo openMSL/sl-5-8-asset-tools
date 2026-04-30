@@ -7,3 +7,6 @@ shacls/
 qc_config.xml
 examples/*/output/
 examples/**/*.zip
+examples/*/
+!examples/OpenDRIVE/
+!examples/OpenSCENARIO/
