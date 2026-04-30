@@ -226,6 +226,93 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
     )
 
 
+def _refs_from_extractor(
+    extractor_json: Path, asset_access_role: str = "envited-x:isPublic"
+) -> list[dict]:
+    """Build input-manifest-style reference dicts from extractor-discovered
+    file references (``scenario:fileReferences``).
+
+    Local (relative) paths inherit the access role of the parent asset file.
+    External references (DIDs, URLs) default to ``envited-x:isPublic``.
+    """
+    try:
+        with extractor_json.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return []
+
+    file_refs = data.get("scenario:fileReferences", [])
+    if not file_refs:
+        return []
+
+    mime_map = {
+        ".xodr": "application/xml",
+        ".xosc": "application/xml",
+        ".xml": "application/xml",
+        ".gltf": "model/gltf+json",
+        ".glb": "model/gltf-binary",
+        ".fbx": "application/octet-stream",
+        ".obj": "text/plain",
+    }
+
+    refs: list[dict] = []
+    for entry in file_refs:
+        rel_path = entry.get("relativePath", entry.get("path", ""))
+        if not rel_path:
+            continue
+
+        # Determine access role: local paths inherit from parent asset,
+        # external references (DIDs, URLs) get isRegistered since their
+        # actual access level is governed by the referenced asset itself.
+        if rel_path.startswith(("did:", "http://", "https://")):
+            role = "envited-x:isRegistered"
+        else:
+            role = asset_access_role
+
+        suffix = Path(rel_path).suffix.lower()
+        refs.append(
+            {
+                "@type": "Link",
+                "hasCategory": {"@id": "envited-x:isSimulationData"},
+                "hasAccessRole": {"@id": role},
+                "hasFileMetadata": {
+                    "@type": "FileMetadata",
+                    "filePath": rel_path,
+                    "mimeType": mime_map.get(suffix, "application/octet-stream"),
+                },
+            }
+        )
+    return refs
+
+
+def _get_asset_access_role(uploaded_file: Path) -> str:
+    """Look up the access role of the simulation-data artifact in the input manifest.
+
+    Returns the full prefixed @id (e.g. 'envited-x:isOwner') or falls back
+    to 'envited-x:isPublic' if not determinable.
+    """
+    fallback = "envited-x:isPublic"
+    try:
+        with uploaded_file.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return fallback
+
+    artifacts = data.get("hasArtifacts", data.get("manifest:hasArtifacts", []))
+    if not isinstance(artifacts, list):
+        artifacts = [artifacts]
+
+    for link in artifacts:
+        cat = link.get("hasCategory", link.get("manifest:hasCategory", {}))
+        cat_id = cat.get("@id", "") if isinstance(cat, dict) else str(cat)
+        if "isSimulationData" in cat_id:
+            role = link.get("hasAccessRole", link.get("manifest:hasAccessRole", {}))
+            role_id = role.get("@id", "") if isinstance(role, dict) else str(role)
+            if role_id:
+                return role_id
+    return fallback
+
+
 def _format_reference(ref: dict) -> dict:
     """Format a referenced artifact link from input manifest JSON-LD
     to match the output manifest format used by jsonLD_creator."""
@@ -512,6 +599,19 @@ def main():
     # inject referenced artifacts from input manifest into output manifest
     refs = load_referenced_artifacts(uploaded_file)
     manifest_path = output_sub_dir / "manifest.json"
+
+    # Auto-discover file references from extractor JSON (for OpenSCENARIO
+    # files the extractor records map, catalog, scene-graph, and controller
+    # references).  These are merged with any user-provided references.
+    extractor_json = output_sub_dir / "temp" / f"{asset_name}_extractor.json"
+    if extractor_json.exists():
+        asset_role = _get_asset_access_role(uploaded_file)
+        auto_refs = _refs_from_extractor(extractor_json, asset_access_role=asset_role)
+        if auto_refs:
+            if refs is None:
+                refs = []
+            refs.extend(auto_refs)
+
     if refs and manifest_path.exists():
         with manifest_path.open("r", encoding="utf-8") as f:
             manifest = json.load(f)
