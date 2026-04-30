@@ -3,6 +3,12 @@
 Parses a combined SHACL Turtle file to discover required and optional
 properties, compares against an existing JSON-LD instance, and prompts
 the user to fill in any missing values interactively.
+
+Supports two backends:
+
+* **local** — parse SHACL with rdflib (basic constraints only)
+* **api**   — delegate to the sd-creation-wizard-api which handles
+  conditional SHACL constructs (``sh:or``, ``sh:and``, ``sh:xone``)
 """
 
 from __future__ import annotations
@@ -282,7 +288,7 @@ def _compact(uri: str, prefix_map: dict) -> str:
 
 
 def run_wizard(jsonld_path: Path, shacl_path: Path, output_path: Path) -> bool:
-    """Run the interactive CLI wizard.
+    """Run the interactive CLI wizard using local SHACL parsing.
 
     Returns True if the JSON-LD was modified.
     """
@@ -300,7 +306,7 @@ def run_wizard(jsonld_path: Path, shacl_path: Path, output_path: Path) -> bool:
                         prefix_map[k] = v
 
     print(f"\n{'=' * 60}")
-    print("  SD Creation Wizard  (CLI)")
+    print("  SD Creation Wizard  (CLI — local mode)")
     print(f"{'=' * 60}")
     print(f"  JSON-LD : {jsonld_path.name}")
     print(f"  SHACL   : {shacl_path.name}")
@@ -308,6 +314,232 @@ def run_wizard(jsonld_path: Path, shacl_path: Path, output_path: Path) -> bool:
     print(f"  \033[91m*\033[0m = required field")
 
     modified = enrich(data, by_target, by_shape, prefix_map)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+    if modified:
+        print(f"\n\033[92m[OK]\033[0m Enhanced JSON-LD written to {output_path}")
+    else:
+        print(f"\n[OK] No changes — JSON-LD copied to {output_path}")
+
+    return modified
+
+
+# ── API-backed enrichment ───────────────────────────────────────────
+
+
+def _prompt_api_property(
+    constraint: dict, current: str | None = None
+) -> str | tuple[str, str] | None:
+    """Prompt the user for a single property based on API shape constraints.
+
+    Returns:
+        A string value for simple properties, a ``(prop_key, value)`` tuple
+        when an ``sh:or`` branch carries its own path, or *current* unchanged.
+    """
+    required = (constraint.get("minCount") or 0) >= 1
+    tag = "\033[91m*\033[0m" if required else " "
+    name = constraint.get("name", constraint.get("path", {}).get("value", "?"))
+
+    desc_map = constraint.get("description") or {}
+    desc = desc_map.get("en", "")
+
+    print(f"\n  {tag} {name}", end="")
+    if desc:
+        print(f"  —  {desc}", end="")
+    print()
+
+    if current is not None:
+        print(f"    Current: \033[92m{current}\033[0m")
+
+    # sh:or — let user pick which branch
+    or_options = constraint.get("or")
+    if or_options and isinstance(or_options, list):
+        print("    This property allows alternative types:")
+        for i, opt in enumerate(or_options, 1):
+            opt_path = opt.get("path", {})
+            opt_name = opt.get("name") or (
+                f"{opt_path.get('prefix', '')}:{opt_path.get('value', '')}"
+                if opt_path.get("value")
+                else f"Option {i}"
+            )
+            print(f"    {i}) {opt_name}")
+        raw = input(f"    Select [1–{len(or_options)}] (Enter to skip): ").strip()
+        if not raw:
+            return current
+        if raw.isdigit() and 1 <= int(raw) <= len(or_options):
+            selected = or_options[int(raw) - 1]
+            result = _prompt_api_property(selected, current)
+            # If the selected branch has its own path, return (key, value)
+            # so the caller knows which JSON-LD key to use.
+            branch_path = selected.get("path") or {}
+            if branch_path.get("value"):
+                branch_key = (
+                    f"{branch_path['prefix']}:{branch_path['value']}"
+                    if branch_path.get("prefix")
+                    else branch_path["value"]
+                )
+                val = result[1] if isinstance(result, tuple) else result
+                return (branch_key, val)
+            return result
+        print("    Invalid selection — keeping current value.")
+        return current
+
+    # sh:in — enumeration
+    in_options = constraint.get("in") or []
+    if in_options:
+        for i, opt in enumerate(in_options, 1):
+            val = opt.get("value", str(opt)) if isinstance(opt, dict) else str(opt)
+            marker = " \033[92m←\033[0m" if val == current else ""
+            print(f"    {i}) {val}{marker}")
+        raw = input(f"    Select [1–{len(in_options)}]: ").strip()
+        if not raw:
+            return current
+        if raw.isdigit() and 1 <= int(raw) <= len(in_options):
+            opt = in_options[int(raw) - 1]
+            return opt.get("value", str(opt)) if isinstance(opt, dict) else str(opt)
+        print("    Invalid selection — keeping current value.")
+        return current
+
+    # Typed input
+    dt = constraint.get("datatype") or {}
+    type_label = dt.get("value", "text") if isinstance(dt, dict) else "text"
+    hint = " (Enter to keep)" if current is not None else ""
+    raw = input(f"    [{type_label}]{hint}: ").strip()
+
+    if not raw:
+        return current
+    return raw
+
+
+def _enrich_from_api(
+    json_data: dict,
+    shapes: list[dict],
+    matched: dict[str, str],
+    prefix_list: list[dict],
+) -> bool:
+    """Walk the API shape model and prompt for missing/empty values.
+
+    Returns True if json_data was modified.
+    """
+    modified = False
+
+    for shape in shapes:
+        shape_name = shape.get("schema", "")
+        constraints = shape.get("constraints") or []
+        if not constraints:
+            continue
+
+        print(f"\n{'─' * 56}")
+        print(f"  {shape_name}")
+        print(f"{'─' * 56}")
+
+        for constraint in constraints:
+            # sh:or at the constraint level (no path on wrapper itself)
+            # — the branches carry their own paths.
+            or_options = constraint.get("or")
+            if (
+                or_options
+                and isinstance(or_options, list)
+                and not constraint.get("path")
+            ):
+                new_val = _prompt_api_property(constraint, None)
+                if isinstance(new_val, tuple):
+                    branch_key, branch_val = new_val
+                    if branch_val is not None:
+                        json_data[branch_key] = branch_val
+                        modified = True
+                continue
+
+            path_info = constraint.get("path") or {}
+            prefix = path_info.get("prefix", "")
+            value = path_info.get("value", "")
+            if not value:
+                continue
+
+            # Build the full property key used in the JSON-LD
+            prop_key = f"{prefix}:{value}" if prefix else value
+
+            # Children → nested shape (recurse when data available)
+            children_ref = constraint.get("children")
+            if children_ref:
+                # Find the nested shape
+                nested = next(
+                    (s for s in shapes if s.get("schema") == children_ref), None
+                )
+                if nested and isinstance(json_data.get(prop_key), dict):
+                    sub = _enrich_from_api(
+                        json_data[prop_key], [nested], matched, prefix_list
+                    )
+                    modified = modified or sub
+                continue
+
+            # Leaf property — check matched value and prompt
+            # Build possible URI keys for the matched map
+            ns_url = ""
+            for p in prefix_list:
+                if p.get("alias") == prefix:
+                    ns_url = p.get("url", "")
+                    break
+            full_uri = f"{ns_url}{value}" if ns_url else prop_key
+
+            current = matched.get(full_uri) or json_data.get(prop_key)
+            if isinstance(current, dict):
+                current = current.get("@value", current.get("value"))
+
+            new_val = _prompt_api_property(constraint, current)
+
+            # _prompt_api_property may return (key, value) for sh:or branches
+            if isinstance(new_val, tuple):
+                branch_key, branch_val = new_val
+                if branch_val is not None and branch_val != current:
+                    json_data[branch_key] = branch_val
+                    modified = True
+            elif new_val is not None and new_val != current:
+                json_data[prop_key] = new_val
+                modified = True
+
+    return modified
+
+
+def run_wizard_api(
+    jsonld_path: Path,
+    shacl_path: Path,
+    output_path: Path,
+    api_url: str,
+) -> bool:
+    """Run the wizard using the sd-creation-wizard-api backend.
+
+    The API resolves conditional SHACL constructs (sh:or, sh:and, etc.)
+    that the local parser cannot handle.
+
+    Returns True if the JSON-LD was modified.
+    """
+    from wizard_caller.api_client import convert_and_prefill
+
+    result = convert_and_prefill(api_url, shacl_path, jsonld_path)
+
+    shacl_model = result.get("shaclModel", {})
+    matched = result.get("matchedSubjects", {})
+    shapes = shacl_model.get("shapes", [])
+    prefix_list = shacl_model.get("prefixList", [])
+
+    with open(jsonld_path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    print(f"\n{'=' * 60}")
+    print("  SD Creation Wizard  (CLI — API mode)")
+    print(f"{'=' * 60}")
+    print(f"  JSON-LD  : {jsonld_path.name}")
+    print(f"  SHACL    : {shacl_path.name}")
+    print(f"  API      : {api_url}")
+    print(f"  Shapes   : {len(shapes)} resolved")
+    print(f"  Prefilled: {len(matched)} value(s)")
+    print(f"  \033[91m*\033[0m = required field")
+
+    modified = _enrich_from_api(data, shapes, matched, prefix_list)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
