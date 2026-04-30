@@ -12,43 +12,6 @@ FORMAT_ALIASES = {
     "3dmodel": "3dModel",
 }
 
-# manual assignment of local country name (Germany) to alpha-2 -> OSM only receives local name, but for alpha 2 code you need the English name.
-COUNTRY_NAME_TO_ALPHA2 = {
-    "Deutschland": "DE",
-    "Österreich": "AT",
-    "Schweiz": "CH",
-    "Italia": "IT",
-    "España": "ES",
-    "Portugal": "PT",
-    "Nederland": "NL",
-    "Belgique": "BE",
-    "Danmark": "DK",
-    "Sverige": "SE",
-    "Norge": "NO",
-    "Suomi": "FI",
-    "Polska": "PL",
-    "Česká republika": "CZ",
-    "Magyarország": "HU",
-    "Ελλάδα": "GR",
-    "Türkiye": "TR",
-    "United Kingdom": "GB",
-    "Ireland": "IE",
-    "United States": "US",
-    "Canada": "CA",
-    "México": "MX",
-    "Brasil": "BR",
-    "Argentina": "AR",
-    "Chile": "CL",
-    "Australia": "AU",
-    "New Zealand": "NZ",
-    "日本": "JP",
-    "中国": "CN",
-    "Россия": "RU",
-    "भारत": "IN",
-    "South Africa": "ZA",
-    # Todo, add more
-}
-
 CONVERT_GERMAN_UMLAUT = {
     "ä": "ae",
     "ö": "oe",
@@ -103,20 +66,35 @@ def get_adress_from_osm(data_dict, latitude, longitude):
         )
         return False
 
-    country_name = address.get("country", "")
-    data_dict["georeference:country"] = replace_german_umlauts(
-        str(
-            address.get("country_code", COUNTRY_NAME_TO_ALPHA2.get(country_name, "DE"))
-        ).upper()
+    # Nominatim always provides country_code (ISO 3166-1 alpha-2, lowercase).
+    # We uppercase it and omit the field when absent (e.g. ocean coordinates).
+    country_code = address.get("country_code", "").upper()
+    if country_code:
+        data_dict["georeference:country"] = country_code
+
+    # Nominatim returns ISO 3166-2 codes at varying admin levels depending on
+    # the country.  Try the most common levels (4, 3, 6) before falling back to
+    # the free-text "state" field.  City-states like Singapore may not have any
+    # subdivision at all — in that case we simply omit the optional field so
+    # SHACL validation does not fail on an empty string.
+    state = (
+        address.get("ISO3166-2-lvl4")
+        or address.get("ISO3166-2-lvl3")
+        or address.get("ISO3166-2-lvl6")
+        or address.get("state", "")
     )
-    data_dict["georeference:state"] = address.get(
-        "ISO3166-2-lvl4", address.get("state", "")
-    )
-    # data_dict['postcode'] = address.get('postcode', '')
-    data_dict["georeference:region"] = replace_german_umlauts(address.get("county", ""))
-    data_dict["georeference:city"] = replace_german_umlauts(
+    if state:
+        data_dict["georeference:state"] = state
+
+    region = replace_german_umlauts(address.get("county", ""))
+    if region:
+        data_dict["georeference:region"] = region
+
+    city = replace_german_umlauts(
         address.get("city", address.get("town", address.get("village", "")))
     )
+    if city:
+        data_dict["georeference:city"] = city
     return True
 
 

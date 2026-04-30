@@ -1,10 +1,13 @@
 """Tests for GeoJSON converter."""
 
+import json
 import textwrap
 
 import pytest
 
 from xodr_to_geojson_caller.converter.geojson import (
+    CONVERTERS,
+    convert_all,
     convert_junctions,
     convert_lane_break_lines,
     convert_lane_sections,
@@ -278,3 +281,79 @@ class TestConvertJunctionsGeometry:
         fc = convert_junctions(odr, step=10.0)
         coords = fc["features"][0]["geometry"]["coordinates"]
         assert len(coords) > 0
+
+
+# -- convert_all options -------------------------------------------------------
+
+
+class TestConvertAllConverterSelection:
+    """Test that convert_all respects the converters parameter."""
+
+    def test_all_converters_by_default(self, odr, tmp_path):
+        convert_all(odr, output_dir=tmp_path, step=10.0)
+        produced = {p.name for p in tmp_path.iterdir()}
+        assert produced == set(CONVERTERS.keys())
+
+    def test_subset_converters(self, odr, tmp_path):
+        convert_all(
+            odr,
+            output_dir=tmp_path,
+            step=10.0,
+            converters=["refLine.json", "roads.json"],
+        )
+        produced = {p.name for p in tmp_path.iterdir()}
+        assert produced == {"refLine.json", "roads.json"}
+
+    def test_unknown_converter_ignored(self, odr, tmp_path):
+        convert_all(
+            odr,
+            output_dir=tmp_path,
+            step=10.0,
+            converters=["refLine.json", "nonexistent.json"],
+        )
+        produced = {p.name for p in tmp_path.iterdir()}
+        assert produced == {"refLine.json"}
+
+    def test_empty_converter_list_produces_nothing(self, odr, tmp_path):
+        convert_all(odr, output_dir=tmp_path, step=10.0, converters=[])
+        produced = list(tmp_path.iterdir())
+        assert produced == []
+
+
+class TestConvertAllCompact:
+    """Test compact JSON output mode."""
+
+    def test_compact_produces_single_line_json(self, odr, tmp_path):
+        convert_all(
+            odr,
+            output_dir=tmp_path,
+            step=10.0,
+            converters=["refLine.json"],
+            compact=True,
+        )
+        content = (tmp_path / "refLine.json").read_text(encoding="utf-8")
+        # Compact JSON has no indentation — the entire file is one line
+        assert "\n" not in content.strip()
+
+    def test_non_compact_produces_indented_json(self, odr, tmp_path):
+        convert_all(
+            odr,
+            output_dir=tmp_path,
+            step=10.0,
+            converters=["refLine.json"],
+            compact=False,
+        )
+        content = (tmp_path / "refLine.json").read_text(encoding="utf-8")
+        assert "\n" in content
+
+    def test_compact_is_valid_json(self, odr, tmp_path):
+        convert_all(
+            odr,
+            output_dir=tmp_path,
+            step=10.0,
+            converters=["refLine.json"],
+            compact=True,
+        )
+        content = (tmp_path / "refLine.json").read_text(encoding="utf-8")
+        data = json.loads(content)
+        assert data["type"] == "FeatureCollection"

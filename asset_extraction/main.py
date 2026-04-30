@@ -29,9 +29,51 @@ logger = logging.getLogger(__name__)
 asset_types = {"xodr": "hdmap", "xosc": "scenario", "3dmodel": "environment-model"}
 
 
+def _config_filename_to_module_id(filename: str) -> str:
+    """Derive a module identifier from a config filename.
+
+    E.g. 'config_vcs_odr-converter.json' -> 'vcs_odr-converter'
+    """
+    return filename.removeprefix("config_").removesuffix(".json")
+
+
+def list_modules(config_dir: Path) -> list[dict]:
+    """Return list of modules with their id, filename, enabled state, and extensions."""
+    process_file = config_dir / "process.json"
+    if not process_file.exists():
+        raise FileNotFoundError(f"config file {process_file} not exists")
+    with process_file.open("r") as file:
+        config_process = json.load(file)
+
+    modules = []
+    for config in config_process.get("config_files", []):
+        filename = config["filename"]
+        modules.append(
+            {
+                "id": _config_filename_to_module_id(filename),
+                "filename": filename,
+                "enabled": config.get("enable", False),
+                "extensions": config.get("extensions", []),
+            }
+        )
+    return modules
+
+
 # load configurations depending on asset type
-def get_configs(config_dir: Path, asset_file: Path) -> tuple[list, dict]:
-    """Return (configs, source_filenames) where source_filenames maps index to filename."""
+def get_configs(
+    config_dir: Path,
+    asset_file: Path,
+    enable_modules: list[str] | None = None,
+    disable_modules: list[str] | None = None,
+) -> tuple[list, dict]:
+    """Return (configs, source_filenames) where source_filenames maps index to filename.
+
+    Args:
+        config_dir: Path to the configs directory.
+        asset_file: The asset file being processed.
+        enable_modules: If provided, only these modules are run (whitelist).
+        disable_modules: If provided, these modules are skipped (blacklist).
+    """
     # get asset extension
     asset_type_extension = get_asset_type_extension(asset_file)
 
@@ -42,16 +84,26 @@ def get_configs(config_dir: Path, asset_file: Path) -> tuple[list, dict]:
     with process_file.open("r") as file:
         config_process = json.load(file)
 
-    # filter for asset_type
+    # filter for asset_type and apply enable/disable overrides
     config_files = []
     for config in config_process.get("config_files", []):
-        enabled = config.get("enable", False)
-        if enabled is True:
+        filename = config["filename"]
+        module_id = _config_filename_to_module_id(filename)
+
+        # Determine if module is enabled (CLI flags override process.json)
+        if enable_modules is not None:
+            enabled = module_id in enable_modules
+        elif disable_modules is not None:
+            enabled = config.get("enable", False) and module_id not in disable_modules
+        else:
+            enabled = config.get("enable", False)
+
+        if enabled:
             if "extensions" in config:
                 if asset_type_extension in config["extensions"]:
-                    config_files.append(config["filename"])
+                    config_files.append(filename)
             else:
-                config_files.append(config["filename"])
+                config_files.append(filename)
 
     # load configs
     configs = []
@@ -340,13 +392,15 @@ def main():
     parser.add_argument(
         "filename",
         type=str,
+        nargs="?",
+        default=None,
         help="path to input_manifest.json",
     )
     parser.add_argument(
         "-config", type=str, required=True, help="config path for sub tools."
     )
     parser.add_argument(
-        "-out", type=str, required=True, help="output path for asset archive."
+        "-out", type=str, default=None, help="output path for asset archive."
     )
     parser.add_argument(
         "-zip-dir",
@@ -354,7 +408,51 @@ def main():
         default="",
         help="optional output directory for the generated archive",
     )
+    parser.add_argument(
+        "-enable",
+        nargs="+",
+        default=None,
+        metavar="MODULE",
+        help="only run these modules (whitelist; overrides process.json)",
+    )
+    parser.add_argument(
+        "-disable",
+        nargs="+",
+        default=None,
+        metavar="MODULE",
+        help="skip these modules (blacklist; overrides process.json)",
+    )
+    parser.add_argument(
+        "-list-modules",
+        action="store_true",
+        default=False,
+        help="list available pipeline modules and exit",
+    )
     args = parser.parse_args()
+
+    config_dir = Path(args.config) if args.config else Path("configs")
+    config_dir = config_dir.resolve()
+
+    # Handle --list-modules: print available modules and exit
+    if args.list_modules:
+        if not config_dir.is_dir():
+            raise FileNotFoundError(f"config path {config_dir} not exists")
+        modules = list_modules(config_dir)
+        print(f"{'MODULE ID':<45} {'ENABLED':<9} {'EXTENSIONS'}")
+        print("-" * 75)
+        for m in modules:
+            ext = ", ".join(m["extensions"]) if m["extensions"] else "all"
+            enabled_str = "yes" if m["enabled"] else "no"
+            print(f"{m['id']:<45} {enabled_str:<9} {ext}")
+        raise SystemExit(0)
+
+    if args.enable and args.disable:
+        parser.error("-enable and -disable are mutually exclusive")
+
+    if not args.filename:
+        parser.error("the following arguments are required: filename")
+    if not args.out:
+        parser.error("the following arguments are required: -out")
 
     output_dir = Path(args.out)
     output_dir = output_dir.resolve()
@@ -368,11 +466,14 @@ def main():
         raise FileNotFoundError(f"asset file {asset_file} not exists")
 
     # load all configs that are applicable to the asset type
-    config_dir = Path(args.config)
-    config_dir = config_dir.resolve()
     if not config_dir.is_dir():
         raise FileNotFoundError(f"config path {config_dir} not exists")
-    applicable_scripts, source_filenames = get_configs(config_dir, asset_file)
+    applicable_scripts, source_filenames = get_configs(
+        config_dir,
+        asset_file,
+        enable_modules=args.enable,
+        disable_modules=args.disable,
+    )
 
     # create, cleanup output directory for the asset file
     asset_name = asset_file.stem
