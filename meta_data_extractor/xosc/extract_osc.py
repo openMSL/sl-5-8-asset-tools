@@ -1647,7 +1647,7 @@ def get_content_data(
             map(str, custom_commands)
         )
 
-    # sunAzimuth
+    # sunAzimuth & weatherSummary from EnvironmentAction elements
     environ_actions = []
     environ_actions.extend(osc.scenario_et.findall(".//EnvironmentAction"))
     for catalogs in osc.catalogs.values():
@@ -1658,7 +1658,6 @@ def get_content_data(
         for environ_action in environ_actions:
             env = environ_action.find(".//Environment")
             if env is not None:
-                environment_conditions += convert_env_to_string + separator
                 sun = env.find(".//Sun")
                 if sun is not None:
                     sun_azimuth.add(sun.attrib["azimuth"])
@@ -1666,6 +1665,9 @@ def get_content_data(
             content_dict[f"{get_name_lower()}:sunAzimuth"] = ", ".join(
                 map(str, sun_azimuth)
             )
+        weather_summary = _derive_weather_summary(environ_actions)
+        if weather_summary:
+            content_dict[f"{get_name_lower()}:weatherSummary"] = weather_summary
 
     # countrySpecificSign
     country_specific_sign = set()
@@ -1793,22 +1795,53 @@ def set_manifest_data(
     return
 
 
-def convert_env_to_string(env: etree._Element) -> str:
-    val = ""
-    tod = env.find("TimeOfDay")
-    val += f"time of day: {tod.attrib['dateTime']}"
-    weather = env.find("Weather")
-    val += f", 	CloudState: {weather.attrib['cloudState']}"
-    sun = weather.find("Sun")
-    val += f", 	sun intensity: {sun.attrib['intensity']}"
-    val += f", 	sun azimuth: {sun.attrib['azimuth']}"
-    val += f", 	sun elevation: {sun.attrib['elevation']}"
-    fog = weather.find("Fog")
-    val += f", 	visuale range: {fog.attrib['visualRange']}"
-    precipitation = weather.find("Precipitation")
-    val += f", 	precipitation type: {precipitation.attrib['precipitationType']}"
-    val += f", 	precipitation intensity: {precipitation.attrib['intensity']}"
-    return val
+def _derive_weather_summary(environ_actions: list) -> str:
+    """Derive a coarse weatherSummary from EnvironmentAction elements.
+
+    Maps OpenSCENARIO precipitation/fog/cloud/sun XML to the ontology enum:
+    clear | rain | snow | fog | icy_conditions | night | windy | mixed | not_specified
+    """
+    indicators: set[str] = set()
+
+    for action in environ_actions:
+        env = action.find(".//Environment")
+        if env is None:
+            continue
+
+        weather = env.find(".//Weather")
+        if weather is not None:
+            precip = weather.find(".//Precipitation")
+            if precip is not None:
+                ptype = precip.get("precipitationType", "").lower()
+                intensity = float(precip.get("intensity", "0") or "0")
+                if ptype == "rain" and intensity > 0:
+                    indicators.add("rain")
+                elif ptype == "snow" and intensity > 0:
+                    indicators.add("snow")
+
+            fog_el = weather.find(".//Fog")
+            if fog_el is not None:
+                vis_range = float(fog_el.get("visualRange", "10000") or "10000")
+                if vis_range < 1000:
+                    indicators.add("fog")
+
+            wind = weather.find(".//Wind")
+            if wind is not None:
+                speed = float(wind.get("speed", "0") or "0")
+                if speed > 10:
+                    indicators.add("windy")
+
+        sun = env.find(".//Sun")
+        if sun is not None:
+            elevation = float(sun.get("elevation", "0.5") or "0.5")
+            if elevation < 0:
+                indicators.add("night")
+
+    if not indicators:
+        return "clear"
+    if len(indicators) == 1:
+        return indicators.pop()
+    return "mixed"
 
 
 def get_meta_data(
