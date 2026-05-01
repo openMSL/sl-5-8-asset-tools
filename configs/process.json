@@ -26,6 +26,13 @@
 		},
 		{
 			"enable": true,
+			"filename": "config_openlabel_creator.json",
+			"extensions": [
+				"xosc"
+			]
+		},
+		{
+			"enable": true,
 			"filename": "config_3dmodel_meta_data_extractor.json",
 			"extensions": [
 				"3dmodel"
