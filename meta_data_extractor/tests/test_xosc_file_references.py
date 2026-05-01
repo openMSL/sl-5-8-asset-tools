@@ -99,42 +99,43 @@ class TestLoadOpenscenarioFileReferences:
     """Verify file reference extraction from OpenSCENARIO files."""
 
     def test_logic_file_reference(self, xosc_with_refs):
-        from meta_data_extractor.xosc.extract_osc import load_openscenario_file
+        from meta_data_extractor.xosc.extract_osc import _discover_file_references
 
-        osc = load_openscenario_file(xosc_with_refs)
-        logic_refs = [r for r in osc.file_references if r["type"] == "LogicFile"]
+        refs = _discover_file_references(xosc_with_refs)
+        logic_refs = [r for r in refs if r["type"] == "LogicFile"]
         assert len(logic_refs) == 1
         assert logic_refs[0]["path"] == "map/road.xodr"
         assert "relativePath" in logic_refs[0]
 
     def test_scene_graph_reference(self, xosc_with_refs):
-        from meta_data_extractor.xosc.extract_osc import load_openscenario_file
+        from meta_data_extractor.xosc.extract_osc import _discover_file_references
 
-        osc = load_openscenario_file(xosc_with_refs)
-        sg_refs = [r for r in osc.file_references if r["type"] == "SceneGraphFile"]
+        refs = _discover_file_references(xosc_with_refs)
+        sg_refs = [r for r in refs if r["type"] == "SceneGraphFile"]
         assert len(sg_refs) == 1
         assert sg_refs[0]["path"] == "models/scene.gltf"
 
     def test_catalog_reference(self, xosc_with_refs):
-        from meta_data_extractor.xosc.extract_osc import load_openscenario_file
+        from meta_data_extractor.xosc.extract_osc import _discover_file_references
 
-        osc = load_openscenario_file(xosc_with_refs)
-        cat_refs = [r for r in osc.file_references if r["type"].startswith("Catalog:")]
+        refs = _discover_file_references(xosc_with_refs)
+        cat_refs = [r for r in refs if r["type"].startswith("Catalog:")]
         assert len(cat_refs) >= 1
         assert any("car.xosc" in r.get("path", "") for r in cat_refs)
 
     def test_no_refs_when_absent(self, xosc_no_refs):
-        from meta_data_extractor.xosc.extract_osc import load_openscenario_file
+        from meta_data_extractor.xosc.extract_osc import _discover_file_references
 
-        osc = load_openscenario_file(xosc_no_refs)
-        assert osc.file_references == []
+        refs = _discover_file_references(xosc_no_refs)
+        assert refs == []
 
-    def test_map_location_set(self, xosc_with_refs):
-        from meta_data_extractor.xosc.extract_osc import load_openscenario_file
+    def test_map_location_resolved(self, xosc_with_refs):
+        from meta_data_extractor.xosc.extract_osc import _discover_file_references
 
-        osc = load_openscenario_file(xosc_with_refs)
-        assert osc.map_location is not None
-        assert osc.map_location.name == "road.xodr"
+        refs = _discover_file_references(xosc_with_refs)
+        logic_refs = [r for r in refs if r["type"] == "LogicFile"]
+        assert len(logic_refs) == 1
+        assert "road.xodr" in logic_refs[0].get("relativePath", "")
 
 
 class TestRefsFromExtractor:

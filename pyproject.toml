@@ -19,10 +19,12 @@ dependencies = [
     "Pillow",
     "pyproj",
     "pyshacl>=0.31.0",
+    "PyYAML",
     "rdflib>=7.5.0",
     "requests",
     "simplekml",
     "sympy",
+    "xmlschema",
 ]
 
 [project.optional-dependencies]
@@ -37,7 +39,6 @@ qc = [
 qc-deps = [
     "pyclothoids",
     "transforms3d",
-    "xmlschema",
     "semver",
     "pydantic-xml",
     "scipy",
