@@ -490,7 +490,7 @@ def score_shape_match(shape_properties: list, data_dict: dict) -> int:
         path = get_value("path", prop)
         if path:
             ns, ln = get_namespace_name_from_url(path)
-            # Create the key as it appears in the source JSON (e.g., "gx:name")
+            # Create the key as it appears in the source JSON (e.g., "schema:name")
             prop_key = create_namespace_name(ns, ln)
             if prop_key in data_keys:
                 score += 1

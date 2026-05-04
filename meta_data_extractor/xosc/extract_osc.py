@@ -166,12 +166,12 @@ def extract_meta_data(file: Path) -> Tuple[bool, dict]:
 
     # Resource description
     resource_desc: dict = {}
-    resource_desc["gx:name"] = file.stem
+    resource_desc["schema:name"] = file.stem
     description = extracted.pop("scenario:description", None)
     if description:
-        resource_desc["gx:description"] = description
+        resource_desc["schema:description"] = description
     else:
-        resource_desc["gx:description"] = "OpenSCENARIO file"
+        resource_desc["schema:description"] = "OpenSCENARIO file"
     enrich_resource_description(resource_desc, file)
     meta_data_dict["scenario:hasResourceDescription"] = resource_desc
 
