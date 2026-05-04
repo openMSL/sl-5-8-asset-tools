@@ -201,8 +201,8 @@ def extract_meta_data(file: Path) -> Tuple[bool, dict]:
 
     # Resource description
     resource_desc: dict = {}
-    resource_desc["gx:name"] = file.stem
-    resource_desc["gx:description"] = "road network"
+    resource_desc["schema:name"] = file.stem
+    resource_desc["schema:description"] = "road network"
     enrich_resource_description(resource_desc, file)
     meta_data_dict["hdmap:hasResourceDescription"] = resource_desc
 

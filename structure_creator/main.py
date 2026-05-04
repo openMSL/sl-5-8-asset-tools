@@ -381,16 +381,18 @@ def get_name_description_from_domainMetadata(filename, type):
     with open(filename, "r", encoding="utf-8") as file:
         data = json.load(file)
 
-    name = safe_get(data, [f"{type}:hasResourceDescription", "gx:name"])
+    name = safe_get(data, [f"{type}:hasResourceDescription", "schema:name"])
     if not name:
         logger.error(
-            f"name : {type}:hasResourceDescription -> gx:name not exists in {filename}"
+            f"name : {type}:hasResourceDescription -> schema:name not exists in {filename}"
         )
 
-    description = safe_get(data, [f"{type}:hasResourceDescription", "gx:description"])
+    description = safe_get(
+        data, [f"{type}:hasResourceDescription", "schema:description"]
+    )
     if not description:
         logger.error(
-            f"description: {type}:hasResourceDescription -> gx:description not exists in {filename}"
+            f"description: {type}:hasResourceDescription -> schema:description not exists in {filename}"
         )
 
     return name, description
