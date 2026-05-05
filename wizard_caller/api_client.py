@@ -1,13 +1,14 @@
 """HTTP client for the SD Creation Wizard API.
 
-Delegates SHACL parsing and JSON-LD pre-filling to the sd-creation-wizard-api
-service (Spring Boot) which correctly handles conditional SHACL constructs
-(sh:or, sh:and, sh:xone) that the local rdflib-based parser cannot resolve.
+Delegates SHACL parsing and JSON-LD pre-filling to the sd-creation-wizard
+TypeScript API (Hono/N3.js) which correctly handles conditional SHACL
+constructs (sh:or, sh:and, sh:xone) that the local rdflib-based parser
+cannot resolve.
 
 The API is expected to run at ``WIZARD_API_URL`` (default
 ``http://localhost:8080``) — start it via::
 
-    docker compose -f docker-compose.wizard.yml up -d sd-creation-wizard-api
+    cd submodules/sd-creation-wizard && pnpm --filter @sd-creation-wizard/api dev
 """
 
 from __future__ import annotations
@@ -57,7 +58,7 @@ def convert_and_prefill(
     except requests.ConnectionError as exc:
         raise WizardAPIError(
             f"Cannot connect to Wizard API at {api_url}. "
-            f"Start it with: docker compose -f docker-compose.wizard.yml up -d sd-creation-wizard-api"
+            f"Start it with: cd submodules/sd-creation-wizard && pnpm --filter @sd-creation-wizard/api dev"
         ) from exc
     except requests.Timeout as exc:
         raise WizardAPIError(f"Wizard API request timed out after {timeout}s") from exc

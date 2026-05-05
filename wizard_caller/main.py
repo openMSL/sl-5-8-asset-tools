@@ -7,7 +7,7 @@ simply copies the input JSON-LD to the output path unchanged.
 Supports two backends (selected via ``-api-url``):
 
 * **local** (default) — parse SHACL with rdflib (basic constraints)
-* **api**   — delegate to the sd-creation-wizard-api for full SHACL
+* **api**   — delegate to the sd-creation-wizard TypeScript API for full SHACL
   support including ``sh:or``, ``sh:and``, ``sh:xone``
 """
 
@@ -40,7 +40,7 @@ def main():
         "-api-url",
         default=None,
         help=(
-            "URL of the sd-creation-wizard-api (e.g. http://localhost:8080). "
+            "URL of the sd-creation-wizard API (e.g. http://localhost:8080). "
             "Falls back to env var WIZARD_API_URL. "
             "If set, uses the API backend for full SHACL support (sh:or, etc.)"
         ),

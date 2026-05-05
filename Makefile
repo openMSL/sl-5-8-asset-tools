@@ -4,6 +4,7 @@
 # Allow parent makefiles to override the venv path/tooling.
 VENV ?= .venv
 OMB  := submodules/ontology-management-base
+WIZARD_DIR := submodules/sd-creation-wizard
 GIT  ?= git
 
 # OS detection for cross-platform support (Windows vs Unix)
@@ -55,35 +56,18 @@ all: check
 
 setup:
 ifeq ($(SUBCMD),wizard)
-	@if command -v podman >/dev/null 2>&1; then \
-		echo "[OK] Podman is already installed."; \
-	elif [ "$(OS)" = "Windows_NT" ]; then \
-		echo "[INFO] Installing Podman Desktop via winget..."; \
-		winget install --id RedHat.Podman-Desktop --source winget --accept-source-agreements --accept-package-agreements; \
-		winget install --id RedHat.Podman --source winget --accept-source-agreements --accept-package-agreements; \
-		echo ""; \
-		echo "[OK] Podman installed."; \
-		echo ""; \
-		echo "  Next steps (one-time, requires an admin terminal):"; \
-		echo "    wsl --install --no-distribution   (reboot required)"; \
-		echo "    podman machine init"; \
-		echo "    podman machine start"; \
-		echo ""; \
-		echo "  Or open Podman Desktop from the Start menu -- it will guide you through setup."; \
-		echo "  Then restart your shell and run 'make wizard'."; \
-	else \
-		echo "[INFO] Installing Podman via apt..."; \
-		sudo apt-get update -qq && sudo apt-get install -y -qq podman podman-compose; \
-		echo "[OK] Podman installed. Run 'make wizard' to start."; \
+	@if ! command -v node >/dev/null 2>&1; then \
+		echo "[ERR] Node.js is required for the wizard. Install Node.js 20+ first."; \
+		exit 1; \
 	fi
-	@if [ "$(OS)" = "Windows_NT" ] && command -v podman >/dev/null 2>&1; then \
-		if ! command -v podman-compose >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then \
-			echo "[INFO] Installing podman-compose..."; \
-			"$(PYTHON)" -m pip install podman-compose --quiet 2>/dev/null \
-				|| pip install podman-compose --quiet; \
-			echo "[OK] podman-compose installed."; \
-		fi; \
+	@if ! command -v pnpm >/dev/null 2>&1; then \
+		echo "[INFO] Installing pnpm via corepack..."; \
+		corepack enable && corepack prepare pnpm@latest --activate; \
 	fi
+	@echo "[INFO] Installing wizard dependencies..."
+	@cd "$(WIZARD_DIR)" && pnpm install
+	@cd "$(WIZARD_DIR)" && pnpm --filter @sd-creation-wizard/shacl-core build
+	@echo "[OK] Wizard setup complete. Run 'make wizard' to start."
 else
 	@if [ -f .gitmodules ]; then \
 		if ! command -v $(GIT) >/dev/null 2>&1; then \
@@ -281,97 +265,51 @@ else
 	echo "[OK] $$dir pipeline complete"
 endif
 
-# ── Wizard (SD Creation Wizard frontend + API) ───────────────────────
-
-COMPOSE_WIZARD := podman compose -f docker-compose.wizard.yml -p sl58-wizard
-
-# Optional: mount corporate Maven / npm config into container builds.
-#   make wizard MAVEN_SETTINGS=~/.m2 NPM_CONFIG=~/.npmrc
-# When either is set, images are built individually with --volume flags
-# before starting compose (podman-compose does not support build volumes).
-MAVEN_SETTINGS ?=
-NPM_CONFIG     ?=
+# ── Wizard (SD Creation Wizard API) ──────────────────────────────────
 
 wizard:
 ifeq ($(SUBCMD),stop)
-	@$(COMPOSE_WIZARD) down
-	@echo "[OK] Wizard stopped"
+	@if [ -f /tmp/sd-wizard-api.pid ]; then \
+		pid=$$(cat /tmp/sd-wizard-api.pid); \
+		if kill -0 $$pid 2>/dev/null; then \
+			kill -- -$$pid 2>/dev/null || kill $$pid; \
+			echo "[OK] Wizard API stopped (PID $$pid)"; \
+		else \
+			echo "[INFO] Wizard API was not running"; \
+		fi; \
+		rm -f /tmp/sd-wizard-api.pid; \
+	else \
+		echo "[INFO] No PID file found — wizard may not be running"; \
+	fi
 else
-	@if ! command -v podman >/dev/null 2>&1; then \
-		"$(MAKE)" --no-print-directory setup wizard; \
-		echo ""; \
-		echo "[INFO] Restart your shell and start Podman Desktop, then run 'make wizard' again."; \
-		exit 0; \
-	fi
-	@if [ "$(OS)" = "Windows_NT" ]; then \
-		if ! podman machine inspect >/dev/null 2>&1; then \
-			echo "[INFO] No Podman machine found. Initialising..."; \
-			podman machine init; \
-		fi; \
-		if [ "$$(podman machine inspect --format '{{.State}}' 2>/dev/null)" != "running" ]; then \
-			echo "[INFO] Starting Podman machine..."; \
-			podman machine start; \
-		fi; \
-	fi
-	@if ! command -v podman-compose >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then \
-		echo "[INFO] No compose provider found. Installing podman-compose..."; \
-		"$(PYTHON)" -m pip install podman-compose --quiet 2>/dev/null \
-			|| pip install podman-compose --quiet; \
-	fi
-	@"$(PYTHON)" -c "\
-	import importlib, re, pathlib; \
-	mod = importlib.import_module('podman_compose'); \
-	p = pathlib.Path(mod.__file__); src = p.read_text(); \
-	bad = 'dockerfile = os.path.normpath(os.path.join(ctx, dockerfile))'; \
-	fix = 'dockerfile = os.path.normpath(dockerfile)'; \
-	p.write_text(src.replace(bad, fix)) if bad in src else None; \
-	" 2>/dev/null || true
-	@echo "[INFO] Building and starting SD Creation Wizard..."
-	@vol_args=""; \
-	if [ -n "$(MAVEN_SETTINGS)" ]; then \
-		_p=$$(eval echo "$(MAVEN_SETTINGS)"); \
-		vol_args="$$vol_args --volume $$_p:/root/.m2:z"; \
-	fi; \
-	if [ -n "$(NPM_CONFIG)" ]; then \
-		_p=$$(eval echo "$(NPM_CONFIG)"); \
-		vol_args="$$vol_args --volume $$_p:/root/.npmrc:z"; \
-	fi; \
-	build_ok=true; \
-	if [ -n "$$vol_args" ]; then \
-		echo "[INFO] Custom build volumes:$$vol_args"; \
-		podman build $$vol_args \
-			-f submodules/sd-creation-wizard-api/deployment/docker/Dockerfile \
-			-t sd-creation-wizard-api:local \
-			submodules/sd-creation-wizard-api || build_ok=false; \
-		if $$build_ok; then \
-			podman build $$vol_args \
-				-f submodules/sd-creation-wizard-frontend/deployment/docker/Dockerfile \
-				-t sd-creation-wizard:local \
-				submodules/sd-creation-wizard-frontend || build_ok=false; \
-		fi; \
-	fi; \
-	if ! $$build_ok; then \
-		echo ""; \
-		echo "[ERR] Image build failed. Check the errors above."; \
+	@if ! command -v node >/dev/null 2>&1; then \
+		echo "[ERR] Node.js is required. Install it first."; \
 		exit 1; \
-	fi; \
-	compose_build=""; \
-	if [ -z "$$vol_args" ]; then compose_build="--build"; fi; \
-	if $(COMPOSE_WIZARD) up $$compose_build -d; then \
+	fi
+	@if ! command -v pnpm >/dev/null 2>&1; then \
+		echo "[INFO] Installing pnpm via corepack..."; \
+		corepack enable && corepack prepare pnpm@latest --activate; \
+	fi
+	@if [ ! -d "$(WIZARD_DIR)/node_modules" ]; then \
+		echo "[INFO] Installing wizard dependencies..."; \
+		cd "$(WIZARD_DIR)" && pnpm install; \
+	fi
+	@if [ ! -d "$(WIZARD_DIR)/packages/shacl-core/dist" ]; then \
+		echo "[INFO] Building shacl-core..."; \
+		cd "$(WIZARD_DIR)" && pnpm --filter @sd-creation-wizard/shacl-core build; \
+	fi
+	@echo "[INFO] Starting SD Creation Wizard API..."
+	@cd "$(WIZARD_DIR)/apps/api" && setsid nohup npx tsx src/index.ts > /tmp/sd-wizard-api.log 2>&1 & echo $$! > /tmp/sd-wizard-api.pid
+	@sleep 2
+	@if kill -0 $$(cat /tmp/sd-wizard-api.pid) 2>/dev/null; then \
 		echo ""; \
-		echo "[OK] Wizard is running:"; \
-		echo "  Frontend: http://localhost:4200"; \
-		echo "  API:      http://localhost:8080"; \
+		echo "[OK] Wizard API is running:"; \
+		echo "  API: http://localhost:8080"; \
 		echo ""; \
 		echo "  Stop with:  make wizard stop"; \
 	else \
-		echo ""; \
-		echo "[ERR] Failed to start the wizard. Check the errors above."; \
-		echo ""; \
-		echo "  Common causes:"; \
-		echo "    - Podman machine not running  →  podman machine start"; \
-		echo "    - Corporate proxy             →  see README \"Corporate Network\" section"; \
-		echo "    - Port already in use          →  make wizard stop, then retry"; \
+		echo "[ERR] Wizard API failed to start. Check errors above."; \
+		rm -f /tmp/sd-wizard-api.pid; \
 		exit 1; \
 	fi
 endif
@@ -434,10 +372,9 @@ help:
 	@echo "  Note: xodr_to_geojson_caller (vcs_odr-converter) is disabled by default."
 	@echo "        Enable with: PIPELINE_FLAGS='-enable vcs_odr-converter'"
 	@echo ""
-	@echo "  make wizard                  Start SD Creation Wizard (Podman, auto-setup if needed)"
-	@echo "  make wizard stop             Stop the wizard containers"
-	@echo "  make setup wizard            Install Podman + compose provider (called by wizard)"
-	@echo "  make wizard MAVEN_SETTINGS=~/.m2 NPM_CONFIG=~/.npmrc"
+	@echo "  make wizard                  Start SD Creation Wizard API (Node.js)"
+	@echo "  make wizard stop             Stop the wizard API"
+	@echo "  make setup wizard            Install Node.js wizard dependencies"
 	@echo "                               Build with custom Maven/npm config (corporate mirrors)"
 	@echo ""
 	@echo "  make clean                   Remove build artifacts and caches"
