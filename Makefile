@@ -32,6 +32,12 @@ SUBCMD = $(word 2,$(MAKECMDGOALS))
 # Allow parent makefiles to pass pipeline flags (e.g., -enable / -disable modules).
 PIPELINE_FLAGS ?=
 
+# WIZARD=true enables the interactive metadata wizard during pipeline runs.
+# Exports WIZARD_ENABLED env var which wizard_caller checks at runtime.
+ifdef WIZARD
+export WIZARD_ENABLED := true
+endif
+
 # Example directory mapping for `make generate <example>`
 EXAMPLE_opendrive    := OpenDRIVE
 EXAMPLE_openscenario := OpenSCENARIO
@@ -94,6 +100,18 @@ else
 		echo "[WARN] OMB submodule not initialised – skipping."; \
 	fi
 	@"$(PYTHON)" -m pre_commit install --allow-missing-config >/dev/null 2>&1 || true
+	@if command -v node >/dev/null 2>&1; then \
+		echo "[INFO] Setting up wizard (Node.js found)..."; \
+		if ! command -v pnpm >/dev/null 2>&1; then \
+			echo "[INFO] Installing pnpm via corepack..."; \
+			corepack enable && corepack prepare pnpm@latest --activate; \
+		fi; \
+		cd "$(WIZARD_DIR)" && pnpm install && pnpm --filter @sd-creation-wizard/shacl-core build; \
+		echo "[OK] Wizard ready. Run 'make wizard' to start."; \
+	else \
+		echo "[INFO] Node.js not found -- skipping wizard setup (optional)."; \
+		echo "       Install Node.js 22+ and run 'make setup wizard' to enable the wizard."; \
+	fi
 	@echo "[OK] Setup complete. Activate with: $(ACTIVATE_HINT)"
 endif
 
@@ -192,6 +210,9 @@ validate:
 	echo "[OK] Validation complete"
 
 # ── Generate pipeline ─────────────────────────────────────────────────
+
+# Default OUTPUT_DIR to sibling 'output' directory when INPUT_DIR is set.
+OUTPUT_DIR ?= $(if $(INPUT_DIR),$(dir $(patsubst %/,%,$(INPUT_DIR)))output)
 
 generate:
 	$(call check_dev_setup)
@@ -304,7 +325,7 @@ else
 	@if kill -0 $$(cat /tmp/sd-wizard-api.pid) 2>/dev/null; then \
 		echo ""; \
 		echo "[OK] Wizard API is running:"; \
-		echo "  API: http://localhost:8080"; \
+		echo "  API: http://localhost:3007"; \
 		echo ""; \
 		echo "  Stop with:  make wizard stop"; \
 	else \
@@ -340,7 +361,7 @@ endif
 help:
 	@echo "sl-5-8-asset-tools -- Available Commands"
 	@echo ""
-	@echo "  make setup                   Create venv, init submodules, and install all dependencies"
+	@echo "  make setup                   Create venv, init submodules, install deps + wizard"
 	@echo "  make install                 Reinstall all dependencies (dev, QC, OMB)"
 	@echo ""
 	@echo "  make lint                    Lint checks (ruff)"
@@ -361,6 +382,12 @@ help:
 	@echo "  make generate INPUT_DIR=<path> OUTPUT_DIR=<path>"
 	@echo "                               Run pipeline for a custom input directory"
 	@echo ""
+	@echo "Interactive wizard (opens browser for metadata enrichment):"
+	@echo "  WIZARD=true make generate opendrive"
+	@echo "  WIZARD=true make generate INPUT_DIR=<path> OUTPUT_DIR=<path>"
+	@echo "                               Pauses pipeline at wizard step, opens browser"
+	@echo "                               with pre-filled form, waits for user export."
+	@echo ""
 	@echo "Pipeline module flags (pass via PIPELINE_FLAGS):"
 	@echo "  PIPELINE_FLAGS='-disable vcs_odr-converter' make generate opendrive"
 	@echo "                               Skip specific modules (blacklist)"
@@ -374,8 +401,7 @@ help:
 	@echo ""
 	@echo "  make wizard                  Start SD Creation Wizard API (Node.js)"
 	@echo "  make wizard stop             Stop the wizard API"
-	@echo "  make setup wizard            Install Node.js wizard dependencies"
-	@echo "                               Build with custom Maven/npm config (corporate mirrors)"
+	@echo "  make setup wizard            Reinstall wizard dependencies only"
 	@echo ""
 	@echo "  make clean                   Remove build artifacts and caches"
 	@echo "  make clean all               Clean + remove venv and submodules (full reset)"

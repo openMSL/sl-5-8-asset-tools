@@ -59,8 +59,13 @@ def run_command(
     cwd: Path | str | None = None,
     *,
     log_output: bool = True,
+    interactive: bool = False,
 ) -> CommandResult:
     """Run *cmd* and log stdout/stderr similar to other tools.
+
+    When *interactive* is True, stdout/stderr are inherited (streamed to the
+    terminal in real-time) instead of captured. Use this for modules that
+    require user interaction (e.g. the wizard).
 
     # Raises CalledProcessError on failures.
     """
@@ -91,6 +96,26 @@ def run_command(
         if is_debug_logging():
             logger.debug("Starting command %s", name)
             logger.debug("Command line: %s", subprocess.list2cmdline(cmd))
+
+        if interactive:
+            # Stream output to terminal in real-time (for interactive modules)
+            result = subprocess.run(
+                cmd,
+                check=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                cwd=str(cwd) if cwd else None,
+                env=env,
+            )
+            return CommandResult(
+                name=name,
+                cmd=cmd,
+                returncode=result.returncode,
+                stdout=result.stdout or "",
+                stderr=result.stderr or "",
+            )
+
         result = subprocess.run(
             cmd,
             check=True,

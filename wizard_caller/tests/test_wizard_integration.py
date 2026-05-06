@@ -1,6 +1,6 @@
 """Integration tests for wizard_caller against the live TypeScript API.
 
-These tests require the sd-creation-wizard API to be running on localhost:8080.
+These tests require the sd-creation-wizard API to be running on localhost:3007.
 Skip automatically if the API is not available.
 
 Run with:
@@ -16,7 +16,7 @@ import pytest
 
 from wizard_caller.api_client import convert_and_prefill, is_api_available
 
-API_URL = "http://localhost:8080"
+API_URL = "http://localhost:3007"
 EXAMPLES = Path(__file__).resolve().parents[2] / "examples"
 
 
