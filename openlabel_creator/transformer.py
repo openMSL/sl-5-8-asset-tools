@@ -270,8 +270,11 @@ def _typed_scalar(tag_type: str, value: Any) -> dict[str, str] | None:
     """Wrap a scalar value with XSD type annotation.
 
     XSD types are chosen to match SHACL sh:datatype constraints per property.
-    Returns None if the value cannot be converted.
+    Returns None if the value cannot be converted or is empty.
     """
+    if isinstance(value, str) and not value.strip():
+        return None
+
     xsd_type = _XSD_TYPE_MAP.get(tag_type, "xsd:decimal")
     try:
         if "integer" in xsd_type or "Integer" in xsd_type:
@@ -293,8 +296,8 @@ _XSD_TYPE_MAP: dict[str, str] = {
 
 
 def _literal_value(value: str) -> dict[str, str]:
-    """Wrap a string as an rdfs:Literal typed value."""
-    return {"@type": "rdfs:Literal", "@value": value}
+    """Wrap a string as an xsd:string typed value."""
+    return {"@type": "xsd:string", "@value": value}
 
 
 def load_openlabel_json(file_path: Path) -> dict | None:

@@ -155,11 +155,11 @@ class TestTransformer:
         admin = result["openlabel:AdminTag"]
         assert admin["@type"] == "AdminTag"
         assert admin["openlabel:scenarioName"] == {
-            "@type": "rdfs:Literal",
+            "@type": "xsd:string",
             "@value": "Test Scenario",
         }
         assert admin["openlabel:scenarioDescription"] == {
-            "@type": "rdfs:Literal",
+            "@type": "xsd:string",
             "@value": "A test",
         }
         assert "openlabel:scenarioDefinitionLanguageURI" in admin
@@ -305,6 +305,14 @@ class TestValueExtraction:
 
     def test_non_dict_tag_data_returns_none(self):
         result = _extract_value("MotionDrive", "not a dict")
+        assert result is None
+
+    def test_empty_string_val_returns_none(self):
+        result = _extract_value("WeatherRain", {"val": ""})
+        assert result is None
+
+    def test_whitespace_string_val_returns_none(self):
+        result = _extract_value("WeatherRain", {"val": "   "})
         assert result is None
 
 

@@ -65,7 +65,9 @@ def run_command(
 
     When *interactive* is True, stdout/stderr are inherited (streamed to the
     terminal in real-time) instead of captured. Use this for modules that
-    require user interaction (e.g. the wizard).
+    require user interaction (e.g. the wizard). Note: the returned
+    CommandResult will have empty stdout/stderr strings since output is
+    sent directly to the terminal.
 
     # Raises CalledProcessError on failures.
     """

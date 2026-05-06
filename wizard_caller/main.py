@@ -70,6 +70,9 @@ def main():
     env_enabled = os.environ.get("WIZARD_ENABLED", "").strip().lower() == "true"
     config_enabled = args.enable.strip().lower() == "true"
 
+    if env_enabled and not config_enabled:
+        logger.warning("WIZARD_ENABLED env var is overriding -enable false from config")
+
     if not (config_enabled or env_enabled):
         shutil.copy2(jsonld_path, output_path)
         logger.info("Wizard disabled — copied %s → %s", jsonld_path, output_path)

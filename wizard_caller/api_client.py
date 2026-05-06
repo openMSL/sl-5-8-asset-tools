@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
 import shutil
 import subprocess
 import time
@@ -103,18 +104,24 @@ def create_session(
     url = f"{api_url.rstrip('/')}/session"
 
     try:
-        files: dict = {
-            "shaclFile": (shacl_path.name, open(shacl_path, "rb"), "text/turtle"),
-            "outputPath": (None, str(output_path.resolve())),
-        }
-        if jsonld_path and jsonld_path.exists():
-            files["jsonLdFile"] = (
-                jsonld_path.name,
-                open(jsonld_path, "rb"),
-                "application/json",
-            )
-
-        resp = requests.post(url, files=files, timeout=timeout)
+        with open(shacl_path, "rb") as shacl_f:
+            files: dict = {
+                "shaclFile": (shacl_path.name, shacl_f, "text/turtle"),
+                "outputPath": (None, str(output_path.resolve())),
+            }
+            jsonld_f = None
+            try:
+                if jsonld_path and jsonld_path.exists():
+                    jsonld_f = open(jsonld_path, "rb")  # noqa: SIM115
+                    files["jsonLdFile"] = (
+                        jsonld_path.name,
+                        jsonld_f,
+                        "application/json",
+                    )
+                resp = requests.post(url, files=files, timeout=timeout)
+            finally:
+                if jsonld_f:
+                    jsonld_f.close()
     except requests.ConnectionError as exc:
         raise WizardAPIError(f"Cannot connect to Wizard API at {api_url}") from exc
     except OSError as exc:
@@ -235,6 +242,7 @@ def _start_api(wizard_dir: Path) -> bool:
         start_new_session=True,
     )
     _PID_FILE.write_text(str(proc.pid))
+    _PID_FILE.chmod(0o600)
 
     # Wait for API to become available
     for _ in range(int(_STARTUP_TIMEOUT / 2)):
@@ -271,6 +279,7 @@ def _start_frontend(wizard_dir: Path) -> bool:
         start_new_session=True,
     )
     _FRONTEND_PID_FILE.write_text(str(proc.pid))
+    _FRONTEND_PID_FILE.chmod(0o600)
 
     # Wait for frontend to become available (Angular needs time to compile)
     for _ in range(int(_FRONTEND_STARTUP_TIMEOUT / 2)):
@@ -289,6 +298,24 @@ def _start_frontend(wizard_dir: Path) -> bool:
     return False
 
 
+def _graceful_kill(pid: int, label: str) -> None:
+    """Terminate a process gracefully: SIGTERM first, SIGKILL after 3s."""
+    try:
+        os.kill(pid, signal.SIGTERM)
+        for _ in range(6):
+            time.sleep(0.5)
+            try:
+                os.kill(pid, 0)
+            except OSError:
+                logger.info("Stopped stale %s (PID %d)", label, pid)
+                return
+        # Still alive after 3s — force kill
+        os.kill(pid, signal.SIGKILL)
+        logger.info("Force-killed stale %s (PID %d)", label, pid)
+    except OSError:
+        pass
+
+
 def ensure_wizard_running(api_url: str | None = None) -> str | None:
     """Ensure the wizard API (and frontend) are running. Auto-starts if needed.
 
@@ -303,8 +330,7 @@ def ensure_wizard_running(api_url: str | None = None) -> str | None:
     if _PID_FILE.exists():
         try:
             pid = int(_PID_FILE.read_text().strip())
-            os.kill(pid, 9)
-            logger.info("Killed stale wizard API (PID %d)", pid)
+            _graceful_kill(pid, "wizard API")
         except (OSError, ValueError):
             pass
         _PID_FILE.unlink(missing_ok=True)
@@ -312,8 +338,7 @@ def ensure_wizard_running(api_url: str | None = None) -> str | None:
     if _FRONTEND_PID_FILE.exists():
         try:
             pid = int(_FRONTEND_PID_FILE.read_text().strip())
-            os.kill(pid, 9)
-            logger.info("Killed stale wizard frontend (PID %d)", pid)
+            _graceful_kill(pid, "wizard frontend")
         except (OSError, ValueError):
             pass
         _FRONTEND_PID_FILE.unlink(missing_ok=True)
@@ -349,6 +374,10 @@ def ensure_wizard_running(api_url: str | None = None) -> str | None:
     if not _start_api(wizard_dir):
         return None
 
-    _start_frontend(wizard_dir)
+    if not _start_frontend(wizard_dir):
+        logger.warning(
+            "Wizard frontend failed to start — browser may show a blank page. "
+            "The API is still available for CLI usage."
+        )
 
     return url
