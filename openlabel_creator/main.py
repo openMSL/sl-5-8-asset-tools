@@ -71,6 +71,9 @@ def inject_into_scenario(openlabel_file: Path, scenario_file: Path) -> bool:
 
     Converts scenario:hasContent from a single object to an array
     containing both the original content and the openlabel tag.
+
+    The openlabel @context entries are merged into the scenario's top-level
+    @context to avoid bloating the file with a redundant nested context.
     """
     if not openlabel_file.exists() or not scenario_file.exists():
         return False
@@ -80,6 +83,12 @@ def inject_into_scenario(openlabel_file: Path, scenario_file: Path) -> bool:
 
     with open(scenario_file, "r", encoding="utf-8") as f:
         scenario_data = json.load(f)
+
+    # Merge openlabel @context into the scenario's top-level @context
+    _merge_context(openlabel_data, scenario_data)
+
+    # Remove nested @context from the openlabel data (now at top level)
+    openlabel_data.pop("@context", None)
 
     domain_spec = scenario_data.get("scenario:hasDomainSpecification", {})
     current_content = domain_spec.get("scenario:hasContent")
@@ -97,6 +106,51 @@ def inject_into_scenario(openlabel_file: Path, scenario_file: Path) -> bool:
 
     logger.info("Injected OpenLABEL tag into %s", scenario_file)
     return True
+
+
+def _merge_context(source: dict, target: dict) -> None:
+    """Merge @context entries from source into target's top-level @context.
+
+    Adds any URL strings and dict entries from source's @context that
+    are not already present in target's @context.
+    """
+    source_ctx = source.get("@context", [])
+    target_ctx = target.get("@context", [])
+
+    if not isinstance(source_ctx, list):
+        source_ctx = [source_ctx]
+    if not isinstance(target_ctx, list):
+        target_ctx = [target_ctx]
+
+    # Collect existing URL strings and dict keys
+    existing_urls = {e for e in target_ctx if isinstance(e, str)}
+    existing_dict_keys: set[str] = set()
+    for entry in target_ctx:
+        if isinstance(entry, dict):
+            existing_dict_keys.update(entry.keys())
+
+    for entry in source_ctx:
+        if isinstance(entry, str):
+            if entry not in existing_urls:
+                target_ctx.append(entry)
+                existing_urls.add(entry)
+        elif isinstance(entry, dict):
+            # Merge dict entries that aren't already defined
+            new_keys = {k: v for k, v in entry.items() if k not in existing_dict_keys}
+            if new_keys:
+                # Find existing dict in target_ctx to merge into
+                merged = False
+                for i, t_entry in enumerate(target_ctx):
+                    if isinstance(t_entry, dict):
+                        t_entry.update(new_keys)
+                        existing_dict_keys.update(new_keys.keys())
+                        merged = True
+                        break
+                if not merged:
+                    target_ctx.append(new_keys)
+                    existing_dict_keys.update(new_keys.keys())
+
+    target["@context"] = target_ctx
 
 
 def find_companion_openlabel(scenario_file: Path) -> Path | None:

@@ -22,7 +22,11 @@ from openlabel_creator.transformer import (
     load_openlabel_json,
     transform,
 )
-from openlabel_creator.main import create_openlabel_jsonld, find_companion_openlabel
+from openlabel_creator.main import (
+    create_openlabel_jsonld,
+    find_companion_openlabel,
+    inject_into_scenario,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -398,6 +402,51 @@ class TestPipelineIntegration:
         xosc = tmp_path / "test.xosc"
         xosc.write_text("<OpenSCENARIO/>", encoding="utf-8")
         assert find_companion_openlabel(xosc) is None
+
+    def test_inject_merges_context_to_top_level(self, tmp_path):
+        """Verify inject_into_scenario merges @context to top level."""
+        openlabel = tmp_path / "openlabel.json"
+        openlabel.write_text(
+            json.dumps(
+                {
+                    "@context": [
+                        "https://openlabel.asam.net/V1-0-0/ontologies/",
+                        {"openlabel": "https://openlabel.asam.net/V1-0-0/ontologies/"},
+                    ],
+                    "@type": "openlabel:Tag",
+                    "@id": "did:web:test:Tag:1",
+                    "openlabel:Behaviour": {"@type": "Behaviour"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        scenario = tmp_path / "scenario.json"
+        scenario.write_text(
+            json.dumps(
+                {
+                    "@context": [
+                        "https://example.org/scenario/",
+                        {"xsd": "http://www.w3.org/2001/XMLSchema#"},
+                    ],
+                    "scenario:hasDomainSpecification": {
+                        "scenario:hasContent": {"@type": "scenario:Content"},
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        assert inject_into_scenario(openlabel, scenario) is True
+
+        result = json.loads(scenario.read_text(encoding="utf-8"))
+        # Nested @context should NOT exist
+        content = result["scenario:hasDomainSpecification"]["scenario:hasContent"]
+        assert isinstance(content, list)
+        assert "@context" not in content[1]
+        # Top-level should have openlabel URL merged
+        ctx_urls = [e for e in result["@context"] if isinstance(e, str)]
+        assert "https://openlabel.asam.net/V1-0-0/ontologies/" in ctx_urls
+        # Openlabel data still intact
+        assert content[1]["@type"] == "openlabel:Tag"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
