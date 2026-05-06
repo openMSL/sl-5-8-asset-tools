@@ -99,6 +99,10 @@ def main():
             )
             if success:
                 logger.info("Wizard export complete → %s", output_path)
+                # Sync enriched metadata back to temp/ so downstream validators
+                # resolve the same DID to the enriched version
+                if output_path.resolve() != jsonld_path.resolve():
+                    shutil.copy2(output_path, jsonld_path)
                 return
             else:
                 logger.warning("Wizard timed out — falling back to local mode")
@@ -110,6 +114,9 @@ def main():
         logger.warning("Could not start wizard — falling back to local CLI mode")
 
     run_wizard(jsonld_path, shacl_path, output_path)
+    # Sync enriched metadata back to temp/ for downstream validators
+    if output_path.exists() and output_path.resolve() != jsonld_path.resolve():
+        shutil.copy2(output_path, jsonld_path)
 
 
 if __name__ == "__main__":
