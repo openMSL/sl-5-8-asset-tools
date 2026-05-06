@@ -148,7 +148,14 @@ python -m asset_extraction.main -config configs -list-modules
 ### Run Pipeline for a Custom Input Directory
 
 ```bash
-make generate INPUT_DIR=path/to/input OUTPUT_DIR=path/to/output
+make generate INPUT_DIR=path/to/input
+```
+
+`OUTPUT_DIR` defaults to a sibling `output/` directory (e.g. `path/to/output`).
+Override explicitly if needed:
+
+```bash
+make generate INPUT_DIR=path/to/input OUTPUT_DIR=/tmp/my-output
 ```
 
 The `INPUT_DIR` must contain an `input_manifest.json`. This is the mode used by downstream asset repositories (e.g. `hd-map-asset-example`) to delegate pipeline execution.
@@ -216,177 +223,56 @@ Supported categories:
 
 ## SD Creation Wizard
 
-The SD Creation Wizard provides a web UI for interactively enriching metadata
-using SHACL shapes. It runs as two containers (API + frontend) via Podman.
+The SD Creation Wizard provides a browser-based UI for interactive metadata
+enrichment. It parses SHACL ontology shapes into dynamic forms, pre-fills them
+with auto-extracted values, and lets users complete any missing fields before
+the pipeline continues.
+
+### Prerequisites
+
+- Node.js 20+ and pnpm (installed automatically via corepack)
+- Installed automatically by `make setup` (if Node.js is available)
+
+### Interactive Pipeline Usage (Recommended)
+
+The simplest way to use the wizard — just add `WIZARD=true`:
 
 ```bash
-make wizard            # installs Podman if needed, builds and starts containers
-make wizard stop       # stops the containers
-make setup wizard      # install Podman + compose provider only (called by wizard)
+WIZARD=true make generate INPUT_DIR=examples/IKA/SCEN-95B774BAC0A9/hdmap/input
 ```
 
-`make wizard` performs automatic pre-flight checks:
+This runs the full pipeline and at the wizard step:
 
-- Installs Podman if missing (via `winget` on Windows, `apt` on Linux)
-- Initialises and starts the Podman machine on Windows if needed
-- Installs `podman-compose` if no compose provider is found
+1. Auto-starts the wizard API + frontend (if not already running)
+2. Opens your browser with a form pre-filled from extracted metadata
+3. Pauses the pipeline until you click **Export**
+4. Writes the enriched metadata and continues the pipeline
 
-### Windows first-time setup
+No separate `make wizard` step needed — everything is automatic.
 
-The wizard containers require a Linux VM backend. On Windows this means
-**WSL2** (recommended) or **Hyper-V** (Windows Pro/Enterprise).
+### Manual Server Management
 
 ```bash
-# Enable WSL2 (admin terminal, reboot required, one-time)
-wsl --install --no-distribution
-
-# After reboot, initialise and start the Podman machine
-podman machine init
-podman machine start
+make wizard            # start the wizard API + frontend manually
+make wizard stop       # stop the wizard servers
+make setup wizard      # reinstall wizard dependencies
 ```
 
-Or open **Podman Desktop** from the Start menu -- it will guide you through
-the machine setup. Then restart your shell and run `make wizard`.
+### CLI Mode (Non-Interactive)
 
-> **No WSL2 or Hyper-V?** Use the CLI wizard instead:
->
-> ```bash
-> python -m wizard_caller.main metadata/hdmap.json -shacl temp/hdmap.ttl -enable true -out metadata/hdmap.json
-> ```
->
-> This provides the same SHACL-driven metadata enrichment in the terminal.
-
-### Corporate proxy (Windows)
-
-If you are behind a corporate proxy (e.g. proxydetox, CNTLM, px-proxy) the
-Podman WSL VM cannot reach container registries by default because the proxy
-typically listens on `127.0.0.1` which is not shared with the VM.
-
-**Step 1 — Bridge the proxy into the VM via SSH tunnel**
+Without `WIZARD=true`, the wizard step simply copies JSON-LD unchanged
+(disabled by default in config). For terminal-based prompts:
 
 ```bash
-# Find the Podman machine SSH port and identity file
-podman system connection list
-# Example output:
-#   podman-machine-default  ssh://user@127.0.0.1:42475/run/user/1000/podman/podman.sock  C:\Users\you\.local\...
-
-# Open a reverse tunnel (replace port and identity path from above)
-ssh -f -N -R 3128:127.0.0.1:3128 \
-    -i "C:\Users\you\.local\share\containers\podman\machine\machine" \
-    -p 42475 -o StrictHostKeyChecking=no user@127.0.0.1
+python -m wizard_caller.main metadata/hdmap.json -shacl temp/hdmap.ttl -enable true -out metadata/hdmap.json
 ```
 
-Replace `3128` with your proxy port. The tunnel forwards the VM's
-`localhost:3128` to your Windows `localhost:3128`.
+### Architecture
 
-**Step 2 — Configure proxy for the Podman service**
-
-```bash
-# Create a systemd drop-in for the user-level Podman service
-podman machine ssh "
-  sudo chown -R \$(whoami) ~/.config/systemd 2>/dev/null
-  mkdir -p ~/.config/systemd/user/podman.service.d
-  printf '[Service]\nEnvironment=HTTP_PROXY=http://127.0.0.1:3128\nEnvironment=HTTPS_PROXY=http://127.0.0.1:3128\nEnvironment=NO_PROXY=localhost,127.0.0.1\n' \
-    > ~/.config/systemd/user/podman.service.d/proxy.conf
-  systemctl --user daemon-reload
-  systemctl --user restart podman.service
-"
-```
-
-**Step 3 — Enable proxy pass-through for container builds**
-
-```bash
-podman machine ssh "
-  mkdir -p ~/.config/containers
-  printf '[engine]\nhttp_proxy = true\nenv = [\"HTTP_PROXY=http://127.0.0.1:3128\", \"HTTPS_PROXY=http://127.0.0.1:3128\", \"NO_PROXY=localhost,127.0.0.1\"]\n' \
-    > ~/.config/containers/containers.conf
-"
-```
-
-**Verify** the setup works:
-
-```bash
-podman machine ssh "curl -s -o /dev/null -w '%{http_code}' --proxy http://127.0.0.1:3128 https://registry-1.docker.io/v2/"
-# Expected output: 401 (authentication required — means the registry is reachable)
-```
-
-> **Note:** The SSH tunnel must be re-established after each reboot or Podman
-> machine restart. Steps 2 and 3 persist across restarts.
-
-### Corporate registry mirrors
-
-When direct access to public registries (Docker Hub, Maven Central, npmjs.org)
-is blocked, you can use your organisation's registry mirrors instead.
-
-**1. Base images — pre-pull and re-tag**
-
-If `docker.io` is blocked, pull the four required images from your corporate
-Docker mirror, then tag them with their standard names so the Dockerfiles
-resolve locally:
-
-```bash
-MIRROR=registry.example.com/docker-hub-proxy
-
-for img in maven:3.9.6-eclipse-temurin-21 eclipse-temurin:21-jre-alpine \
-           node:18-alpine nginx:1.17.8-alpine; do
-    podman pull "$MIRROR/library/$img"
-    podman tag  "$MIRROR/library/$img" "docker.io/library/$img"
-done
-```
-
-**2. Maven mirror — mount `~/.m2` into the build**
-
-Configure your corporate Maven mirror in `~/.m2/settings.xml`:
-
-```xml
-<settings>
-  <mirrors>
-    <mirror>
-      <id>corporate-central</id>
-      <mirrorOf>*</mirrorOf>
-      <url>https://registry.example.com/maven-central-proxy/</url>
-    </mirror>
-  </mirrors>
-</settings>
-```
-
-Then pass it to the wizard build:
-
-```bash
-make wizard MAVEN_SETTINGS=~/.m2
-```
-
-**3. npm mirror — mount `.npmrc` into the build**
-
-Create a file (e.g. `~/.npmrc-mirror`) with your corporate npm registry:
-
-```ini
-registry=https://registry.example.com/npm-proxy/
-//registry.example.com/npm-proxy/:_authToken=<TOKEN>
-```
-
-Then pass it to the wizard build:
-
-```bash
-make wizard NPM_CONFIG=~/.npmrc-mirror
-```
-
-**4. Combining all options**
-
-```bash
-make wizard MAVEN_SETTINGS=~/.m2 NPM_CONFIG=~/.npmrc-mirror
-```
-
-When `MAVEN_SETTINGS` or `NPM_CONFIG` is set, the Makefile builds each image
-individually with `podman build --volume` (which mounts the config into the
-build container) and then starts compose without `--build`.
-
-### Ports
-
-| Service  | URL                    |
-|----------|------------------------|
-| Frontend | <http://localhost:4200>   |
-| API      | <http://localhost:8080>   |
+| Service  | URL                    | Purpose |
+|----------|------------------------|---------|
+| API      | <http://localhost:3007> | SHACL parsing, session management |
+| Frontend | <http://localhost:4200> | Angular wizard UI |
 
 ## Notes
 

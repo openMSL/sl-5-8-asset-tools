@@ -7,7 +7,7 @@ the user to fill in any missing values interactively.
 Supports two backends:
 
 * **local** — parse SHACL with rdflib (basic constraints only)
-* **api**   — delegate to the sd-creation-wizard-api which handles
+* **api**   — delegate to the sd-creation-wizard TypeScript API which handles
   conditional SHACL constructs (``sh:or``, ``sh:and``, ``sh:xone``)
 """
 
@@ -510,7 +510,7 @@ def run_wizard_api(
     output_path: Path,
     api_url: str,
 ) -> bool:
-    """Run the wizard using the sd-creation-wizard-api backend.
+    """Run the wizard using the sd-creation-wizard TypeScript API backend.
 
     The API resolves conditional SHACL constructs (sh:or, sh:and, etc.)
     that the local parser cannot handle.

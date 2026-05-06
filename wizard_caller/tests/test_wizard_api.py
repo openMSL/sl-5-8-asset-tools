@@ -262,12 +262,12 @@ class TestEnrichFromApi:
 
 
 class TestMainFallback:
-    """Verify that main() falls back to local mode when API is unavailable."""
+    """Verify that main() falls back to local mode when wizard cannot start."""
 
     @patch("wizard_caller.shacl_wizard.run_wizard")
-    @patch("wizard_caller.api_client.is_api_available", return_value=False)
+    @patch("wizard_caller.api_client.ensure_wizard_running", return_value=None)
     def test_falls_back_to_local_when_api_unreachable(
-        self, mock_available, mock_run_wizard, tmp_path
+        self, mock_ensure, mock_run_wizard, tmp_path
     ):
         from wizard_caller.main import main
 
@@ -288,11 +288,75 @@ class TestMainFallback:
                 "true",
                 "-out",
                 str(out),
-                "-api-url",
-                "http://localhost:8080",
             ],
         ):
             main()
 
-        mock_available.assert_called_once()
+        mock_ensure.assert_called_once()
         mock_run_wizard.assert_called_once()
+
+    def test_env_var_overrides_enable_false(self, tmp_path):
+        """WIZARD_ENABLED=true should activate wizard even when config says -enable false."""
+        from wizard_caller.main import main
+
+        jsonld = tmp_path / "test.json"
+        jsonld.write_text('{"@type": "test:Thing"}', encoding="utf-8")
+        shacl = tmp_path / "test.ttl"
+        shacl.write_text("# empty", encoding="utf-8")
+        out = tmp_path / "out.json"
+
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "wizard_caller",
+                    str(jsonld),
+                    "-shacl",
+                    str(shacl),
+                    "-enable",
+                    "false",
+                    "-out",
+                    str(out),
+                ],
+            ),
+            patch.dict("os.environ", {"WIZARD_ENABLED": "true"}),
+            patch(
+                "wizard_caller.api_client.ensure_wizard_running", return_value=None
+            ) as mock_ensure,
+            patch("wizard_caller.main.run_wizard") as mock_run_wizard,
+        ):
+            main()
+
+        mock_ensure.assert_called_once()
+        mock_run_wizard.assert_called_once()
+
+    def test_disabled_when_no_env_var(self, tmp_path):
+        """Without WIZARD_ENABLED, -enable false should just copy."""
+        from wizard_caller.main import main
+
+        jsonld = tmp_path / "test.json"
+        jsonld.write_text('{"@type": "test:Thing"}', encoding="utf-8")
+        shacl = tmp_path / "test.ttl"
+        shacl.write_text("# empty", encoding="utf-8")
+        out = tmp_path / "out.json"
+
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "wizard_caller",
+                    str(jsonld),
+                    "-shacl",
+                    str(shacl),
+                    "-enable",
+                    "false",
+                    "-out",
+                    str(out),
+                ],
+            ),
+            patch.dict("os.environ", {}, clear=True),
+        ):
+            main()
+
+        assert out.exists()
+        assert out.read_text() == '{"@type": "test:Thing"}'

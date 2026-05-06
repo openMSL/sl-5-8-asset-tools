@@ -251,7 +251,13 @@ def create_file_data(
 
             if data_type == "isSimulationData":
                 if asset_info and "recordingTime" in asset_info:
-                    formatted_creation_data = asset_info["recordingTime"]
+                    recording_time = asset_info["recordingTime"]
+                    # Only use recordingTime if it is a valid ISO 8601 datetime
+                    try:
+                        datetime.fromisoformat(recording_time)
+                        formatted_creation_data = recording_time
+                    except (ValueError, TypeError):
+                        pass  # keep file timestamp as fallback
                 file_meta_data["manifest:timestamp"] = formatted_creation_data
             else:
                 file_meta_data["manifest:timestamp"] = formatted_creation_data

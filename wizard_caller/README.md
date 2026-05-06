@@ -2,33 +2,39 @@
 
 ## Description
 
-CLI wizard for enriching JSON-LD metadata using SHACL shape constraints.
+Pipeline module for interactive metadata enrichment using SHACL shapes.
 
-Parses a combined SHACL Turtle file to discover required and optional
-properties, compares against an existing JSON-LD instance, and prompts
-the user to fill in any missing values interactively in the terminal.
+Supports three modes:
 
-When disabled (`-enable false`), simply copies the input JSON-LD to the
-output path unchanged.
+- **Browser mode** (default when `WIZARD=true`): Opens a browser-based wizard UI
+  pre-filled with auto-extracted metadata. The pipeline pauses until the user
+  clicks Export.
+- **CLI mode** (fallback): Terminal-based SHACL wizard with rdflib prompts.
+- **Disabled** (default): Simply copies input JSON-LD to output unchanged.
 
 ## Usage
+
+### As part of the pipeline (recommended)
+
+```bash
+WIZARD=true make generate INPUT_DIR=path/to/input
+```
+
+The wizard auto-starts (API + frontend), opens the browser, and waits for export.
+
+### Standalone
 
 ```bash
 python -m wizard_caller.main <jsonld_file> -shacl <combined_shacl.ttl> -enable <true|false> -out <enhanced.json>
 ```
 
-### How It Works
+### Environment Variables
 
-1. Parses the SHACL shapes to discover all `sh:NodeShape` definitions
-   and their property constraints (required fields, datatypes, enums).
-2. Walks the JSON-LD tree, matching `@type` values to SHACL target classes.
-3. For each shape property, checks whether a value already exists.
-4. Prompts the user for any missing or incomplete values:
-   - `sh:in` constraints → numbered selection menu
-   - `sh:datatype` → typed input (text, float, integer, boolean)
-   - `sh:node` → recursively processes nested objects
-   - `sh:minCount >= 1` → marked as required
-5. Writes the enriched JSON-LD to the output path.
+| Variable | Effect |
+|----------|--------|
+| `WIZARD_ENABLED=true` | Activates wizard even when config says `-enable false` |
+| `WIZARD_API_URL` | Override API URL (default: `http://localhost:3007`) |
+| `WIZARD_FRONTEND_URL` | Override frontend URL (default: `http://localhost:4200`) |
 
 ## Arguments
 
@@ -36,23 +42,37 @@ python -m wizard_caller.main <jsonld_file> -shacl <combined_shacl.ttl> -enable <
 - `-shacl` (required): Combined SHACL Turtle file.
 - `-enable` (required): `true` to run the interactive wizard, `false` to copy unchanged.
 - `-out` (required): Output JSON-LD file path.
+- `-api-url` (optional): Wizard API URL.
+- `-frontend-url` (optional): Wizard frontend URL.
 
 ## Input
 
-- JSON-LD instance file (e.g. `hdmap_instance.json`)
-- Combined SHACL Turtle file (e.g. `hdmap_instance.ttl`)
+- JSON-LD instance file (e.g. `temp/hdmap.json`)
+- Combined SHACL Turtle file (e.g. `temp/hdmap.ttl`)
 
 ## Output
 
-- Enriched JSON-LD file with user-provided values for missing fields
+- Enriched JSON-LD file with user-provided values for missing fields (e.g. `metadata/hdmap.json`)
 
 ## Install
 
 ```bash
-make setup  # from repository root
+make setup  # installs Python + wizard (Node.js) dependencies
 ```
 
-## Notes
+## How It Works
 
-- This module is currently disabled in the default pipeline configuration (`-enable false`).
-- Requires `rdflib` (bundled with project dependencies).
+### Browser Mode (API available)
+
+1. Ensures the wizard API + frontend are running (auto-starts if needed)
+2. Creates a session via `POST /session` with SHACL + JSON-LD files
+3. Opens the browser — frontend auto-loads the session
+4. Polls `GET /session/status` until user clicks Export (10 min timeout)
+5. Writes exported JSON-LD to the output path
+
+### CLI Mode (fallback)
+
+1. Parses SHACL shapes to discover `sh:NodeShape` definitions and constraints
+2. Walks the JSON-LD tree, matching `@type` values to SHACL target classes
+3. Prompts for missing values (selection menus, typed input, nested objects)
+4. Writes the enriched JSON-LD to the output path

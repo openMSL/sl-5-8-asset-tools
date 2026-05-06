@@ -216,6 +216,12 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
     # create script parameters
     script_call = create_script_params(script_config, asset_file, output_dir)
 
+    # The wizard module needs real-time terminal access when enabled
+    interactive = (
+        script_config["name"] == "wizard_caller"
+        and os.environ.get("WIZARD_ENABLED", "").lower() == "true"
+    )
+
     # run sub script
     project_root = Path(__file__).parent.parent
     return run_command(
@@ -223,6 +229,7 @@ def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
         name=script_config["name"],
         cwd=str(project_root),
         log_output=False,
+        interactive=interactive,
     )
 
 

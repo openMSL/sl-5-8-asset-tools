@@ -1,0 +1,12 @@
+{
+	"name" : "openlabel creator",
+	"environment type" : "python",
+	"data folder" : "metadata",
+	"params" : {
+		"call" : "openlabel_creator.main",
+		"output" : {"-out" : "{path}/temp/openlabel.json"},
+		"additional" : {
+			"-inject" : "{path}/temp/{asset_type}.json"
+		}
+	}
+}
