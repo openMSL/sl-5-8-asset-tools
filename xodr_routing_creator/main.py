@@ -57,7 +57,9 @@ def create_kml(elements: list, output_file: Path, isPolygon: bool):
 
 
 # create and write data as GeoJson elements
-def create_geojson(elements: list, output_file: Path, isPolygon: bool):
+def create_geojson(
+    elements: list, output_file: Path, isPolygon: bool, is_georeferenced: bool = True
+):
     features = []
     for element in elements:
         if isPolygon:
@@ -81,6 +83,11 @@ def create_geojson(elements: list, output_file: Path, isPolygon: bool):
         features.append(feature)
 
     geojson = {"type": "FeatureCollection", "features": features}
+    if not is_georeferenced:
+        geojson["properties"] = {
+            "crs": "local",
+            "note": "Coordinates are in local meters (no georeference)",
+        }
 
     # write GeoJSON
     write_json(output_file, geojson, indentValue=2)
@@ -134,10 +141,16 @@ def main():
         # Reproject the coordinates
         transformed_lines = reproject(lines, offset, transformer_proj_to_wgs84)
     else:
+        logger.warning(
+            "No georeference/projection found in OpenDRIVE file. "
+            "GeoJSON output will use local coordinates (not WGS84)."
+        )
         transformed_lines = reproject(lines, offset, None)
 
     # crate and write bounding box
     output_file_box = Path(args.box) if args.box else None
+    is_georeferenced = projection is not None
+
     if output_file_box:
         if not output_file_box.parent.exists():
             output_file_box.parent.mkdir(parents=True, exist_ok=True)
@@ -152,13 +165,13 @@ def main():
         boxes.append(coordinates)
         box_extension = output_file_box.suffix.lower()
         if box_extension == ".geojson":
-            create_geojson(boxes, output_file_box, True)
+            create_geojson(boxes, output_file_box, True, is_georeferenced)
         else:
             create_kml(boxes, output_file_box, True)
 
     # write line data
     if extension == ".geojson":
-        create_geojson(transformed_lines, output_file, False)
+        create_geojson(transformed_lines, output_file, False, is_georeferenced)
     else:
         create_kml(transformed_lines, output_file, False)
 

@@ -252,7 +252,7 @@ def extract_meta_data(file: Path) -> Tuple[bool, dict]:
     if "hdmap:speedLimit" in extracted:
         speed_str = extracted.pop("hdmap:speedLimit")
         if isinstance(speed_str, str) and speed_str:
-            speeds = sorted(float(s) for s in speed_str.split(", ") if s)
+            speeds = sorted(round(float(s), 2) for s in speed_str.split(", ") if s)
             quantity_dict["hdmap:speedLimit"] = {
                 "hdmap:min": speeds[0] if speeds else 0.0,
                 "hdmap:max": speeds[-1] if speeds else 50.0,
