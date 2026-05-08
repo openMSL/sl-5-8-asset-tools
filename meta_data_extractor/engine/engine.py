@@ -74,6 +74,11 @@ class ExtractionEngine:
                 extra_values = self._resolve_path(data, extra_path)
                 values.extend(extra_values)
 
+            # Filter out OpenSCENARIO parameter references (e.g. $varName)
+            values = [
+                v for v in values if not (isinstance(v, str) and v.startswith("$"))
+            ]
+
             # Apply filter if specified
             if rule.filter:
                 values = self._apply_filter(values, rule.filter)
@@ -203,6 +208,15 @@ class ExtractionEngine:
                 else:
                     flat.add(str(v))
             return ", ".join(sorted(flat))
+
+        if collector == "all_unique_list":
+            flat = set()
+            for v in values:
+                if isinstance(v, (list, tuple)):
+                    flat.update(str(x) for x in v)
+                else:
+                    flat.add(str(v))
+            return sorted(flat)
 
         if collector == "count":
             return len(values)

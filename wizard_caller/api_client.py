@@ -8,7 +8,11 @@ cannot resolve.
 The API is expected to run at ``WIZARD_API_URL`` (default
 ``http://localhost:3007``) — start it via::
 
-    cd submodules/sd-creation-wizard && pnpm --filter @sd-creation-wizard/api dev
+    cd submodules/sd-creation-wizard && pnpm dev:api
+
+The React frontend runs at ``http://localhost:5173`` via::
+
+    cd submodules/sd-creation-wizard && pnpm dev:wizard
 """
 
 from __future__ import annotations
@@ -27,12 +31,12 @@ import requests
 logger = logging.getLogger(__name__)
 
 DEFAULT_API_URL = "http://localhost:3007"
-DEFAULT_FRONTEND_URL = "http://localhost:4200"
+DEFAULT_FRONTEND_URL = "http://localhost:5173"
 _TIMEOUT = 60  # seconds
 _POLL_INTERVAL = 2  # seconds
 _BROWSER_WAIT_TIMEOUT = 600  # 10 minutes max for user interaction
 _STARTUP_TIMEOUT = 30  # seconds to wait for API to become available
-_FRONTEND_STARTUP_TIMEOUT = 60  # seconds for Angular to compile
+_FRONTEND_STARTUP_TIMEOUT = 30  # seconds for Vite dev server to start
 _PID_FILE = Path("/tmp/sd-wizard-api.pid")
 _FRONTEND_PID_FILE = Path("/tmp/sd-wizard-frontend.pid")
 
@@ -196,10 +200,10 @@ def is_api_available(api_url: str) -> bool:
     """Check whether the Wizard API is reachable and has session support."""
     try:
         base = api_url.rstrip("/")
-        resp = requests.get(f"{base}/getAvailableShapes", timeout=5)
+        resp = requests.get(f"{base}/health", timeout=5)
         if resp.status_code != 200:
             return False
-        # Verify session endpoint exists (older API versions lack it)
+        # Verify session endpoint exists
         status = requests.get(f"{base}/session/status", timeout=5)
         return status.status_code == 200
     except (requests.ConnectionError, requests.Timeout):
@@ -230,7 +234,6 @@ def _start_api(wizard_dir: Path) -> bool:
 
     logger.info("Starting wizard API server...")
     api_dir = wizard_dir / "apps" / "api"
-    # pnpm hoists binaries to each workspace's own node_modules/.bin/
     tsx = shutil.which("tsx") or str(api_dir / "node_modules" / ".bin" / "tsx")
 
     proc = subprocess.Popen(
@@ -256,7 +259,7 @@ def _start_api(wizard_dir: Path) -> bool:
 
 
 def _start_frontend(wizard_dir: Path) -> bool:
-    """Start the Angular frontend dev server in the background."""
+    """Start the React/Vite frontend dev server in the background."""
     if _FRONTEND_PID_FILE.exists():
         try:
             pid = int(_FRONTEND_PID_FILE.read_text().strip())
@@ -266,13 +269,12 @@ def _start_frontend(wizard_dir: Path) -> bool:
             _FRONTEND_PID_FILE.unlink(missing_ok=True)
 
     logger.info("Starting wizard frontend...")
-    frontend_dir = wizard_dir / "apps" / "frontend"
-    # pnpm hoists binaries to each workspace's own node_modules/.bin/
-    ng = shutil.which("ng") or str(frontend_dir / "node_modules" / ".bin" / "ng")
+    wizard_app_dir = wizard_dir / "apps" / "wizard"
+    pnpm = shutil.which("pnpm") or "pnpm"
 
     proc = subprocess.Popen(
-        [ng, "serve", "--proxy-config", "proxy.conf.json", "--port", "4200"],
-        cwd=str(frontend_dir),
+        [pnpm, "vite", "--port", "5173"],
+        cwd=str(wizard_app_dir),
         stdin=subprocess.DEVNULL,
         stdout=open("/tmp/sd-wizard-frontend.log", "w"),  # noqa: SIM115
         stderr=subprocess.STDOUT,
@@ -281,7 +283,7 @@ def _start_frontend(wizard_dir: Path) -> bool:
     _FRONTEND_PID_FILE.write_text(str(proc.pid))
     _FRONTEND_PID_FILE.chmod(0o600)
 
-    # Wait for frontend to become available (Angular needs time to compile)
+    # Wait for frontend to become available (Vite starts quickly)
     for _ in range(int(_FRONTEND_STARTUP_TIMEOUT / 2)):
         time.sleep(2)
         try:

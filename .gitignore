@@ -5,7 +5,7 @@
 .venv/
 shacls/
 qc_config.xml
-examples/*/output/
+examples/assets/
 examples/**/*.zip
 examples/*/
 !examples/OpenDRIVE/

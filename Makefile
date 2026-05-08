@@ -196,7 +196,7 @@ endif
 
 validate:
 	$(call check_dev_setup)
-	@json_files=$$(find examples/*/output -name 'manifest.json' -o -name '*.json' -path '*/metadata/*' 2>/dev/null); \
+	@json_files=$$(find examples/assets -name 'manifest.json' -o -name '*.json' -path '*/metadata/*' 2>/dev/null); \
 	if [ -z "$$json_files" ]; then \
 		echo "[SKIP] No generated assets found. Run:  make generate opendrive"; \
 		exit 0; \
@@ -211,8 +211,9 @@ validate:
 
 # ── Generate pipeline ─────────────────────────────────────────────────
 
-# Default OUTPUT_DIR to sibling 'output' directory when INPUT_DIR is set.
-OUTPUT_DIR ?= $(if $(INPUT_DIR),$(dir $(patsubst %/,%,$(INPUT_DIR)))output)
+# All pipeline output goes to examples/assets/ by default.
+ASSETS_DIR := $(CURDIR)/examples/assets
+OUTPUT_DIR ?= $(ASSETS_DIR)
 
 generate:
 	$(call check_dev_setup)
@@ -238,25 +239,25 @@ else
 		echo "        make $@ INPUT_DIR=path/to/input OUTPUT_DIR=path/to/output"; \
 		exit 1; \
 	fi; \
-	bak="$(CURDIR)/examples/$$dir/input/input_manifest.json.bak"; \
+	bak="$(CURDIR)/examples/$$dir/input_manifest.json.bak"; \
 	status=0; \
 	restore_status=0; \
 	if [ "$(SUBCMD)" = "openscenario" ]; then \
-		odr_manifest=$$(find "$(CURDIR)/examples/OpenDRIVE/output" -name manifest.json 2>/dev/null | head -1); \
+		odr_manifest=$$(find "$(ASSETS_DIR)" -name manifest.json 2>/dev/null | head -1); \
 		if [ -z "$$odr_manifest" ]; then \
 			echo "[INFO] OpenScenario references an OpenDRIVE map -- building dependency first..."; \
 			"$(MAKE)" generate opendrive || status=$$?; \
 			if [ $$status -eq 0 ]; then \
-				odr_manifest=$$(find "$(CURDIR)/examples/OpenDRIVE/output" -name manifest.json 2>/dev/null | head -1); \
+				odr_manifest=$$(find "$(ASSETS_DIR)" -name manifest.json 2>/dev/null | head -1); \
 			fi; \
 		fi; \
 		if [ $$status -eq 0 ] && [ -n "$$odr_manifest" ]; then \
 			echo "[INFO] Resolving external references from $$odr_manifest"; \
-			cp "$(CURDIR)/examples/$$dir/input/input_manifest.json" \
+			cp "$(CURDIR)/examples/$$dir/input_manifest.json" \
 			   "$$bak" || status=$$?; \
 			if [ $$status -eq 0 ]; then \
 				"$(CURDIR)/$(PYTHON)" "$(CURDIR)/scripts/resolve_references.py" \
-					"$(CURDIR)/examples/$$dir/input/input_manifest.json" \
+					"$(CURDIR)/examples/$$dir/input_manifest.json" \
 					--ref-manifest "$$odr_manifest" || status=$$?; \
 			fi; \
 		fi; \
@@ -264,14 +265,14 @@ else
 	if [ $$status -eq 0 ]; then \
 		echo "[INFO] Running $$dir pipeline..."; \
 		"$(PYTHON)" -m asset_extraction.main \
-			"$(CURDIR)/examples/$$dir/input/input_manifest.json" \
+			"$(CURDIR)/examples/$$dir/input_manifest.json" \
 			-config "$(CURDIR)/configs" \
-			-out   "$(CURDIR)/examples/$$dir/output" \
-			-zip-dir "$(CURDIR)/examples/$$dir" \
+			-out   "$(ASSETS_DIR)" \
+			-zip-dir "$(ASSETS_DIR)" \
 			$(PIPELINE_FLAGS) || status=$$?; \
 	fi; \
 	if [ -f "$$bak" ]; then \
-		mv "$$bak" "$(CURDIR)/examples/$$dir/input/input_manifest.json" || restore_status=$$?; \
+		mv "$$bak" "$(CURDIR)/examples/$$dir/input_manifest.json" || restore_status=$$?; \
 	fi; \
 	if [ $$restore_status -ne 0 ]; then \
 		echo "[ERR] Failed to restore input manifest"; \
@@ -341,8 +342,7 @@ clean:
 ifeq ($(SUBCMD),all)
 	@echo "[INFO] Cleaning everything..."
 	@rm -rf build/ dist/ *.egg-info/ .pytest_cache/ .mypy_cache/
-	@rm -rf examples/OpenDRIVE/output examples/OpenSCENARIO/output
-	@rm -f examples/OpenDRIVE/*.zip examples/OpenSCENARIO/*.zip
+	@rm -rf examples/assets
 	@rm -rf "$(VENV)"
 	@if [ -f .gitmodules ] && $(GIT) rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
 		$(GIT) submodule deinit --all --force 2>/dev/null || true; \
@@ -351,8 +351,7 @@ ifeq ($(SUBCMD),all)
 else
 	@echo "[INFO] Cleaning..."
 	@rm -rf build/ dist/ *.egg-info/ .pytest_cache/ .mypy_cache/
-	@rm -rf examples/OpenDRIVE/output examples/OpenSCENARIO/output
-	@rm -f examples/OpenDRIVE/*.zip examples/OpenSCENARIO/*.zip
+	@rm -rf examples/assets
 	@echo "[OK] Cleaned"
 endif
 

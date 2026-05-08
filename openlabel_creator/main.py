@@ -113,6 +113,7 @@ def _merge_context(source: dict, target: dict) -> None:
 
     Adds any URL strings and dict entries from source's @context that
     are not already present in target's @context.
+    Ensures {"@vocab": null} remains the final entry.
     """
     source_ctx = source.get("@context", [])
     target_ctx = target.get("@context", [])
@@ -121,6 +122,14 @@ def _merge_context(source: dict, target: dict) -> None:
         source_ctx = [source_ctx]
     if not isinstance(target_ctx, list):
         target_ctx = [target_ctx]
+
+    # Extract @vocab entry to re-append at the end
+    vocab_entry = None
+    for i, entry in enumerate(target_ctx):
+        if isinstance(entry, dict) and "@vocab" in entry and len(entry) == 1:
+            vocab_entry = entry
+            target_ctx = target_ctx[:i] + target_ctx[i + 1 :]
+            break
 
     # Collect existing URL strings and dict keys
     existing_urls = {e for e in target_ctx if isinstance(e, str)}
@@ -135,13 +144,16 @@ def _merge_context(source: dict, target: dict) -> None:
                 target_ctx.append(entry)
                 existing_urls.add(entry)
         elif isinstance(entry, dict):
+            # Skip standalone @vocab dicts (already handled via vocab_entry)
+            if "@vocab" in entry and len(entry) == 1:
+                continue
             # Merge dict entries that aren't already defined
             new_keys = {k: v for k, v in entry.items() if k not in existing_dict_keys}
             if new_keys:
-                # Find existing dict in target_ctx to merge into
+                # Find existing non-vocab dict in target_ctx to merge into
                 merged = False
                 for i, t_entry in enumerate(target_ctx):
-                    if isinstance(t_entry, dict):
+                    if isinstance(t_entry, dict) and "@vocab" not in t_entry:
                         t_entry.update(new_keys)
                         existing_dict_keys.update(new_keys.keys())
                         merged = True
@@ -149,6 +161,10 @@ def _merge_context(source: dict, target: dict) -> None:
                 if not merged:
                     target_ctx.append(new_keys)
                     existing_dict_keys.update(new_keys.keys())
+
+    # Re-append @vocab as the final entry
+    if vocab_entry:
+        target_ctx.append(vocab_entry)
 
     target["@context"] = target_ctx
 

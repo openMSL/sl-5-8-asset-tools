@@ -48,6 +48,17 @@ LICENSE_MARKERS = (
             "neither the name of the",
         ),
     ),
+    (
+        "CC-BY-4.0",
+        (
+            "creative commons attribution 4.0",
+            "cc by 4.0",
+        ),
+    ),
+    (
+        "LicenseRef-Custom-Commercial-Agreement",
+        ("all rights reserved",),
+    ),
 )
 
 

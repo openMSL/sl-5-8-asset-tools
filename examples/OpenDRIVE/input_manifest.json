@@ -1,21 +1,15 @@
 {
   "@context": [
     "https://w3id.org/ascs-ev/envited-x/manifest/v5/",
-    {
-      "envited-x": "https://w3id.org/ascs-ev/envited-x/envited-x/v3/"
-    }
+    "https://w3id.org/ascs-ev/envited-x/envited-x/v3/"
   ],
   "@id": "did:key:z6MkghGABERnypYxYg5FZhZf7D9H69P74WRp6b5xBtACNk",
   "@type": "envited-x:Manifest",
   "hasArtifacts": [
     {
       "@type": "Link",
-      "hasCategory": {
-        "@id": "envited-x:isSimulationData"
-      },
-      "hasAccessRole": {
-        "@id": "envited-x:isOwner"
-      },
+      "hasCategory": "envited-x:isSimulationData",
+      "hasAccessRole": "envited-x:isPublic",
       "hasFileMetadata": {
         "@type": "FileMetadata",
         "filePath": "StraightRoad_NCAP_Roadmarks.xodr",
@@ -24,12 +18,8 @@
     },
     {
       "@type": "Link",
-      "hasCategory": {
-        "@id": "envited-x:isDocumentation"
-      },
-      "hasAccessRole": {
-        "@id": "envited-x:isPublic"
-      },
+      "hasCategory": "envited-x:isDocumentation",
+      "hasAccessRole": "envited-x:isPublic",
       "hasFileMetadata": {
         "@type": "FileMetadata",
         "filePath": "documentation.txt",
@@ -38,12 +28,8 @@
     },
     {
       "@type": "Link",
-      "hasCategory": {
-        "@id": "envited-x:isMedia"
-      },
-      "hasAccessRole": {
-        "@id": "envited-x:isPublic"
-      },
+      "hasCategory": "envited-x:isMedia",
+      "hasAccessRole": "envited-x:isPublic",
       "hasFileMetadata": {
         "@type": "FileMetadata",
         "filePath": "odrviewer.jpg",
@@ -53,12 +39,8 @@
   ],
   "hasLicense": {
     "@type": "Link",
-    "hasCategory": {
-      "@id": "envited-x:isLicense"
-    },
-    "hasAccessRole": {
-      "@id": "envited-x:isPublic"
-    },
+    "hasCategory": "envited-x:isLicense",
+    "hasAccessRole": "envited-x:isPublic",
     "hasFileMetadata": {
       "@type": "FileMetadata",
       "filePath": "LICENSE",

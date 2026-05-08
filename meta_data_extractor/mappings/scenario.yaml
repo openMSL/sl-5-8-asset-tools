@@ -62,8 +62,8 @@ mappings:
 
   scenario:entityTypes:
     path: "Entities.ScenarioObject[*].Vehicle.@vehicleCategory"
-    collector: all_unique
-    type: string
+    collector: all_unique_list
+    type: raw
     also_search:
       - "Entities.ScenarioObject[*].Pedestrian.@pedestrianCategory"
       - "Entities.ScenarioObject[*].MiscObject.@miscObjectCategory"

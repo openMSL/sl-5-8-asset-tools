@@ -50,7 +50,7 @@ def main():
         "-frontend-url",
         default=None,
         help=(
-            "URL of the wizard frontend (e.g. http://localhost:4200). "
+            "URL of the wizard frontend (e.g. http://localhost:5173). "
             "Falls back to env var WIZARD_FRONTEND_URL."
         ),
     )
