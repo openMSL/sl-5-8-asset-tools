@@ -10,9 +10,12 @@ The API is expected to run at ``WIZARD_API_URL`` (default
 
     cd submodules/sd-creation-wizard && pnpm dev:api
 
-The React frontend runs at ``http://localhost:5173`` via::
+The React frontend runs at ``http://localhost:5174`` via::
 
     cd submodules/sd-creation-wizard && pnpm dev:wizard
+
+Ports are configurable via ``.env`` file or environment variables
+(``WIZARD_API_PORT``, ``WIZARD_FRONTEND_PORT``).
 """
 
 from __future__ import annotations
@@ -30,8 +33,28 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_API_URL = "http://localhost:3007"
-DEFAULT_FRONTEND_URL = "http://localhost:5173"
+
+def _load_dotenv() -> None:
+    """Load .env file from project root if it exists."""
+    env_file = Path(__file__).resolve().parent.parent / ".env"
+    if not env_file.exists():
+        return
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip())
+
+
+_load_dotenv()
+
+_API_PORT = os.environ.get("WIZARD_API_PORT", "3007")
+_FRONTEND_PORT = os.environ.get("WIZARD_FRONTEND_PORT", "5174")
+
+DEFAULT_API_URL = f"http://localhost:{_API_PORT}"
+DEFAULT_FRONTEND_URL = f"http://localhost:{_FRONTEND_PORT}"
 _TIMEOUT = 60  # seconds
 _POLL_INTERVAL = 2  # seconds
 _BROWSER_WAIT_TIMEOUT = 600  # 10 minutes max for user interaction
@@ -273,7 +296,7 @@ def _start_frontend(wizard_dir: Path) -> bool:
     pnpm = shutil.which("pnpm") or "pnpm"
 
     proc = subprocess.Popen(
-        [pnpm, "vite", "--port", "5173"],
+        [pnpm, "vite", "--port", _FRONTEND_PORT],
         cwd=str(wizard_app_dir),
         stdin=subprocess.DEVNULL,
         stdout=open("/tmp/sd-wizard-frontend.log", "w"),  # noqa: SIM115

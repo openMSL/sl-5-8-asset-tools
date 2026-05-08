@@ -3,6 +3,7 @@
 **/*.egg-info
 **/.vscode
 .venv/
+.env
 shacls/
 qc_config.xml
 examples/assets/
@@ -10,3 +11,4 @@ examples/**/*.zip
 examples/*/
 !examples/OpenDRIVE/
 !examples/OpenSCENARIO/
+.playground/

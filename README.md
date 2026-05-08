@@ -115,8 +115,8 @@ Run `make help` for the full list of available commands.
 Two ready-to-run examples are included under `examples/`:
 
 ```bash
-make generate opendrive      # OpenDRIVE example  → examples/OpenDRIVE/output/ + examples/OpenDRIVE/<CID>.zip
-make generate openscenario   # OpenSCENARIO example → examples/OpenSCENARIO/output/ + examples/OpenSCENARIO/<CID>.zip
+make generate opendrive      # OpenDRIVE example  → examples/assets/
+make generate openscenario   # OpenSCENARIO example → examples/assets/
 ```
 
 ### Selective Module Execution
@@ -151,7 +151,7 @@ python -m asset_extraction.main -config configs -list-modules
 make generate INPUT_DIR=path/to/input
 ```
 
-`OUTPUT_DIR` defaults to a sibling `output/` directory (e.g. `path/to/output`).
+`OUTPUT_DIR` defaults to `examples/assets/`.
 Override explicitly if needed:
 
 ```bash
@@ -160,10 +160,10 @@ make generate INPUT_DIR=path/to/input OUTPUT_DIR=/tmp/my-output
 
 The `INPUT_DIR` must contain an `input_manifest.json`. This is the mode used by downstream asset repositories (e.g. `hd-map-asset-example`) to delegate pipeline execution.
 
-Each example follows the `input/` → `output/` convention:
+Each input example follows this convention:
 
-- `examples/<name>/input/` — input manifest, simulation data, media, docs, LICENSE
-- `examples/<name>/output/` — pipeline-generated EVES-003 asset (gitignored)
+- `examples/<source>/<name>/<type>/` — input manifest, simulation data, media, docs, LICENSE
+- `examples/assets/` — pipeline-generated EVES-003 assets (gitignored)
 
 By default the pipeline uses concise, stage-oriented logging. To inspect raw
 child command lines and full stdout/stderr, set `SL58_LOG_MODE=debug` before
@@ -238,7 +238,7 @@ the pipeline continues.
 The simplest way to use the wizard — just add `WIZARD=true`:
 
 ```bash
-WIZARD=true make generate INPUT_DIR=examples/IKA/SCEN-95B774BAC0A9/hdmap/input
+WIZARD=true make generate INPUT_DIR=examples/ika/SCEN-95B774BAC0A9/hdmap
 ```
 
 This runs the full pipeline and at the wizard step:
@@ -272,7 +272,14 @@ python -m wizard_caller.main metadata/hdmap.json -shacl temp/hdmap.ttl -enable t
 | Service  | URL                    | Purpose |
 |----------|------------------------|---------|
 | API      | <http://localhost:3007> | SHACL parsing, session management |
-| Frontend | <http://localhost:4200> | Angular wizard UI |
+| Frontend | <http://localhost:5174> | React wizard UI |
+
+Ports are configurable via `.env` (see `.env.example`):
+
+```env
+WIZARD_API_PORT=3007
+WIZARD_FRONTEND_PORT=5174
+```
 
 ## Notes
 

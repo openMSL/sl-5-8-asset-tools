@@ -33,8 +33,10 @@ python -m wizard_caller.main <jsonld_file> -shacl <combined_shacl.ttl> -enable <
 | Variable | Effect |
 |----------|--------|
 | `WIZARD_ENABLED=true` | Activates wizard even when config says `-enable false` |
-| `WIZARD_API_URL` | Override API URL (default: `http://localhost:3007`) |
-| `WIZARD_FRONTEND_URL` | Override frontend URL (default: `http://localhost:5173`) |
+| `WIZARD_API_PORT` | API port (default: `3007`, loaded from `.env`) |
+| `WIZARD_FRONTEND_PORT` | Frontend port (default: `5174`, loaded from `.env`) |
+| `WIZARD_API_URL` | Override full API URL (default: `http://localhost:$WIZARD_API_PORT`) |
+| `WIZARD_FRONTEND_URL` | Override full frontend URL (default: `http://localhost:$WIZARD_FRONTEND_PORT`) |
 
 ## Arguments
 
