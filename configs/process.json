@@ -54,6 +54,14 @@
 			"filename": "config_wizard_caller.json"
 		},
 		{
+			"enable": false,
+			"filename": "config_llm_enricher.json",
+			"extensions": [
+				"xodr",
+				"xosc"
+			]
+		},
+		{
 			"enable": true,
 			"filename": "config_jsonLD_validator_omb.json"
 		},
