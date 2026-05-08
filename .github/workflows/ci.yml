@@ -90,7 +90,7 @@ jobs:
 
       - name: Verify GeoJSON output exists
         run: |
-          if find examples/OpenDRIVE/output -name "*.json" -path "*/3d_preview/*" | grep -q .; then
+          if find examples/assets -name "*.json" -path "*/3d_preview/*" | grep -q .; then
             echo "[OK] GeoJSON 3D preview files generated"
           else
             echo "[ERR] No GeoJSON 3D preview files found"

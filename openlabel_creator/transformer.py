@@ -25,7 +25,6 @@ from .tag_categories import (
 logger = logging.getLogger(__name__)
 
 OPENLABEL_CONTEXT_URL = "https://openlabel.asam.net/V1-0-0/ontologies/"
-OPENLABEL_PREFIX = "openlabel:"
 
 _OMB_CONTEXT_PATH = (
     Path(__file__).resolve().parents[1]
@@ -87,7 +86,7 @@ def transform(openlabel_json: dict, tag_id: str) -> dict:
     # AdminTag from metadata
     admin_tag = _build_admin_tag(metadata)
     if admin_tag:
-        result["openlabel:AdminTag"] = admin_tag
+        result["AdminTag"] = admin_tag
 
     # Categorize and build sections from tags
     behaviour: dict[str, Any] = {}
@@ -103,29 +102,29 @@ def transform(openlabel_json: dict, tag_id: str) -> dict:
         _apply_tag(tag_type, tag_data, behaviour, road_user, odd)
 
     if behaviour:
-        behaviour["@type"] = "Behaviour"
-        result["openlabel:Behaviour"] = behaviour
+        behaviour["@type"] = "openlabel:Behaviour"
+        result["Behaviour"] = behaviour
     if road_user:
-        road_user["@type"] = "RoadUser"
-        result["openlabel:RoadUser"] = road_user
+        road_user["@type"] = "openlabel:RoadUser"
+        result["RoadUser"] = road_user
     if odd:
-        odd["@type"] = "Odd"
-        result["openlabel:Odd"] = odd
+        odd["@type"] = "openlabel:Odd"
+        result["Odd"] = odd
 
     return result
 
 
 def _build_admin_tag(metadata: dict) -> dict[str, Any] | None:
     """Build the AdminTag section from OpenLABEL metadata."""
-    admin: dict[str, Any] = {"@type": "AdminTag"}
+    admin: dict[str, Any] = {"@type": "openlabel:AdminTag"}
 
     field_map = {
-        "Name": "openlabel:scenarioName",
-        "Description": "openlabel:scenarioDescription",
-        "ScenarioId": "openlabel:scenarioUniqueReference",
-        "CreateDate": "openlabel:scenarioCreatedDate",
-        "ModifyDate": "openlabel:scenarioVersion",
-        "Creator": "openlabel:ownerName",
+        "Name": "scenarioName",
+        "Description": "scenarioDescription",
+        "ScenarioId": "scenarioUniqueReference",
+        "CreateDate": "scenarioCreatedDate",
+        "ModifyDate": "scenarioVersion",
+        "Creator": "ownerName",
     }
 
     for src_key, dst_key in field_map.items():
@@ -136,7 +135,7 @@ def _build_admin_tag(metadata: dict) -> dict[str, Any] | None:
     # scenarioDefinitionLanguageURI from OpenXAvailability
     openx = metadata.get("OpenXAvailability", {})
     if openx.get("Osc"):
-        admin["openlabel:scenarioDefinitionLanguageURI"] = _literal_value(
+        admin["scenarioDefinitionLanguageURI"] = _literal_value(
             "https://www.asam.net/standards/detail/openscenario/"
         )
 
@@ -164,8 +163,8 @@ def _apply_tag(
         (ROAD_USER_ANIMAL_TYPES, "RoadUserAnimal"),
     ):
         if tag_type in types_set:
-            key = f"{OPENLABEL_PREFIX}{prop}"
-            new_val = {"@id": f"{OPENLABEL_PREFIX}{tag_type}"}
+            key = prop
+            new_val = {"@id": f"openlabel:{tag_type}"}
             if key in road_user:
                 logger.warning("Overwriting %s: %s → %s", key, road_user[key], new_val)
             road_user[key] = new_val
@@ -185,22 +184,22 @@ def _apply_tag(
         if enum_value:
             _append_or_set(
                 target,
-                f"{OPENLABEL_PREFIX}{tag_type}",
-                {"@id": f"{OPENLABEL_PREFIX}{enum_value}"},
+                tag_type,
+                {"@id": f"openlabel:{enum_value}"},
             )
         else:
-            target[f"{OPENLABEL_PREFIX}{tag_type}"] = True
+            target[tag_type] = True
         return
 
     # Boolean tags (presence = true)
-    target[f"{OPENLABEL_PREFIX}{tag_type}"] = True
+    target[tag_type] = True
 
     # If there's associated numeric value data, add the value property
     value_prop = VALUE_PROPERTIES.get(tag_type)
     if value_prop and tag_data:
         typed_value = _extract_value(tag_type, tag_data)
         if typed_value is not None:
-            target[f"{OPENLABEL_PREFIX}{value_prop}"] = typed_value
+            target[value_prop] = typed_value
 
 
 def _append_or_set(target: dict, key: str, value: Any) -> None:

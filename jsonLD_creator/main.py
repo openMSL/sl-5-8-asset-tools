@@ -173,8 +173,9 @@ def get_value_type(key: str, shacl_values: dict) -> str:
     )
 
     # set value_key
-    if key == "gx:license" and value_key != "@value":
-        value_key = "@value"  # no idea how to handle this via shacl values
+    if key == "gx:license":
+        # SPDX identifiers and all license values use @value (string literal)
+        value_key = "@value"
     if key == "manifest:hasAccessRole" and value_key != "@id":
         value_key = "@id"
     if key == "manifest:hasCategory" and value_key != "@id":
@@ -182,16 +183,72 @@ def get_value_type(key: str, shacl_values: dict) -> str:
     return value_key
 
 
-def create_property_key(namespace: str, property_name: str) -> str:
-    """Create a JSON-LD property key and remove ENVITED prefixes for leaf properties."""
-    namespace_url = config.JSON_OUT["@context"].get(namespace)
+GX_CONTEXT_PREFIXES = {"gx", "schema"}
 
+# Prefixes whose terms are resolved by loaded context URLs (always strip for leaf keys)
+_CONTEXT_RESOLVED_PREFIXES = {"skos"}
+
+# Structural node keys that stay prefixed per OMB reference convention.
+# These are top-level relationships on domain entities and DomainSpecification.
+_PREFIXED_NODE_KEYS = {
+    "hasResourceDescription",
+    "hasDomainSpecification",
+    "hasManifest",
+    "hasFormat",
+    "hasContent",
+    "hasQuantity",
+    "hasQuality",
+    "hasDataSource",
+}
+
+
+def create_property_key(namespace: str, property_name: str) -> str:
+    """Create a JSON-LD property key, stripping prefixes resolved by context URLs.
+
+    ENVITED-X prefixes (hdmap, manifest, etc.) and GX/schema prefixes are stripped
+    because the context URLs define the term-to-IRI mappings for compact JSON-LD.
+    """
+    # ENVITED-X namespaces: strip prefix (context URL resolves them)
+    namespace_url = config.JSON_OUT["@context"].get(namespace)
     if namespace_url and ENVITED_URL in str(namespace_url):
         return property_name
-    if namespace == "sh" and property_name == "conformsTo":  # special case
+
+    # GX and schema: strip prefix (GX context @vocab resolves them)
+    if namespace in GX_CONTEXT_PREFIXES:
+        return property_name
+
+    # Prefixes with explicit term definitions in loaded contexts (e.g. skos:note → note)
+    if namespace in _CONTEXT_RESOLVED_PREFIXES:
+        return property_name
+
+    if namespace == "sh" and property_name == "conformsTo":
         return property_name
 
     return create_namespace_name(namespace, property_name)
+
+
+def create_node_key(namespace: str, shapename: str) -> str:
+    """Create a JSON-LD key for a nested node (object with @type).
+
+    OMB reference convention:
+    - hdmap/scenario structural keys (level 0-1) stay prefixed for visual hierarchy
+    - manifest, georeference, and deeper hdmap/scenario keys are flat
+    """
+    namespace_url = config.JSON_OUT["@context"].get(namespace)
+    if namespace_url and ENVITED_URL in str(namespace_url):
+        # Domain ontologies (hdmap, scenario): keep prefix only for structural keys
+        if namespace in ("hdmap", "scenario"):
+            if shapename in _PREFIXED_NODE_KEYS:
+                return create_namespace_name(namespace, shapename)
+            return shapename
+        # All other ENVITED (manifest, georeference, envited-x, environment-model): flat
+        return shapename
+
+    # GX/schema/skos: strip
+    if namespace in GX_CONTEXT_PREFIXES or namespace in _CONTEXT_RESOLVED_PREFIXES:
+        return shapename
+
+    return create_namespace_name(namespace, shapename)
 
 
 # Comments in English as requested
@@ -376,7 +433,7 @@ def create_node(
     node = {}
     node["@type"] = type
 
-    key = create_namespace_name(namespace, shapename)
+    key = create_node_key(namespace, shapename)
 
     if is_list:
         lsonLD.append(node)
@@ -674,7 +731,8 @@ def register_list(
             del meta_data[key]
 
         if created_nodes:
-            lsonLD_dict[key] = created_nodes
+            output_key = create_node_key(namespace, shapename)
+            lsonLD_dict[output_key] = created_nodes
 
     elif is_required:
         pass  # empty required nodes are omitted for now
@@ -890,7 +948,16 @@ def process_graph(schema_namespace, schema_name, meta_data):
     if schema_namespace.lower() in config.SHACLS:
         shacl_graph_data = config.SHACLS[schema_namespace.lower()]
 
-        config.JSON_OUT["@context"] = shacl_graph_data["prefixes"]
+        config.JSON_OUT["@context"] = dict(shacl_graph_data["prefixes"])
+        # Merge prefixes from all loaded dependency SHACLs so that properties
+        # introduced by nested shapes (e.g. schema:name from envited-x) have
+        # their namespace defined in the output @context.
+        for dep_key, dep_data in config.SHACLS.items():
+            if dep_key == schema_namespace.lower():
+                continue
+            for prefix, ns in dep_data.get("prefixes", {}).items():
+                if prefix not in config.JSON_OUT["@context"]:
+                    config.JSON_OUT["@context"][prefix] = ns
 
         # add did
         if "did" in meta_data:
@@ -950,26 +1017,31 @@ def register_shacl(url_path: str, shacl_name: str, shacls):
 
 
 def convert_context_for_output(context: dict) -> list:
-    """Convert prefix map to JSON-LD context list."""
+    """Convert prefix map to a compact JSON-LD @context list.
+
+    Uses resolvable context URLs (ENVITED-X and Gaia-X) as direct entries
+    and appends {"@vocab": null} to reject undefined terms.
+    """
 
     direct_urls = []
-    other_prefixes = {}
     seen_urls = set()
 
+    # GX context URL goes first (provides @vocab and schema: mappings)
+    gx_url = str(context.get("gx", GX_NS))
+    if gx_url not in seen_urls:
+        direct_urls.append(gx_url)
+        seen_urls.add(gx_url)
+
+    # ENVITED-X context URLs next
     for prefix, url in context.items():
         url = str(url)
-
-        # Put ENVITED contexts directly into the list
         if ENVITED_URL in url:
             if url not in seen_urls:
                 direct_urls.append(url)
                 seen_urls.add(url)
-        else:
-            other_prefixes[prefix] = url
 
-    # Append remaining prefixes as one mapping block
-    if other_prefixes:
-        direct_urls.append(other_prefixes)
+    # Block undefined terms from being silently accepted
+    direct_urls.append({"@vocab": None})
 
     return direct_urls
 

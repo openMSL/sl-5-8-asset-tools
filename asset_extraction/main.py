@@ -355,7 +355,7 @@ def _format_reference(ref: dict) -> dict:
         "@type": "manifest:Link",
         "hasAccessRole": {"@type": "manifest:AccessRole", "@id": role_id},
         "hasCategory": {"@type": "manifest:Category", "@id": cat_id},
-        "manifest:hasFileMetadata": out_meta,
+        "hasFileMetadata": out_meta,
     }
 
 
@@ -665,9 +665,7 @@ def main():
     if refs and manifest_path.exists():
         with manifest_path.open("r", encoding="utf-8") as f:
             manifest = json.load(f)
-        manifest["manifest:hasReferencedArtifacts"] = [
-            _format_reference(ref) for ref in refs
-        ]
+        manifest["hasReferencedArtifacts"] = [_format_reference(ref) for ref in refs]
         write_json(manifest_path, manifest, indentValue=2, trailing_newline=True)
         logger.info(f"Injected {len(refs)} referenced artifact(s) into manifest")
 
