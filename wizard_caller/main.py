@@ -54,6 +54,16 @@ def main():
             "Falls back to env var WIZARD_FRONTEND_URL."
         ),
     )
+    parser.add_argument(
+        "-asset-name",
+        default=None,
+        help="Name of the asset being processed (displayed in wizard header).",
+    )
+    parser.add_argument(
+        "-provenance",
+        default=None,
+        help="Path to provenance sidecar JSON from llm_enricher.",
+    )
     args = parser.parse_args()
 
     jsonld_path = Path(args.filename)
@@ -82,6 +92,22 @@ def main():
         args.api_url or os.environ.get("WIZARD_API_URL") or "http://localhost:3007"
     )
     frontend_url = args.frontend_url or os.environ.get("WIZARD_FRONTEND_URL")
+    provenance_path = Path(args.provenance) if args.provenance else None
+    asset_name = args.asset_name
+
+    # Auto-detect provenance sidecar if not explicitly provided.
+    # Check next to the input JSON-LD first (temp/), then next to the
+    # output path (metadata/) where llm_enricher writes its sidecar.
+    if provenance_path is None:
+        candidates = [
+            jsonld_path.parent / f"{jsonld_path.stem}_provenance.json",
+            output_path.parent / f"{output_path.stem}_provenance.json",
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                provenance_path = candidate
+                logger.info("Auto-detected provenance sidecar: %s", candidate)
+                break
 
     from wizard_caller.api_client import (
         WizardAPIError,
@@ -99,6 +125,8 @@ def main():
                 shacl_path=shacl_path,
                 jsonld_path=jsonld_path,
                 output_path=output_path,
+                provenance_path=provenance_path,
+                asset_name=asset_name,
             )
             if success:
                 logger.info("Wizard export complete → %s", output_path)

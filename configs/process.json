@@ -50,16 +50,16 @@
 			"filename": "config_shacl_combiner.json"
 		},
 		{
-			"enable": true,
-			"filename": "config_wizard_caller.json"
-		},
-		{
 			"enable": false,
 			"filename": "config_llm_enricher.json",
 			"extensions": [
 				"xodr",
 				"xosc"
 			]
+		},
+		{
+			"enable": true,
+			"filename": "config_wizard_caller.json"
 		},
 		{
 			"enable": true,
