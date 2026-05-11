@@ -10,6 +10,12 @@ from utils.pipeline_reporting import (
     summarize_stage_failure,
     summarize_stage_success,
 )
+from utils.asset_registry import (
+    has_collision,
+    load_registry,
+    register_asset,
+    resolve_placeholders,
+)
 from utils.cid import compute_file_cid
 from utils.http import download_or_get_file, is_url
 from utils.json import write_json
@@ -559,6 +565,9 @@ def main():
     if not asset_file.exists():
         raise FileNotFoundError(f"asset file {asset_file} not exists")
 
+    asset_type_ext = get_asset_type_extension(asset_file)
+    asset_type = get_asset_type(asset_type_ext)
+
     # load all configs that are applicable to the asset type
     if not config_dir.is_dir():
         raise FileNotFoundError(f"config path {config_dir} not exists")
@@ -573,7 +582,13 @@ def main():
     asset_name = asset_file.stem
     _validate_asset_name(asset_name)
 
-    output_sub_dir = output_dir / asset_name
+    # Collision avoidance: if a different asset type already occupies this
+    # stem in the registry (e.g. hdmap "Foo.xodr" vs scenario "Foo.xosc"),
+    # disambiguate by appending the asset type.
+    if has_collision(output_dir, asset_name, asset_type):
+        output_sub_dir = output_dir / f"{asset_name}_{asset_type}"
+    else:
+        output_sub_dir = output_dir / asset_name
     if output_sub_dir.exists():
         shutil.rmtree(output_sub_dir)
     output_sub_dir.mkdir(parents=True, exist_ok=True)
@@ -663,6 +678,8 @@ def main():
             refs.extend(auto_refs)
 
     if refs and manifest_path.exists():
+        # Resolve __*__ placeholders from the asset registry before writing
+        resolve_placeholders(refs, output_dir, current_stem=asset_name)
         with manifest_path.open("r", encoding="utf-8") as f:
             manifest = json.load(f)
         manifest["hasReferencedArtifacts"] = [_format_reference(ref) for ref in refs]
@@ -686,6 +703,25 @@ def main():
     temp_zip_path.replace(zip_filename)
     archive_display = zip_filename
     logger.info("[DONE ] Archive: %s", archive_display)
+
+    # Register the asset so later pipeline runs can resolve cross-references
+    sim_data_files = (
+        list((output_sub_dir / "simulation-data").glob("*"))
+        if (output_sub_dir / "simulation-data").is_dir()
+        else []
+    )
+    sim_data_path = (
+        f"simulation-data/{sim_data_files[0].name}" if sim_data_files else ""
+    )
+    register_asset(
+        output_dir,
+        stem=asset_name,
+        asset_type=asset_type,
+        cid=archive_cid,
+        manifest_path=str(manifest_path.relative_to(output_dir)),
+        sim_data_path=sim_data_path,
+    )
+
     pipeline_reporter.finish_pipeline(perf_counter() - pipeline_started_at)
 
 

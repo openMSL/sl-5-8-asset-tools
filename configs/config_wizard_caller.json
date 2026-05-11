@@ -8,7 +8,8 @@
 		"output" : {"-out" : "{path}/{sub_path}/{asset_type}.json"},
 		"additional" : {			
 			"-shacl" : "{path}/temp/{asset_type}.ttl",
-			"-enable" : "false"
+			"-enable" : "false",
+			"-asset-name" : "{name}"
 		}	
 	}
 }

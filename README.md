@@ -119,6 +119,16 @@ make generate opendrive      # OpenDRIVE example  → examples/assets/
 make generate openscenario   # OpenSCENARIO example → examples/assets/
 ```
 
+### Batch Processing
+
+Process all input manifests under the `examples/` directory tree in a single
+command.  HD-map inputs are processed before scenarios so cross-references
+resolve correctly:
+
+```bash
+make generate batch
+```
+
 ### Selective Module Execution
 
 Individual pipeline modules can be enabled or disabled at runtime using the
@@ -280,6 +290,27 @@ Ports are configurable via `.env` (see `.env.example`):
 WIZARD_API_PORT=3007
 WIZARD_FRONTEND_PORT=5174
 ```
+
+## Metadata Review
+
+Review existing generated assets interactively.  `make review` enriches
+metadata with `llm_enricher`, opens the wizard for human verification, and
+re-zips any assets whose metadata changed:
+
+```bash
+make review                            # review all assets in examples/assets/
+make review REVIEW_DIR=path/to/assets  # review assets in a custom directory
+```
+
+### How It Differs from Validate
+
+| Command | Purpose | Automated | Modifies assets |
+|---------|---------|-----------|-----------------|
+| `make validate` | SHACL schema conformance check | Yes (read-only) | No |
+| `make review` | Human metadata review via wizard | Interactive | Yes (re-zips on change) |
+
+Use `validate` to verify structural correctness.  Use `review` to verify
+semantic completeness and accuracy with a human in the loop.
 
 ## Notes
 

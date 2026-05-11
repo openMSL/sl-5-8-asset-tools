@@ -174,17 +174,68 @@ def enrich_single(
     with open(out_file, "w") as f:
         json.dump(enriched_metadata, f, indent=2, ensure_ascii=False)
 
+    # Write provenance sidecar for downstream consumers (e.g. wizard)
+    provenance = _build_provenance(
+        enrichment["fields"],
+        enrichment["confidence"],
+        asset_dir.name,
+        asset_type,
+    )
+    provenance_file = out_file.parent / f"{out_file.stem}_provenance.json"
+    with open(provenance_file, "w") as f:
+        json.dump(provenance, f, indent=2, ensure_ascii=False)
+
     logger.info(
-        "Enriched %d fields for %s → %s",
+        "Enriched %d fields for %s → %s (provenance → %s)",
         len(enrichment["fields"]),
         asset_dir.name,
         out_file,
+        provenance_file,
     )
 
     return {
         "enriched_fields": enrichment["fields"],
         "confidence": enrichment["confidence"],
         "output": str(out_file),
+    }
+
+
+def _build_provenance(
+    fields: dict,
+    confidence: dict[str, str],
+    asset_name: str,
+    asset_type: str,
+    *,
+    default_method: str = "rule-based-inference",
+    methods: dict[str, str] | None = None,
+) -> dict:
+    """Build a provenance sidecar describing which fields were enriched and how."""
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as pkg_version
+
+    try:
+        tool_version = pkg_version("sl-5-8-asset-tools")
+    except PackageNotFoundError:
+        tool_version = "0.0.0-dev"
+
+    methods = methods or {}
+    field_records = {}
+    for field_name, value in fields.items():
+        if value is None:
+            continue
+        field_records[field_name] = {
+            "method": methods.get(field_name, default_method),
+            "confidence": confidence.get(field_name, "medium"),
+        }
+
+    return {
+        "assetName": asset_name,
+        "assetType": asset_type,
+        "tool": {
+            "name": "sl-5-8-asset-tools/llm_enricher",
+            "version": tool_version,
+        },
+        "fields": field_records,
     }
 
 

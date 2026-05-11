@@ -118,12 +118,15 @@ def create_session(
     shacl_path: Path,
     jsonld_path: Path | None,
     output_path: Path,
+    provenance_path: Path | None = None,
+    asset_name: str | None = None,
     timeout: int = _TIMEOUT,
 ) -> None:
     """Create a wizard session — hand off files for browser-based editing.
 
     Calls ``POST /session`` with the SHACL file, optional JSON-LD prefill,
-    and the output path where the final JSON-LD should be written.
+    provenance sidecar, asset name, and the output path where the final
+    JSON-LD should be written.
 
     Raises:
         WizardAPIError: on HTTP error or connection failure.
@@ -136,7 +139,10 @@ def create_session(
                 "shaclFile": (shacl_path.name, shacl_f, "text/turtle"),
                 "outputPath": (None, str(output_path.resolve())),
             }
+            if asset_name:
+                files["assetName"] = (None, asset_name)
             jsonld_f = None
+            prov_f = None
             try:
                 if jsonld_path and jsonld_path.exists():
                     jsonld_f = open(jsonld_path, "rb")  # noqa: SIM115
@@ -145,12 +151,25 @@ def create_session(
                         jsonld_f,
                         "application/json",
                     )
+                if provenance_path and provenance_path.exists():
+                    prov_f = open(provenance_path, "rb")  # noqa: SIM115
+                    files["provenanceFile"] = (
+                        provenance_path.name,
+                        prov_f,
+                        "application/json",
+                    )
                 resp = requests.post(url, files=files, timeout=timeout)
             finally:
                 if jsonld_f:
                     jsonld_f.close()
+                if prov_f:
+                    prov_f.close()
     except requests.ConnectionError as exc:
         raise WizardAPIError(f"Cannot connect to Wizard API at {api_url}") from exc
+    except requests.Timeout as exc:
+        raise WizardAPIError(
+            f"Wizard API session creation timed out after {timeout}s"
+        ) from exc
     except OSError as exc:
         raise WizardAPIError(f"Cannot read input file: {exc}") from exc
 
@@ -193,6 +212,8 @@ def open_wizard_browser(
     shacl_path: Path | None = None,
     jsonld_path: Path | None = None,
     output_path: Path | None = None,
+    provenance_path: Path | None = None,
+    asset_name: str | None = None,
 ) -> bool:
     """Create a session, open the browser, and wait for user to export.
 
@@ -205,15 +226,24 @@ def open_wizard_browser(
 
     if shacl_path and output_path:
         logger.info("Creating wizard session...")
-        create_session(api_url, shacl_path, jsonld_path, output_path)
+        create_session(
+            api_url,
+            shacl_path,
+            jsonld_path,
+            output_path,
+            provenance_path=provenance_path,
+            asset_name=asset_name,
+        )
 
+    asset_label = f" for {asset_name}" if asset_name else ""
     logger.info("Opening browser at %s", fe_url)
     webbrowser.open(fe_url)
 
     logger.info(
-        "Waiting for you to complete the wizard in the browser...\n"
-        "  → Fill in the form fields and click 'Export JSON-LD' when done.\n"
-        "  → The pipeline will continue automatically."
+        "Waiting for you to complete the wizard%s in the browser...\n"
+        "  → Review pre-filled fields and click 'Export JSON-LD' when done.\n"
+        "  → The pipeline will continue automatically.",
+        asset_label,
     )
 
     return wait_for_export(api_url)

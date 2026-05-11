@@ -236,35 +236,30 @@ ifneq ($(INPUT_DIR),)
 		$(if $(ZIP_DIR),-zip-dir "$(ZIP_DIR)") \
 		$(PIPELINE_FLAGS)
 	@echo "[OK] Pipeline complete -> $(OUTPUT_DIR)"
+else ifeq ($(SUBCMD),batch)
+	@echo "[INFO] Batch-processing all input manifests under examples/..."
+	@mkdir -p "$(OUTPUT_DIR)" 2>/dev/null || true
+	@rm -f "$(OUTPUT_DIR)/.asset_registry.json"
+	@"$(PYTHON)" -m batch_runner batch \
+		"$(CURDIR)/examples" \
+		-config "$(CURDIR)/configs" \
+		-out "$(OUTPUT_DIR)" \
+		-zip-dir "$(ASSETS_DIR)" \
+		$(PIPELINE_FLAGS)
+	@echo "[OK] Batch complete -> $(OUTPUT_DIR)"
 else
 	@dir="$(EXAMPLE_$(SUBCMD))"; \
 	if [ -z "$$dir" ]; then \
 		echo "[ERR] Unknown example: $(SUBCMD)"; \
-		echo "Usage:  make $@ <opendrive|openscenario>"; \
+		echo "Usage:  make $@ <opendrive|openscenario|batch>"; \
 		echo "        make $@ INPUT_DIR=path/to/input OUTPUT_DIR=path/to/output"; \
 		exit 1; \
 	fi; \
-	bak="$(CURDIR)/examples/$$dir/input_manifest.json.bak"; \
 	status=0; \
-	restore_status=0; \
 	if [ "$(SUBCMD)" = "openscenario" ]; then \
-		odr_manifest=$$(find "$(ASSETS_DIR)" -name manifest.json 2>/dev/null | head -1); \
-		if [ -z "$$odr_manifest" ]; then \
+		if [ ! -f "$(ASSETS_DIR)/.asset_registry.json" ]; then \
 			echo "[INFO] OpenScenario references an OpenDRIVE map -- building dependency first..."; \
 			"$(MAKE)" generate opendrive || status=$$?; \
-			if [ $$status -eq 0 ]; then \
-				odr_manifest=$$(find "$(ASSETS_DIR)" -name manifest.json 2>/dev/null | head -1); \
-			fi; \
-		fi; \
-		if [ $$status -eq 0 ] && [ -n "$$odr_manifest" ]; then \
-			echo "[INFO] Resolving external references from $$odr_manifest"; \
-			cp "$(CURDIR)/examples/$$dir/input_manifest.json" \
-			   "$$bak" || status=$$?; \
-			if [ $$status -eq 0 ]; then \
-				"$(CURDIR)/$(PYTHON)" "$(CURDIR)/scripts/resolve_references.py" \
-					"$(CURDIR)/examples/$$dir/input_manifest.json" \
-					--ref-manifest "$$odr_manifest" || status=$$?; \
-			fi; \
 		fi; \
 	fi; \
 	if [ $$status -eq 0 ]; then \
@@ -276,21 +271,25 @@ else
 			-zip-dir "$(ASSETS_DIR)" \
 			$(PIPELINE_FLAGS) || status=$$?; \
 	fi; \
-	if [ -f "$$bak" ]; then \
-		mv "$$bak" "$(CURDIR)/examples/$$dir/input_manifest.json" || restore_status=$$?; \
-	fi; \
-	if [ $$restore_status -ne 0 ]; then \
-		echo "[ERR] Failed to restore input manifest"; \
-		if [ $$status -eq 0 ]; then \
-			status=$$restore_status; \
-		fi; \
-	fi; \
 	if [ $$status -ne 0 ]; then \
 		echo "[ERR] $$dir pipeline failed (exit $$status)"; \
 		exit $$status; \
 	fi; \
 	echo "[OK] $$dir pipeline complete"
 endif
+
+# ── Review (interactive metadata review) ─────────────────────────────
+
+REVIEW_DIR ?= $(ASSETS_DIR)
+
+review:
+	$(call check_dev_setup)
+	@echo "[INFO] Reviewing assets under $(REVIEW_DIR)..."
+	@WIZARD_ENABLED=true "$(PYTHON)" -m batch_runner review \
+		"$(REVIEW_DIR)" \
+		-config "$(CURDIR)/configs" \
+		-zip-dir "$(REVIEW_DIR)"
+	@echo "[OK] Review complete"
 
 # ── Wizard (SD Creation Wizard API) ──────────────────────────────────
 
@@ -384,6 +383,7 @@ help:
 	@echo ""
 	@echo "  make generate opendrive      Run OpenDRIVE example pipeline"
 	@echo "  make generate openscenario   Run OpenSCENARIO example pipeline"
+	@echo "  make generate batch          Batch-process all examples (hdmap first, then scenario)"
 	@echo "  make generate INPUT_DIR=<path> OUTPUT_DIR=<path>"
 	@echo "                               Run pipeline for a custom input directory"
 	@echo ""
@@ -408,6 +408,14 @@ help:
 	@echo "  make wizard stop             Stop the wizard API"
 	@echo "  make setup wizard            Reinstall wizard dependencies only"
 	@echo ""
+	@echo "Metadata review (interactive — enriches, reviews, and re-zips):"
+	@echo "  make review                  Review all assets in examples/assets/ via wizard"
+	@echo "  make review REVIEW_DIR=<path>"
+	@echo "                               Review assets in a custom directory"
+	@echo ""
+	@echo "  validate = automated SHACL conformance check (read-only, pass/fail)"
+	@echo "  review   = interactive human review via wizard (may enrich and re-zip)"
+	@echo ""
 	@echo "  make clean                   Remove build artifacts and caches"
 	@echo "  make clean all               Clean + remove venv and submodules (full reset)"
 	@echo ""
@@ -421,7 +429,7 @@ help:
 
 # ── Catch-all for subcommand arguments ───────────────────────────────
 # Prevents "No rule to make target 'opendrive'" errors
-ifneq ($(filter setup generate check wizard clean,$(firstword $(MAKECMDGOALS))),)
+ifneq ($(filter setup generate check wizard clean review,$(firstword $(MAKECMDGOALS))),)
 %:
 	@:
 endif
