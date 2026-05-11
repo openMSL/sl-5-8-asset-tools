@@ -7,6 +7,11 @@ OMB  := submodules/ontology-management-base
 WIZARD_DIR := submodules/sd-creation-wizard
 GIT  ?= git
 
+# Load .env for wizard ports
+-include .env
+WIZARD_API_PORT      ?= 3007
+WIZARD_FRONTEND_PORT ?= 5174
+
 # OS detection for cross-platform support (Windows vs Unix)
 ifeq ($(OS),Windows_NT)
     SHELL            := sh
@@ -326,7 +331,8 @@ else
 	@if kill -0 $$(cat /tmp/sd-wizard-api.pid) 2>/dev/null; then \
 		echo ""; \
 		echo "[OK] Wizard API is running:"; \
-		echo "  API: http://localhost:3007"; \
+		echo "  API:      http://localhost:$(WIZARD_API_PORT)"; \
+		echo "  Frontend: http://localhost:$(WIZARD_FRONTEND_PORT)"; \
 		echo ""; \
 		echo "  Stop with:  make wizard stop"; \
 	else \
