@@ -224,7 +224,7 @@ def sum_div_1000(data: Any, **kwargs) -> float:
     if not isinstance(data, list):
         data = [data] if data else []
     total = sum(float(v) for v in data if v is not None)
-    return total / 1000
+    return round(total / 1000, 6)
 
 
 @register("collect_custom_commands")

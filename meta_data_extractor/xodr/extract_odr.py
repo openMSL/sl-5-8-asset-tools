@@ -137,17 +137,17 @@ def _build_georeference(data: dict) -> dict | None:
             lat_min, lon_min = convert_to_LatLon(x_min, y_min, geo_ref_cleaned)
             lat_max, lon_max = convert_to_LatLon(x_max, y_max, geo_ref_cleaned)
             projection_location_dict["georeference:hasBoundingBox"] = {
-                "georeference:xMin": str(lon_min),
-                "georeference:yMin": str(lat_min),
-                "georeference:xMax": str(lon_max),
-                "georeference:yMax": str(lat_max),
+                "georeference:xMin": f"{lon_min:.8f}",
+                "georeference:yMin": f"{lat_min:.8f}",
+                "georeference:xMax": f"{lon_max:.8f}",
+                "georeference:yMax": f"{lat_max:.8f}",
             }
 
             # Origin (0,0 in local coords)
             lat_origin, lon_origin = convert_to_LatLon(0.0, 0.0, geo_ref_cleaned)
             geodetic_dict["georeference:hasOrigin"] = {
-                "georeference:lat": str(lat_origin),
-                "georeference:lon": str(lon_origin),
+                "georeference:lat": f"{lat_origin:.8f}",
+                "georeference:lon": f"{lon_origin:.8f}",
             }
 
             # View point (center of bbox)
@@ -155,8 +155,8 @@ def _build_georeference(data: dict) -> dict | None:
             center_lon = (lon_min + lon_max) * 0.5
             get_adress_from_osm(projection_location_dict, center_lat, center_lon)
             geodetic_dict["georeference:hasViewPoint"] = {
-                "georeference:lat": str(center_lat),
-                "georeference:lon": str(center_lon),
+                "georeference:lat": f"{center_lat:.8f}",
+                "georeference:lon": f"{center_lon:.8f}",
             }
         except Exception:
             logger.warning("Could not convert georeference coordinates")
