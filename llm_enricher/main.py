@@ -378,7 +378,41 @@ def _merge_enrichment(metadata: dict, enriched_fields: dict, prefix: str) -> dic
                 # For dict sections, write back (list items are mutated in-place)
                 domain_spec[section_key] = section
 
+    # Normalize legacy formatType ("ASAM OpenSCENARIO" → XML/DSL based on version)
+    _normalize_format_type(domain_spec, prefix)
+
     return result
+
+
+def _normalize_format_type(domain_spec: dict, prefix: str) -> None:
+    """Normalize legacy 'ASAM OpenSCENARIO' formatType to XML or DSL variant.
+
+    Since January 2024, ASAM split the standard into 'ASAM OpenSCENARIO XML'
+    (v1.x) and 'ASAM OpenSCENARIO DSL' (v2.x). Infers the correct suffix
+    from the version field when the generic name is found.
+    """
+    format_section = domain_spec.get(f"{prefix}:hasFormat")
+    if not isinstance(format_section, dict):
+        return
+
+    format_type = format_section.get("formatType", "")
+    if format_type != "ASAM OpenSCENARIO":
+        return
+
+    version = str(format_section.get("version", ""))
+    major = version.split(".")[0] if version else ""
+
+    if major.isdigit() and int(major) >= 2:
+        format_section["formatType"] = "ASAM OpenSCENARIO DSL"
+    else:
+        # Default to XML for v1.x or when version is unclear
+        format_section["formatType"] = "ASAM OpenSCENARIO XML"
+
+    logger.info(
+        "Normalized formatType: 'ASAM OpenSCENARIO' → '%s' (version %s)",
+        format_section["formatType"],
+        version or "unknown",
+    )
 
 
 def main():
