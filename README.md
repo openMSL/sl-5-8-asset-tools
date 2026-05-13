@@ -190,6 +190,26 @@ make generate opendrive
 
 ## Input Manifest
 
+### Generating a Manifest Automatically
+
+If you don't have an `input_manifest.json` yet, generate one from your files:
+
+```bash
+make init INPUT_DIR=path/to/my-asset
+```
+
+This scans the directory for simulation data (`.xodr`, `.xosc`, `.zip`, `.7z`),
+documentation, media, and license files, then writes an `input_manifest.json`
+ready for the pipeline.  Review and edit the generated file if needed, then run:
+
+```bash
+make generate INPUT_DIR=path/to/my-asset
+```
+
+Use `FORCE=true` to overwrite an existing manifest.
+
+### Manifest Format
+
 The pipeline accepts an `input_manifest.json` (JSON-LD) that describes the asset
 files, their categories and access roles.
 

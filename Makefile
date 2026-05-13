@@ -58,7 +58,7 @@ define check_dev_setup
 	fi
 endef
 
-.PHONY: all setup install lint format check validate generate clean wizard help
+.PHONY: all setup install lint format check validate generate init clean wizard help
 
 # Default target
 all: check
@@ -278,6 +278,19 @@ else
 	echo "[OK] $$dir pipeline complete"
 endif
 
+# ── Init manifest ─────────────────────────────────────────────────────
+
+init:
+	$(call check_dev_setup)
+	@if [ -z "$(INPUT_DIR)" ]; then \
+		echo "[ERR] INPUT_DIR is required."; \
+		echo "Usage:  make init INPUT_DIR=path/to/your/files"; \
+		exit 1; \
+	fi
+	@"$(PYTHON)" -m scripts.init_manifest "$(INPUT_DIR)" $(if $(findstring true,$(FORCE)),--force)
+	@echo "[OK] Created $(INPUT_DIR)/input_manifest.json"
+	@echo "     Edit it if needed, then run:  make generate INPUT_DIR=$(INPUT_DIR)"
+
 # ── Review (interactive metadata review) ─────────────────────────────
 
 REVIEW_DIR ?= $(ASSETS_DIR)
@@ -380,6 +393,10 @@ help:
 	@echo "  make check md                Lint Markdown files"
 	@echo ""
 	@echo "  make validate                Validate generated examples against SHACL"
+	@echo ""
+	@echo "  make init INPUT_DIR=<path>   Generate input_manifest.json from files in a directory"
+	@echo "  make init INPUT_DIR=<path> FORCE=true"
+	@echo "                               Overwrite existing manifest"
 	@echo ""
 	@echo "  make generate opendrive      Run OpenDRIVE example pipeline"
 	@echo "  make generate openscenario   Run OpenSCENARIO example pipeline"
