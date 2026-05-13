@@ -3,7 +3,7 @@ from rdflib import Graph, URIRef
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Tuple, Union, Dict, List
-from utils.rdf import get_prefixes, convert_graph_to_dict
+from utils.rdf import convert_graph_to_dict
 from utils.http import get_url_for_download, download_shacl
 from utils.json import write_json
 from utils.constants import SHACL_NS, SHACL_FOLDER_NAME, GX_NS, ENVITED_URL

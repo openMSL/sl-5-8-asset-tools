@@ -21,11 +21,13 @@ The following modules are used in the asset archive pipeline.
 - [asset_extraction](asset_extraction/README.md): Pipeline entrypoint and orchestrator.
 - [meta_data_extractor](meta_data_extractor/README.md): Extracts metadata from asset files.
 - [jsonLD_creator](jsonLD_creator/README.md): Creates JSON-LD from attribute JSON.
+- [openlabel_creator](openlabel_creator/README.md): Creates OpenLABEL JSON from scenario metadata.
 - [shacl_combiner](shacl_combiner/README.md): Combines required shacl shapes.
+- [llm_enricher](llm_enricher/README.md): Rule-based metadata enrichment for empty fields (disabled by default).
 - [wizard_caller](wizard_caller/README.md): SHACL-driven CLI wizard for enriching JSON-LD interactively (disabled via config by default).
 - [jsonLD_validator](jsonLD_validator/README.md): Legacy validator (replaced by ontology-management-base in pipeline).
 - [qualitychecker_caller](qualitychecker_caller/README.md): Runs ASAM/OpenMSL quality checkers.
-- [xodr_routing_creator](xodr_routing_creator/README.md): Generates route and bounding box geometry.
+- [xodr_routing_creator](xodr_routing_creator/README.md): Generates route and bounding box GeoJSON for georeferenced OpenDRIVE files. Non-georeferenced files are skipped.
 - [xodr_to_geojson_caller](xodr_to_geojson_caller/README.md): Pure-Python OpenDRIVE to GeoJSON 3D preview converter (disabled by default; enable via `-enable vcs_odr-converter`).
 - [asset_reducer](asset_reducer/README.md): Reduces XML asset data for search indexing.
 - [structure_creator](structure_creator/README.md): Builds final archive structure and manifest input.
@@ -293,9 +295,12 @@ WIZARD_FRONTEND_PORT=5174
 
 ## Metadata Review
 
-Review existing generated assets interactively.  `make review` enriches
-metadata with `llm_enricher`, opens the wizard for human verification, and
-re-zips any assets whose metadata changed:
+Review existing generated assets interactively.  `make review` runs two phases:
+
+1. **Enrichment** — `llm_enricher` fills empty metadata fields using rule-based inference and records provenance (method + confidence) in `*_provenance.json` files.
+2. **Wizard review** — Enriched assets are queued in the SD Creation Wizard for human verification. The wizard pre-fills forms from the existing JSON-LD and highlights inferred values.
+
+Re-zips any assets whose metadata changed after review:
 
 ```bash
 make review                            # review all assets in examples/assets/

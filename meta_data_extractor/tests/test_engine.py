@@ -4,11 +4,9 @@ Tests the core components: decoder, engine, mapping, transforms.
 """
 
 import pytest
-from pathlib import Path
 
-from meta_data_extractor.engine.decoder import SchemaDecoder
 from meta_data_extractor.engine.engine import ExtractionEngine, _split_path
-from meta_data_extractor.engine.mapping import MappingConfig, MappingRule
+from meta_data_extractor.engine.mapping import MappingConfig
 from meta_data_extractor.engine.transforms import (
     get_transform,
     list_transforms,

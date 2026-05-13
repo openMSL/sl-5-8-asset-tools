@@ -12,7 +12,6 @@ from utils.pipeline_reporting import (
 )
 from utils.asset_registry import (
     has_collision,
-    load_registry,
     register_asset,
     resolve_placeholders,
 )

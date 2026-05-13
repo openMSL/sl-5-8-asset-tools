@@ -23,10 +23,8 @@ Usage::
 
 import argparse
 import hashlib
-import json
 import logging
 import os
-import shutil
 import sys
 from pathlib import Path
 from zipfile import ZipFile, ZipInfo

@@ -4,6 +4,8 @@
 
 Parses OpenDRIVE plan view geometry, reprojects coordinates, and exports georeferenced route/bounding-box files in GeoJSON or KML.
 
+**Note:** Only georeferenced OpenDRIVE files (those with a `<geoReference>` proj4 string) produce output. Non-georeferenced files are skipped with an info log — no GeoJSON or KML is written.
+
 ## Usage
 
 ```bash

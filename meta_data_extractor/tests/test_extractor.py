@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from meta_data_extractor.extractor import get_adress_from_osm
 
 

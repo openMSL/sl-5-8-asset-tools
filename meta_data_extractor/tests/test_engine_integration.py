@@ -9,7 +9,6 @@ from pathlib import Path
 
 from meta_data_extractor.engine import extract_metadata
 from meta_data_extractor.engine.decoder import SchemaDecoder
-from meta_data_extractor.engine.engine import ExtractionEngine
 from meta_data_extractor.engine.mapping import MappingConfig
 
 # Test fixtures — use the shipped example files
