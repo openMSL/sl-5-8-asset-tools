@@ -83,7 +83,7 @@ def run_batch(
         cmd = [
             sys.executable,
             "-m",
-            "asset_extraction.main",
+            "pipeline.main",
             str(manifest),
             "-config",
             str(config_dir),
@@ -256,7 +256,7 @@ def run_review(
 
 
 def _enrich_asset(asset_dir: Path, config_dir: Path) -> None:
-    """Run llm_enricher on a single asset directory."""
+    """Run metadata_enricher on a single asset directory."""
     # Detect asset type from metadata
     meta_dir = asset_dir / "metadata"
     asset_type = None
@@ -274,7 +274,7 @@ def _enrich_asset(asset_dir: Path, config_dir: Path) -> None:
     cmd = [
         sys.executable,
         "-m",
-        "llm_enricher.main",
+        "metadata_enricher.main",
         "enrich",
         str(asset_dir),
         "--asset-type",
@@ -304,7 +304,7 @@ def _run_wizard_queue(asset_dirs: list[Path], config_dir: Path) -> None:
         )
         return
 
-    from wizard_caller.api_client import (
+    from wizard.api_client import (
         WizardAPIError,
         ensure_wizard_running,
         open_wizard_browser,
@@ -498,7 +498,7 @@ def main():
         "pipeline_flags",
         nargs="*",
         default=[],
-        help="Additional flags passed to asset_extraction.main",
+        help="Additional flags passed to pipeline.main",
     )
 
     # review subcommand

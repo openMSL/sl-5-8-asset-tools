@@ -12,21 +12,21 @@ This repository contains **tools to analyze, transform, and package simulation a
 
 ## Repository Structure
 
-### Pipeline Modules (executed in order by `asset_extraction`)
+### Pipeline Modules (executed in order by `pipeline`)
 
 | Module | Purpose | Enabled | Extensions |
 |--------|---------|---------|------------|
-| `asset_extraction/` | Pipeline entrypoint & orchestrator | — | all |
-| `meta_data_extractor/` | Extracts metadata from asset files (format, content, quantity, georeference) | ✅ | xodr, xosc |
-| `jsonLD_creator/` | Creates JSON-LD instances from extracted attribute JSON + SHACL ontologies | ✅ | xodr, xosc, 3dmodel |
+| `pipeline/` | Pipeline entrypoint & orchestrator | — | all |
+| `metadata_extractor/` | Extracts metadata from asset files (format, content, quantity, georeference) | ✅ | xodr, xosc |
+| `jsonld_creator/` | Creates JSON-LD instances from extracted attribute JSON + SHACL ontologies | ✅ | xodr, xosc, 3dmodel |
 | `shacl_combiner/` | Combines referenced SHACL shapes into a single `.ttl` file | ✅ | all |
-| `wizard_caller/` | SHACL-driven CLI wizard for enriching JSON-LD interactively (disabled via `-enable false` by default) | ✅* | all |
-| `jsonLD_validator/` | Legacy JSON-LD validator (replaced by ontology-management-base in pipeline) | ❌ | — |
-| `qualitychecker_caller/` | Runs ASAM/OpenMSL quality checkers, produces `.xqar` + text reports | ✅ | xodr, xosc |
-| `xodr_routing_creator/` | Generates GeoJSON road network geometry + bounding box from OpenDRIVE | ✅ | xodr |
-| `xodr_to_geojson_caller/` | Pure-Python OpenDRIVE → GeoJSON 3D preview converter (reimplements VCS opendriveconverter) | ✅ | xodr |
-| `asset_reducer/` | Reduces XML to binary JSON (`.bjson`) for search indexing | ✅ | xodr |
-| `structure_creator/` | Builds final folder structure, renames files, generates manifest attribute JSON + README | ✅ | all |
+| `wizard/` | SHACL-driven CLI wizard for enriching JSON-LD interactively (disabled via `-enable false` by default) | ✅* | all |
+| `jsonld_validator/` | Legacy JSON-LD validator (replaced by ontology-management-base in pipeline) | ❌ | — |
+| `quality_checker/` | Runs ASAM/OpenMSL quality checkers, produces `.xqar` + text reports | ✅ | xodr, xosc |
+| `geojson_creator/` | Generates GeoJSON road network geometry + bounding box from OpenDRIVE | ✅ | xodr |
+| `preview_3d/` | Pure-Python OpenDRIVE → GeoJSON 3D preview converter (reimplements VCS opendriveconverter) | ✅ | xodr |
+| `search_indexer/` | Reduces XML to binary JSON (`.bjson`) for search indexing | ✅ | xodr |
+| `packager/` | Builds final folder structure, renames files, generates manifest attribute JSON + README | ✅ | all |
 
 ### Standalone / Utility Modules
 
@@ -35,7 +35,7 @@ This repository contains **tools to analyze, transform, and package simulation a
 | `utils/` | Shared helpers: logging, subprocess, JSON/RDF I/O, geometry, constants |
 | `xodr_calc_box/` | Standalone bounding box calculator for OpenDRIVE files |
 | `xodr_trim_to_box/` | Trim OpenDRIVE files to a geographic bounding box |
-| `ontologie_creator/` | Generate OWL ontologies + SHACL shapes from Excel metadata tables |
+| `ontology_generator/` | Generate OWL ontologies + SHACL shapes from Excel metadata tables |
 | `submodules/ontology-management-base/` | Git submodule: SHACL shapes, OWL ontologies, validation tools |
 
 ### Configuration
@@ -78,19 +78,19 @@ make run openscenario
 
 ```
 input_manifest.json
-  → meta_data_extractor     → temp/{name}_extractor.json
-  → jsonLD_creator           → temp/hdmap.json
+  → metadata_extractor     → temp/{name}_extractor.json
+  → jsonld_creator           → temp/hdmap.json
   → shacl_combiner           → temp/hdmap.ttl
-  → wizard_caller (disabled) → metadata/hdmap.json (interactive SHACL-guided prompts or copy)
-  → jsonLD_validator_omb     → validation pass/fail
+  → wizard (disabled) → metadata/hdmap.json (interactive SHACL-guided prompts or copy)
+  → jsonld_validator_omb     → validation pass/fail
   → qualitychecker (ASAM)    → validation-reports/{name}_asam_cb_xodr.xqar
   → qualitychecker (OpenMSL) → validation-reports/{name}_openmsl_cb_xodr.xqar
-  → xodr_routing_creator     → media/roadNetwork.geojson + media/bbox.geojson
-  → xodr_to_geojson_caller   → media/3d_preview/*.json (road/lane/object GeoJSON)
-  → asset_reducer             → metadata/{name}.bjson
-  → structure_creator         → temp/{name}_structure.json (+ organizes files)
-  → jsonLD_creator            → manifest.json
-  → jsonLD_validator_omb     → final validation
+  → geojson_creator     → media/roadNetwork.geojson + media/bbox.geojson
+  → preview_3d   → media/3d_preview/*.json (road/lane/object GeoJSON)
+  → search_indexer             → metadata/{name}.bjson
+  → packager         → temp/{name}_structure.json (+ organizes files)
+  → jsonld_creator            → manifest.json
+  → jsonld_validator_omb     → final validation
   → create asset.zip
 ```
 

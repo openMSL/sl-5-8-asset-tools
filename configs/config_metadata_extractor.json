@@ -1,0 +1,9 @@
+{
+	"name": "metadata_extractor",
+	"environment type" : "python",
+	"data folder" : "metadata",
+	"params" : 	{
+		"call" : "metadata_extractor.main",
+		"output" : { "-out" : "{path}/temp/{name}_extractor.json"}
+	}
+}

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # Category → type inference based on file extension.
 # When input_manifest.json is used, the ad-hoc "type" field is absent.
 # We derive it from the category and file extension using the same mapping
-# that structure_creator/main.py CATEGORIES dict defines.
+# that packager/main.py CATEGORIES dict defines.
 _CATEGORY_TYPE_MAP = {
     "isSimulationData": {"default": "Asset"},
     "isDocumentation": {"default": "Document"},

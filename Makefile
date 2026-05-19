@@ -38,7 +38,7 @@ SUBCMD = $(word 2,$(MAKECMDGOALS))
 PIPELINE_FLAGS ?=
 
 # WIZARD=true enables the interactive metadata wizard during pipeline runs.
-# Exports WIZARD_ENABLED env var which wizard_caller checks at runtime.
+# Exports WIZARD_ENABLED env var which wizard checks at runtime.
 ifdef WIZARD
 export WIZARD_ENABLED := true
 endif
@@ -229,7 +229,7 @@ ifneq ($(INPUT_DIR),)
 	fi
 	@mkdir -p "$(OUTPUT_DIR)" 2>/dev/null || true
 	@echo "[INFO] Running pipeline from $(INPUT_DIR)..."
-	@"$(PYTHON)" -m asset_extraction.main \
+	@"$(PYTHON)" -m pipeline.main \
 		"$(INPUT_DIR)/input_manifest.json" \
 		-config "$(CURDIR)/configs" \
 		-out "$(OUTPUT_DIR)" \
@@ -264,7 +264,7 @@ else
 	fi; \
 	if [ $$status -eq 0 ]; then \
 		echo "[INFO] Running $$dir pipeline..."; \
-		"$(PYTHON)" -m asset_extraction.main \
+		"$(PYTHON)" -m pipeline.main \
 			"$(CURDIR)/examples/$$dir/input_manifest.json" \
 			-config "$(CURDIR)/configs" \
 			-out   "$(ASSETS_DIR)" \
@@ -413,12 +413,12 @@ help:
 	@echo "Pipeline module flags (pass via PIPELINE_FLAGS):"
 	@echo "  PIPELINE_FLAGS='-disable vcs_odr-converter' make generate opendrive"
 	@echo "                               Skip specific modules (blacklist)"
-	@echo "  PIPELINE_FLAGS='-enable meta_data_extractor structure_creator' make generate opendrive"
+	@echo "  PIPELINE_FLAGS='-enable metadata_extractor packager' make generate opendrive"
 	@echo "                               Run only specified modules (whitelist)"
 	@echo "  PIPELINE_FLAGS='-list-modules' make generate opendrive"
 	@echo "                               List available module IDs and exit"
 	@echo ""
-	@echo "  Note: xodr_to_geojson_caller (vcs_odr-converter) is disabled by default."
+	@echo "  Note: preview_3d is disabled by default."
 	@echo "        Enable with: PIPELINE_FLAGS='-enable vcs_odr-converter'"
 	@echo ""
 	@echo "  make wizard                  Start SD Creation Wizard API (Node.js)"

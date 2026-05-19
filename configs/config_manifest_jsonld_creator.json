@@ -1,0 +1,13 @@
+{
+	"name": "jsonld_creator",
+	"environment type" : "python",
+	"data folder" : "",
+	"params" : 	{
+		"call" : "jsonld_creator.main",
+		"input" : {"" : "{path}/temp/{name}_structure.json"},
+		"output" : {"-out" : "{path}/manifest.json"},
+		"additional" : {
+			"-ontology" : "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base/main"
+		}		
+	}
+}

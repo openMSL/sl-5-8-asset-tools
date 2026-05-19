@@ -1,5 +1,5 @@
 {
-	"name" : "shacl_combiner",
+	"name": "shacl_combiner",
 	"environment type" : "python",
 	"data folder" : "metadata",
 	"params" : 	{
