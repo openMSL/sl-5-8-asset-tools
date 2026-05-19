@@ -279,12 +279,15 @@ def extract_country_signs(data: Any, **kwargs) -> str:
 
 
 @register("elevation_range")
-def elevation_range(data: Any, **kwargs) -> str:
+def elevation_range(data: Any, **kwargs) -> float:
     """Compute elevation range from OpenDRIVE cubic polynomial coefficients.
 
     Each elevation element has a, b, c, d, s attributes defining a cubic:
         z(ds) = a + b*ds + c*ds² + d*ds³
     where ds is the distance from the start of the elevation segment.
+
+    Returns the difference (max − min) as a float, conforming to the
+    hdmap SHACL shape which types elevationRange as xsd:float.
     """
     if not isinstance(data, list):
         data = [data] if data else []
@@ -344,5 +347,5 @@ def elevation_range(data: Any, **kwargs) -> str:
         global_max = max(global_max, *values)
 
     if global_min == float("inf"):
-        return ""
-    return f"{global_min:.2f} - {global_max:.2f}"
+        return 0.0
+    return round(global_max - global_min, 2)

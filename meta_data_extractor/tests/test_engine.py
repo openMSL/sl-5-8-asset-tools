@@ -288,13 +288,13 @@ class TestTransforms:
     def test_elevation_range_flat(self):
         data = [{"@s": 0, "@a": 5.0, "@b": 0, "@c": 0, "@d": 0}]
         result = elevation_range(data, segment_length=100)
-        assert result == "5.00 - 5.00"
+        assert result == 0.0
 
     def test_elevation_range_linear(self):
         # Linear rise: z = 0 + 0.1*ds → at ds=100: z=10
         data = [{"@s": 0, "@a": 0.0, "@b": 0.1, "@c": 0, "@d": 0}]
         result = elevation_range(data, segment_length=100)
-        assert result == "0.00 - 10.00"
+        assert result == 10.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

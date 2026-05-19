@@ -89,7 +89,7 @@ mappings:
   hdmap:elevationRange:
     path: "road[*].elevationProfile.elevation[*]"
     transform: elevation_range
-    type: string
+    type: float
 
   # ══════════════════════════════════════════════════════════════════════════
   # Georeference
