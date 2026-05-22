@@ -24,15 +24,15 @@ from .tag_categories import (
 
 logger = logging.getLogger(__name__)
 
-OPENLABEL_CONTEXT_URL = "https://openlabel.asam.net/V1-0-0/ontologies/"
+OPENLABEL_CONTEXT_URL = "https://w3id.org/ascs-ev/envited-x/openlabel/v2/"
 
 _OMB_CONTEXT_PATH = (
     Path(__file__).resolve().parents[1]
     / "submodules"
     / "ontology-management-base"
     / "artifacts"
-    / "openlabel"
-    / "openlabel.context.jsonld"
+    / "openlabel-v2"
+    / "openlabel-v2.context.jsonld"
 )
 
 
@@ -47,10 +47,9 @@ def load_context() -> list[Any]:
     return [
         OPENLABEL_CONTEXT_URL,
         {
-            "openlabel": OPENLABEL_CONTEXT_URL,
+            "openlabel_v2": OPENLABEL_CONTEXT_URL,
             "xsd": "http://www.w3.org/2001/XMLSchema#",
-            "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
-            "schema": "http://schema.org/",
+            "schema": "https://schema.org/",
         },
     ]
 
@@ -80,7 +79,7 @@ def transform(openlabel_json: dict, tag_id: str) -> dict:
     result: dict[str, Any] = {
         "@context": load_context(),
         "@id": tag_id,
-        "@type": "openlabel:Tag",
+        "@type": "Tag",
     }
 
     # AdminTag from metadata
@@ -102,13 +101,13 @@ def transform(openlabel_json: dict, tag_id: str) -> dict:
         _apply_tag(tag_type, tag_data, behaviour, road_user, odd)
 
     if behaviour:
-        behaviour["@type"] = "openlabel:Behaviour"
+        behaviour["@type"] = "Behaviour"
         result["Behaviour"] = behaviour
     if road_user:
-        road_user["@type"] = "openlabel:RoadUser"
+        road_user["@type"] = "RoadUser"
         result["RoadUser"] = road_user
     if odd:
-        odd["@type"] = "openlabel:Odd"
+        odd["@type"] = "Odd"
         result["Odd"] = odd
 
     return result
@@ -116,7 +115,7 @@ def transform(openlabel_json: dict, tag_id: str) -> dict:
 
 def _build_admin_tag(metadata: dict) -> dict[str, Any] | None:
     """Build the AdminTag section from OpenLABEL metadata."""
-    admin: dict[str, Any] = {"@type": "openlabel:AdminTag"}
+    admin: dict[str, Any] = {"@type": "AdminTag"}
 
     field_map = {
         "Name": "scenarioName",
@@ -130,12 +129,12 @@ def _build_admin_tag(metadata: dict) -> dict[str, Any] | None:
     for src_key, dst_key in field_map.items():
         value = metadata.get(src_key)
         if value and isinstance(value, str):
-            admin[dst_key] = _literal_value(value)
+            admin[dst_key] = value
 
     # scenarioDefinitionLanguageURI from OpenXAvailability
     openx = metadata.get("OpenXAvailability", {})
     if openx.get("Osc"):
-        admin["scenarioDefinitionLanguageURI"] = _literal_value(
+        admin["scenarioDefinitionLanguageURI"] = (
             "https://www.asam.net/standards/detail/openscenario/"
         )
 
@@ -156,7 +155,7 @@ def _apply_tag(
     if not isinstance(tag_data, dict):
         tag_data = {}
 
-    # Handle road user entity types (VehicleCar → RoadUserVehicle: {@id: ...})
+    # Handle road user entity types (VehicleCar → RoadUserVehicle: "VehicleCar")
     for types_set, prop in (
         (ROAD_USER_VEHICLE_TYPES, "RoadUserVehicle"),
         (ROAD_USER_HUMAN_TYPES, "RoadUserHuman"),
@@ -164,7 +163,7 @@ def _apply_tag(
     ):
         if tag_type in types_set:
             key = prop
-            new_val = {"@id": f"openlabel:{tag_type}"}
+            new_val = tag_type
             if key in road_user:
                 logger.warning("Overwriting %s: %s → %s", key, road_user[key], new_val)
             road_user[key] = new_val
@@ -178,15 +177,11 @@ def _apply_tag(
 
     target = {"Behaviour": behaviour, "RoadUser": road_user, "Odd": odd}[section]
 
-    # Tags in ENUM_TAGS use @id reference (may accumulate into arrays)
+    # Tags in ENUM_TAGS use bare enum values (may accumulate into arrays)
     if tag_type in ENUM_TAGS:
         enum_value = tag_data.get("val") if tag_data else None
         if enum_value:
-            _append_or_set(
-                target,
-                tag_type,
-                {"@id": f"openlabel:{enum_value}"},
-            )
+            _append_or_set(target, tag_type, enum_value)
         else:
             target[tag_type] = True
         return
@@ -236,14 +231,14 @@ def _extract_value(tag_type: str, tag_data: dict) -> Any:
         if len(floats) >= 2:
             return {
                 "@type": "schema:QuantitativeValue",
-                "schema:minValue": str(min(floats)),
-                "schema:maxValue": str(max(floats)),
+                "minValue": str(min(floats)),
+                "maxValue": str(max(floats)),
             }
         if len(floats) == 1:
             return {
                 "@type": "schema:QuantitativeValue",
-                "schema:minValue": str(floats[0]),
-                "schema:maxValue": str(floats[0]),
+                "minValue": str(floats[0]),
+                "maxValue": str(floats[0]),
             }
 
     # Numeric list values
@@ -265,38 +260,34 @@ def _extract_value(tag_type: str, tag_data: dict) -> Any:
     return None
 
 
-def _typed_scalar(tag_type: str, value: Any) -> dict[str, str] | None:
-    """Wrap a scalar value with XSD type annotation.
+def _typed_scalar(tag_type: str, value: Any) -> str | int | float | None:
+    """Convert a scalar value to the appropriate Python type.
 
-    XSD types are chosen to match SHACL sh:datatype constraints per property.
+    Types are chosen to match SHACL sh:datatype constraints per property.
     Returns None if the value cannot be converted or is empty.
     """
     if isinstance(value, str) and not value.strip():
         return None
 
-    xsd_type = _XSD_TYPE_MAP.get(tag_type, "xsd:decimal")
     try:
-        if "integer" in xsd_type or "Integer" in xsd_type:
-            return {"@type": xsd_type, "@value": str(int(float(value)))}
-        return {"@type": xsd_type, "@value": str(value)}
+        if tag_type in _INTEGER_TAGS:
+            return int(float(value))
+        return str(value)
     except (ValueError, TypeError):
         logger.warning("Cannot convert value '%s' for %s", value, tag_type)
         return None
 
 
-# Per-property XSD type mapping (matching SHACL sh:datatype constraints)
-_XSD_TYPE_MAP: dict[str, str] = {
-    "LaneSpecificationLaneCount": "xsd:integer",
-    "SubjectVehicleSpeed": "xsd:nonNegativeInteger",
-    "TrafficAgentDensity": "xsd:nonNegativeInteger",
-    "TrafficFlowRate": "xsd:nonNegativeInteger",
-    "TrafficVolume": "xsd:nonNegativeInteger",
-}
-
-
-def _literal_value(value: str) -> dict[str, str]:
-    """Wrap a string as an xsd:string typed value."""
-    return {"@type": "xsd:string", "@value": value}
+# Tags whose value properties expect integer types in SHACL
+_INTEGER_TAGS: frozenset[str] = frozenset(
+    {
+        "LaneSpecificationLaneCount",
+        "SubjectVehicleSpeed",
+        "TrafficAgentDensity",
+        "TrafficFlowRate",
+        "TrafficVolume",
+    }
+)
 
 
 def load_openlabel_json(file_path: Path) -> dict | None:

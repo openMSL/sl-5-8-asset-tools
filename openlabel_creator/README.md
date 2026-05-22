@@ -3,9 +3,12 @@
 ## Description
 
 Discovers OpenLABEL JSON companion files for scenario assets and
-transforms them into JSON-LD conforming to `openlabel:TagShape`.
+transforms them into JSON-LD conforming to the OpenLABEL v2 `TagShape`.
 Tags are categorized using the ASAM OpenLABEL taxonomy
 (`tag_categories.py`) and injected into the scenario metadata.
+
+Uses compact JSON-LD notation based on `@vocab` context from the
+`openlabel-v2` ontology (`https://w3id.org/ascs-ev/envited-x/openlabel/v2/`).
 
 ## Usage
 
@@ -24,7 +27,7 @@ python -m openlabel_creator --input <openlabel.json> --output <openlabel.jsonld>
 
 ## Output
 
-- JSON-LD with `openlabel:Tag` instances
+- JSON-LD with `Tag` instances (OpenLABEL v2 compact notation)
 
 ## Install
 

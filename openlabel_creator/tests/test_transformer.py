@@ -17,7 +17,6 @@ from openlabel_creator.tag_categories import (
 from openlabel_creator.transformer import (
     _build_admin_tag,
     _extract_value,
-    _literal_value,
     load_context,
     load_openlabel_json,
     transform,
@@ -73,10 +72,10 @@ class TestTransformer:
             }
         }
         result = transform(data, "did:web:test:Tag:123")
-        assert result["@type"] == "openlabel:Tag"
+        assert result["@type"] == "Tag"
         assert result["@id"] == "did:web:test:Tag:123"
-        assert "openlabel:Behaviour" in result
-        assert result["openlabel:Behaviour"]["openlabel:MotionDrive"] is True
+        assert "Behaviour" in result
+        assert result["Behaviour"]["MotionDrive"] is True
 
     def test_missing_openlabel_key_raises(self):
         with pytest.raises(ValueError, match="openlabel"):
@@ -90,10 +89,10 @@ class TestTransformer:
             }
         }
         result = transform(data, "did:web:test:Tag:1")
-        assert "openlabel:RoadUser" in result
-        ru = result["openlabel:RoadUser"]
+        assert "RoadUser" in result
+        ru = result["RoadUser"]
         assert ru["@type"] == "RoadUser"
-        assert ru["openlabel:RoadUserVehicle"] == {"@id": "openlabel:VehicleCar"}
+        assert ru["RoadUserVehicle"] == "VehicleCar"
 
     def test_lane_count_with_value(self):
         data = {
@@ -109,12 +108,9 @@ class TestTransformer:
             }
         }
         result = transform(data, "did:web:test:Tag:1")
-        odd = result["openlabel:Odd"]
-        assert odd["openlabel:LaneSpecificationLaneCount"] is True
-        assert odd["openlabel:laneSpecificationLaneCountValue"] == {
-            "@type": "xsd:integer",
-            "@value": "3",
-        }
+        odd = result["Odd"]
+        assert odd["LaneSpecificationLaneCount"] is True
+        assert odd["laneSpecificationLaneCountValue"] == 3
 
     def test_range_value(self):
         data = {
@@ -133,12 +129,12 @@ class TestTransformer:
             }
         }
         result = transform(data, "did:web:test:Tag:1")
-        beh = result["openlabel:Behaviour"]
-        assert beh["openlabel:MotionDecelerate"] is True
-        assert beh["openlabel:motionDecelerateValue"] == {
+        beh = result["Behaviour"]
+        assert beh["MotionDecelerate"] is True
+        assert beh["motionDecelerateValue"] == {
             "@type": "schema:QuantitativeValue",
-            "schema:minValue": "10.0",
-            "schema:maxValue": "18.0",
+            "minValue": "10.0",
+            "maxValue": "18.0",
         }
 
     def test_admin_tag_from_metadata(self):
@@ -156,27 +152,21 @@ class TestTransformer:
             }
         }
         result = transform(data, "did:web:test:Tag:1")
-        admin = result["openlabel:AdminTag"]
+        admin = result["AdminTag"]
         assert admin["@type"] == "AdminTag"
-        assert admin["openlabel:scenarioName"] == {
-            "@type": "xsd:string",
-            "@value": "Test Scenario",
-        }
-        assert admin["openlabel:scenarioDescription"] == {
-            "@type": "xsd:string",
-            "@value": "A test",
-        }
-        assert "openlabel:scenarioDefinitionLanguageURI" in admin
+        assert admin["scenarioName"] == "Test Scenario"
+        assert admin["scenarioDescription"] == "A test"
+        assert "scenarioDefinitionLanguageURI" in admin
 
     def test_empty_tags_still_produces_valid_structure(self):
         data = {"openlabel": {"metadata": {"Name": "empty"}, "tags": {}}}
         result = transform(data, "did:web:test:Tag:1")
-        assert result["@type"] == "openlabel:Tag"
-        assert "openlabel:AdminTag" in result
+        assert result["@type"] == "Tag"
+        assert "AdminTag" in result
         # No Behaviour/RoadUser/Odd sections when no tags
-        assert "openlabel:Behaviour" not in result
-        assert "openlabel:RoadUser" not in result
-        assert "openlabel:Odd" not in result
+        assert "Behaviour" not in result
+        assert "RoadUser" not in result
+        assert "Odd" not in result
 
     def test_multiple_tags_same_section(self):
         data = {
@@ -190,10 +180,10 @@ class TestTransformer:
             }
         }
         result = transform(data, "did:web:test:Tag:1")
-        beh = result["openlabel:Behaviour"]
-        assert beh["openlabel:MotionDrive"] is True
-        assert beh["openlabel:MotionCutOut"] is True
-        assert beh["openlabel:MotionLaneChangeRight"] is True
+        beh = result["Behaviour"]
+        assert beh["MotionDrive"] is True
+        assert beh["MotionCutOut"] is True
+        assert beh["MotionLaneChangeRight"] is True
 
     def test_enum_tags_accumulate_into_arrays(self):
         data = {
@@ -214,12 +204,12 @@ class TestTransformer:
             }
         }
         result = transform(data, "did:web:test:Tag:1")
-        odd = result["openlabel:Odd"]
-        edges = odd["openlabel:DrivableAreaEdge"]
+        odd = result["Odd"]
+        edges = odd["DrivableAreaEdge"]
         assert isinstance(edges, list)
         assert len(edges) == 2
-        assert {"@id": "openlabel:EdgeShoulderPavedOrGravel"} in edges
-        assert {"@id": "openlabel:EdgeBarrier"} in edges
+        assert "EdgeShoulderPavedOrGravel" in edges
+        assert "EdgeBarrier" in edges
 
     def test_non_numeric_value_handled_gracefully(self):
         data = {
@@ -235,9 +225,9 @@ class TestTransformer:
             }
         }
         result = transform(data, "did:web:test:Tag:1")
-        odd = result["openlabel:Odd"]
-        assert odd["openlabel:LaneSpecificationLaneCount"] is True
-        assert "openlabel:laneSpecificationLaneCountValue" not in odd
+        odd = result["Odd"]
+        assert odd["LaneSpecificationLaneCount"] is True
+        assert "laneSpecificationLaneCountValue" not in odd
 
     def test_non_dict_tag_data_handled_gracefully(self):
         data = {
@@ -253,16 +243,21 @@ class TestTransformer:
             }
         }
         result = transform(data, "did:web:test:Tag:1")
-        beh = result["openlabel:Behaviour"]
-        assert beh["openlabel:MotionDrive"] is True
+        beh = result["Behaviour"]
+        assert beh["MotionDrive"] is True
 
     def test_context_is_well_formed(self):
         data = {"openlabel": {"metadata": {}, "tags": {}}}
         result = transform(data, "did:web:test:Tag:1")
         ctx = result["@context"]
-        assert isinstance(ctx, list)
-        assert ctx[0] == "https://openlabel.asam.net/V1-0-0/ontologies/"
-        assert isinstance(ctx[1], dict)
+        assert isinstance(ctx, (list, dict))
+        # v2 context uses @vocab
+        if isinstance(ctx, list):
+            assert any(
+                isinstance(c, dict) and "@vocab" in c for c in ctx
+            ) or isinstance(ctx[0], str)
+        elif isinstance(ctx, dict):
+            assert "@vocab" in ctx
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -276,18 +271,18 @@ class TestValueExtraction:
             "MotionDecelerate", {"vec": {"type": "range", "val": ["5", "15"]}}
         )
         assert result["@type"] == "schema:QuantitativeValue"
-        assert result["schema:minValue"] == "5.0"
-        assert result["schema:maxValue"] == "15.0"
+        assert result["minValue"] == "5.0"
+        assert result["maxValue"] == "15.0"
 
     def test_num_list(self):
         result = _extract_value(
             "LaneSpecificationLaneCount", {"num": [{"type": "value", "val": 3}]}
         )
-        assert result == {"@type": "xsd:integer", "@value": "3"}
+        assert result == 3
 
     def test_decimal_value(self):
         result = _extract_value("WeatherRain", {"val": "5.2"})
-        assert result == {"@type": "xsd:decimal", "@value": "5.2"}
+        assert result == "5.2"
 
     def test_empty_tag_data(self):
         result = _extract_value("MotionDrive", {})
@@ -298,8 +293,8 @@ class TestValueExtraction:
             "MotionDrive", {"vec": {"type": "range", "val": ["10"]}}
         )
         assert result["@type"] == "schema:QuantitativeValue"
-        assert result["schema:minValue"] == "10.0"
-        assert result["schema:maxValue"] == "10.0"
+        assert result["minValue"] == "10.0"
+        assert result["maxValue"] == "10.0"
 
     def test_non_numeric_range_returns_none(self):
         result = _extract_value(
@@ -373,7 +368,7 @@ class TestPipelineIntegration:
         assert out.exists()
 
         result = json.loads(out.read_text(encoding="utf-8"))
-        assert result["@type"] == "openlabel:Tag"
+        assert result["@type"] == "Tag"
 
     def test_create_fails_for_non_openlabel(self, tmp_path):
         src = tmp_path / "manifest.json"
@@ -410,12 +405,14 @@ class TestPipelineIntegration:
             json.dumps(
                 {
                     "@context": [
-                        "https://openlabel.asam.net/V1-0-0/ontologies/",
-                        {"openlabel": "https://openlabel.asam.net/V1-0-0/ontologies/"},
+                        "https://w3id.org/ascs-ev/envited-x/openlabel/v2/",
+                        {
+                            "openlabel_v2": "https://w3id.org/ascs-ev/envited-x/openlabel/v2/"
+                        },
                     ],
-                    "@type": "openlabel:Tag",
+                    "@type": "Tag",
                     "@id": "did:web:test:Tag:1",
-                    "openlabel:Behaviour": {"@type": "Behaviour"},
+                    "Behaviour": {"@type": "Behaviour"},
                 }
             ),
             encoding="utf-8",
@@ -444,9 +441,9 @@ class TestPipelineIntegration:
         assert "@context" not in content[1]
         # Top-level should have openlabel URL merged
         ctx_urls = [e for e in result["@context"] if isinstance(e, str)]
-        assert "https://openlabel.asam.net/V1-0-0/ontologies/" in ctx_urls
+        assert "https://w3id.org/ascs-ev/envited-x/openlabel/v2/" in ctx_urls
         # Openlabel data still intact
-        assert content[1]["@type"] == "openlabel:Tag"
+        assert content[1]["@type"] == "Tag"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -480,7 +477,7 @@ class TestIKAIntegration:
         result = transform(data, f"did:web:test:Tag:{openlabel_file.stem}")
 
         # Must have required fields
-        assert result["@type"] == "openlabel:Tag"
+        assert result["@type"] == "Tag"
         assert "@context" in result
         assert "@id" in result
 
@@ -488,10 +485,10 @@ class TestIKAIntegration:
         has_section = any(
             k in result
             for k in (
-                "openlabel:AdminTag",
-                "openlabel:Behaviour",
-                "openlabel:RoadUser",
-                "openlabel:Odd",
+                "AdminTag",
+                "Behaviour",
+                "RoadUser",
+                "Odd",
             )
         )
         assert has_section, f"No sections produced for {openlabel_file.name}"

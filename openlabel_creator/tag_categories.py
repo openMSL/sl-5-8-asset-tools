@@ -106,6 +106,8 @@ ODD_TAGS: frozenset[str] = frozenset(
         "TrafficFlowRate",
         "TrafficSpecialVehicle",
         "TrafficVolume",
+        "TrafficAgentType",
+        "ParticulatesWater",
     }
 )
 
@@ -128,9 +130,10 @@ VALUE_PROPERTIES: dict[str, str] = {
     "TrafficAgentDensity": "trafficAgentDensityValue",
     "TrafficFlowRate": "trafficFlowRateValue",
     "TrafficVolume": "trafficVolumeValue",
+    "ParticulatesWater": "particulatesWaterValue",
 }
 
-# Tags that use @id reference values (enums from ontology)
+# Tags that use enum values (from ontology)
 ENUM_TAGS: frozenset[str] = frozenset(
     {
         "DrivableAreaEdge",
@@ -161,6 +164,7 @@ ENUM_TAGS: frozenset[str] = frozenset(
         "RoadUserVehicle",
         "RoadUserHuman",
         "RoadUserAnimal",
+        "TrafficAgentType",
     }
 )
 
