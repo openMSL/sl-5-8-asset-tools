@@ -1,0 +1,105 @@
+# Schema-driven mapping: OpenSCENARIO (.xosc) → scenario SHACL properties
+#
+# Each entry maps an ontology property to an XSD path, constant value,
+# collector strategy, or transform function.
+#
+# Path syntax:
+#   - Dot notation: FileHeader.@revMajor
+#   - Array wildcard: Entities.ScenarioObject[*].Vehicle
+#   - @prefix: attribute access (xmlschema convention)
+#
+# Collectors: first, all, all_unique, count, sum, min, max
+# Transforms: named functions in metadata_extractor.engine.transforms
+
+schema_format: openscenario
+source_xsd: submodules/ontology-management-base/imports/OpenScenario/OpenSCENARIO.xsd
+ontology_prefix: scenario
+
+metadata:
+  asset_type: scenario
+  shacl_schema: scenario
+  shacl_url: "https://w3id.org/2024/2/2/2/2/2/2/2/2/2/2/2/2/2/2/2"
+
+mappings:
+  # ══════════════════════════════════════════════════════════════════════════
+  # Format
+  # ══════════════════════════════════════════════════════════════════════════
+  scenario:formatType:
+    value: "ASAM OpenSCENARIO XML"
+
+  scenario:version:
+    path: "FileHeader"
+    transform: concat_version
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Content
+  # ══════════════════════════════════════════════════════════════════════════
+  scenario:abstractionLevel:
+    transform: derive_abstraction_level
+
+  scenario:timeDate:
+    path: "Storyboard.Init.Actions.GlobalAction[*].EnvironmentAction.Environment.TimeOfDay.@dateTime"
+    collector: all_unique
+    type: string
+
+  scenario:usedStandardFunctions:
+    transform: collect_element_names
+
+  scenario:customCommands:
+    path: "Storyboard.Init.Actions.GlobalAction[*].EnvironmentAction"
+    transform: collect_custom_commands
+    # Fallback: also look in stories
+    also_search: []
+
+  scenario:sunAzimuth:
+    path: "Storyboard.Init.Actions.GlobalAction[*].EnvironmentAction.Environment.Weather.Sun.@azimuth"
+    collector: all_unique
+    type: string
+
+  scenario:weatherSummary:
+    path: "Storyboard.Init.Actions.GlobalAction[*].EnvironmentAction.Environment.Weather"
+    transform: derive_weather_summary
+
+  scenario:entityTypes:
+    path: "Entities.ScenarioObject[*].Vehicle.@vehicleCategory"
+    collector: all_unique_list
+    type: raw
+    also_search:
+      - "Entities.ScenarioObject[*].Pedestrian.@pedestrianCategory"
+      - "Entities.ScenarioObject[*].MiscObject.@miscObjectCategory"
+
+  scenario:countrySpecificSign:
+    path: "Storyboard"
+    transform: extract_country_signs
+
+  scenario:countrySpecificTrafficParticipants:
+    path: "Entities.ScenarioObject[*].MiscObject.@name"
+    collector: all_unique
+    type: string
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Quantity
+  # ══════════════════════════════════════════════════════════════════════════
+  scenario:numberTrafficObjects:
+    path: "Entities.ScenarioObject[*]"
+    collector: count
+    type: int
+
+  scenario:controllers:
+    path: "Entities.ScenarioObject[*].ObjectController.Controller"
+    transform: collect_controllers
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Resource description (from FileHeader)
+  # ══════════════════════════════════════════════════════════════════════════
+  scenario:description:
+    path: "FileHeader.@description"
+    type: string
+
+  scenario:author:
+    path: "FileHeader.@author"
+    type: string
+
+  scenario:createdDate:
+    path: "FileHeader.@date"
+    type: string

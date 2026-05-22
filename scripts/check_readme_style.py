@@ -14,7 +14,7 @@ MODULE_REQUIRED = [
 ROOT_REQUIRED = [
     "## Overview",
     "## Supported Formats",
-    "## Pipeline Modules",
+    "## What Happens When You Process an Asset",
     "## Configuration",
     "## Build",
     "## Usage",
@@ -38,6 +38,12 @@ def main() -> None:
             "submodules",
             "ontology-management-base",
             ".pytest_cache",
+            "docs",
+            "examples",
+            "configs",
+            "scripts",
+            ".github",
+            "site",
         }:
             continue
         positions = section_positions(readme)

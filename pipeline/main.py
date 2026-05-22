@@ -1,0 +1,728 @@
+from pathlib import Path
+from zipfile import ZipFile
+from time import perf_counter
+
+from utils.log_config import is_debug_logging, setup_logging
+from utils.pipeline_reporting import (
+    PipelineReporter,
+    get_pipeline_name,
+    get_stage_label,
+    summarize_stage_failure,
+    summarize_stage_success,
+)
+from utils.asset_registry import (
+    has_collision,
+    register_asset,
+    resolve_placeholders,
+)
+from utils.cid import compute_file_cid
+from utils.http import download_or_get_file, is_url
+from utils.json import write_json
+from utils.subprocess import run_command, CommandError
+from utils.input_manifest import load_input_file, load_referenced_artifacts
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import logging
+
+# configure logging once for the entire application
+setup_logging(logging.DEBUG if is_debug_logging() else logging.INFO)
+logger = logging.getLogger(__name__)
+
+asset_types = {"xodr": "hdmap", "xosc": "scenario", "3dmodel": "environment-model"}
+
+
+def _config_filename_to_module_id(filename: str) -> str:
+    """Derive a module identifier from a config filename.
+
+    E.g. 'config_vcs_odr-converter.json' -> 'vcs_odr-converter'
+    """
+    return filename.removeprefix("config_").removesuffix(".json")
+
+
+def list_modules(config_dir: Path) -> list[dict]:
+    """Return list of modules with their id, filename, enabled state, and extensions."""
+    process_file = config_dir / "process.json"
+    if not process_file.exists():
+        raise FileNotFoundError(f"config file {process_file} not exists")
+    with process_file.open("r") as file:
+        config_process = json.load(file)
+
+    modules = []
+    for config in config_process.get("config_files", []):
+        filename = config["filename"]
+        modules.append(
+            {
+                "id": _config_filename_to_module_id(filename),
+                "filename": filename,
+                "enabled": config.get("enable", False),
+                "extensions": config.get("extensions", []),
+            }
+        )
+    return modules
+
+
+# load configurations depending on asset type
+def get_configs(
+    config_dir: Path,
+    asset_file: Path,
+    enable_modules: list[str] | None = None,
+    disable_modules: list[str] | None = None,
+) -> tuple[list, dict]:
+    """Return (configs, source_filenames) where source_filenames maps index to filename.
+
+    Args:
+        config_dir: Path to the configs directory.
+        asset_file: The asset file being processed.
+        enable_modules: If provided, only these modules are run (whitelist).
+        disable_modules: If provided, these modules are skipped (blacklist).
+    """
+    # get asset extension
+    asset_type_extension = get_asset_type_extension(asset_file)
+
+    # load process.json
+    process_file = config_dir / "process.json"
+    if not process_file.exists():
+        raise FileNotFoundError(f"config file {process_file} not exists")
+    with process_file.open("r") as file:
+        config_process = json.load(file)
+
+    # filter for asset_type and apply enable/disable overrides
+    config_files = []
+    for config in config_process.get("config_files", []):
+        filename = config["filename"]
+        module_id = _config_filename_to_module_id(filename)
+
+        # Determine if module is enabled (CLI flags override process.json)
+        if enable_modules is not None:
+            enabled = module_id in enable_modules
+        elif disable_modules is not None:
+            enabled = config.get("enable", False) and module_id not in disable_modules
+        else:
+            enabled = config.get("enable", False)
+
+        if enabled:
+            if "extensions" in config:
+                if asset_type_extension in config["extensions"]:
+                    config_files.append(filename)
+            else:
+                config_files.append(filename)
+
+    # load configs
+    configs = []
+    source_filenames = {}
+    for index, filename in enumerate(config_files):
+        config_file = config_dir / filename
+        if not config_file.exists():
+            raise FileNotFoundError(f"config file {config_file} not exists")
+
+        with (config_dir / filename).open("r") as file:
+            configs.append(json.load(file))
+            source_filenames[index] = filename
+
+    return configs, source_filenames
+
+
+# replace placeholders in file path
+def replace_file_pattern(
+    filepath: str,
+    path: Path,
+    sub_path: Path,
+    asset_name: str,
+    asset_path: Path,
+    asset_type: str,
+) -> str:
+    updated_string = filepath.replace(r"{path}", str(path))
+    updated_string = updated_string.replace(r"{sub_path}", str(sub_path))
+    updated_string = updated_string.replace(r"{name}", asset_name)
+    updated_string = updated_string.replace(r"{asset_path}", str(asset_path))
+    updated_string = updated_string.replace(r"{asset_type}", asset_type)
+    if not is_url(Path(updated_string)):
+        filename = Path(updated_string)
+        filename = filename.as_posix()
+        return filename
+    else:
+        return updated_string
+
+
+# create params for script calls
+def create_script_params(
+    script_config: dict, asset_file: Path, output_dir: Path
+) -> list:
+    # prepare script path
+    script_path = Path(script_config["params"]["call"])
+
+    # prepare output path
+    if not output_dir.is_absolute():  # is no absolute path
+        output_dir = output_dir.resolve()  # convert to absolute
+    sub_path = Path(script_config["data folder"])
+
+    # prepare asset name
+    asset_name = asset_file.stem  # remove extension
+    asset_path = asset_file.parent
+
+    # setup script params
+    script_call = []
+    script_call.append(script_config["environment type"])
+
+    # disables frozen standard modules so that Python loads them from the hard disk.
+    # This can be useful if you are working on the Python interpreter itself or testing changes to the standard modules
+    # and do not want to use a frozen version.
+    if script_config["environment type"] == "python":
+        script_call.append("-X")
+        script_call.append("frozen_modules=off")
+        script_call.append("-m")  # as module
+    script_call.append(script_path)
+
+    asset_type = get_asset_type(get_asset_type_extension(asset_file))
+
+    # input
+    if "input" in script_config["params"]:
+        for name, value in script_config["params"]["input"].items():
+            if name:
+                script_call.append(name)
+            updated_string = replace_file_pattern(
+                value, output_dir, sub_path, asset_name, asset_path, asset_type
+            )
+            script_call.append(updated_string)
+    else:
+        script_call.append(asset_file)
+
+    # output
+    if "output" in script_config["params"]:
+        for name, value in script_config["params"]["output"].items():
+            script_call.append(name)
+            updated_string = replace_file_pattern(
+                value, output_dir, sub_path, asset_name, asset_path, asset_type
+            )
+            script_call.append(updated_string)
+            if not is_url(Path(updated_string)):
+                directory = Path(updated_string).parent
+                directory.mkdir(parents=True, exist_ok=True)
+
+    # additional parameters
+    if "additional" in script_config["params"]:
+        for name, value in script_config["params"]["additional"].items():
+            script_call.append(name)
+            if value:
+                updated_string = replace_file_pattern(
+                    value, output_dir, sub_path, asset_name, asset_path, asset_type
+                )
+                script_call.append(updated_string)
+
+    return script_call
+
+
+# Combine parameters and call sub script
+def execute_script(script_config: dict, asset_file: Path, output_dir: Path):
+
+    # create script parameters
+    script_call = create_script_params(script_config, asset_file, output_dir)
+
+    # The wizard module needs real-time terminal access when enabled
+    interactive = (
+        script_config["name"] == "wizard"
+        and os.environ.get("WIZARD_ENABLED", "").lower() == "true"
+    )
+
+    # run sub script
+    project_root = Path(__file__).parent.parent
+    return run_command(
+        cmd=script_call,
+        name=script_config["name"],
+        cwd=str(project_root),
+        log_output=False,
+        interactive=interactive,
+    )
+
+
+def _refs_from_extractor(
+    extractor_json: Path, asset_access_role: str = "envited-x:isPublic"
+) -> list[dict]:
+    """Build input-manifest-style reference dicts from extractor-discovered
+    file references (``scenario:fileReferences``).
+
+    Local (relative) paths inherit the access role of the parent asset file.
+    External references (DIDs, URLs) default to ``envited-x:isPublic``.
+    """
+    try:
+        with extractor_json.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return []
+
+    file_refs = data.get("scenario:fileReferences", [])
+    if not file_refs:
+        return []
+
+    mime_map = {
+        ".xodr": "application/xml",
+        ".xosc": "application/xml",
+        ".xml": "application/xml",
+        ".gltf": "model/gltf+json",
+        ".glb": "model/gltf-binary",
+        ".fbx": "application/octet-stream",
+        ".obj": "text/plain",
+    }
+
+    refs: list[dict] = []
+    for entry in file_refs:
+        rel_path = entry.get("relativePath", entry.get("path", ""))
+        if not rel_path:
+            continue
+
+        # Determine access role: local paths inherit from parent asset,
+        # external references (DIDs, URLs) get isRegistered since their
+        # actual access level is governed by the referenced asset itself.
+        if rel_path.startswith(("did:", "http://", "https://")):
+            role = "envited-x:isRegistered"
+        else:
+            role = asset_access_role
+
+        suffix = Path(rel_path).suffix.lower()
+        refs.append(
+            {
+                "@type": "Link",
+                "hasCategory": {"@id": "envited-x:isSimulationData"},
+                "hasAccessRole": {"@id": role},
+                "hasFileMetadata": {
+                    "@type": "FileMetadata",
+                    "filePath": rel_path,
+                    "mimeType": mime_map.get(suffix, "application/octet-stream"),
+                },
+            }
+        )
+    return refs
+
+
+def _get_asset_access_role(uploaded_file: Path) -> str:
+    """Look up the access role of the simulation-data artifact in the input manifest.
+
+    Returns the full prefixed @id (e.g. 'envited-x:isOwner') or falls back
+    to 'envited-x:isPublic' if not determinable.
+    """
+    fallback = "envited-x:isPublic"
+    try:
+        with uploaded_file.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return fallback
+
+    artifacts = data.get("hasArtifacts", data.get("manifest:hasArtifacts", []))
+    if not isinstance(artifacts, list):
+        artifacts = [artifacts]
+
+    for link in artifacts:
+        cat = link.get("hasCategory", link.get("manifest:hasCategory", {}))
+        cat_id = cat.get("@id", "") if isinstance(cat, dict) else str(cat)
+        if "isSimulationData" in cat_id:
+            role = link.get("hasAccessRole", link.get("manifest:hasAccessRole", {}))
+            role_id = role.get("@id", "") if isinstance(role, dict) else str(role)
+            if role_id:
+                return role_id
+    return fallback
+
+
+def _format_reference(ref: dict) -> dict:
+    """Format a referenced artifact link from input manifest JSON-LD
+    to match the output manifest format used by jsonld_creator."""
+    cat = ref.get("hasCategory", ref.get("manifest:hasCategory", {}))
+    role = ref.get("hasAccessRole", ref.get("manifest:hasAccessRole", {}))
+    meta = ref.get("hasFileMetadata", ref.get("manifest:hasFileMetadata", {}))
+
+    cat_id = cat.get("@id", "") if isinstance(cat, dict) else str(cat)
+    role_id = role.get("@id", "") if isinstance(role, dict) else str(role)
+
+    out_meta = {"@type": "manifest:FileMetadata"}
+    for key in ("filePath", "manifest:filePath"):
+        if key in meta:
+            val = meta[key]
+            out_meta["filePath"] = (
+                val.get("@value", val) if isinstance(val, dict) else val
+            )
+            break
+    for key in ("mimeType", "manifest:mimeType"):
+        if key in meta:
+            out_meta["mimeType"] = meta[key]
+            break
+    for key in ("cid", "manifest:cid"):
+        if key in meta:
+            out_meta["cid"] = meta[key]
+            break
+    for key in ("filename", "manifest:filename"):
+        if key in meta:
+            out_meta["filename"] = meta[key]
+            break
+
+    return {
+        "@type": "manifest:Link",
+        "hasAccessRole": {"@type": "manifest:AccessRole", "@id": role_id},
+        "hasCategory": {"@type": "manifest:Category", "@id": cat_id},
+        "hasFileMetadata": out_meta,
+    }
+
+
+# create zip file from folder
+def create_zip(output_dir: Path, zip_filename: Path):
+    # Use a fixed timestamp for all entries so the archive is deterministic.
+    source_mtime = os.environ.get("SL58_SOURCE_MTIME")
+    if source_mtime:
+        from datetime import datetime
+
+        dt = datetime.fromtimestamp(int(source_mtime))
+        fixed_date_time = (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+    else:
+        fixed_date_time = None
+
+    with ZipFile(zip_filename, "w") as zipf:
+        for file_path in sorted(output_dir.rglob("*")):
+            if file_path.is_file():
+                file_local = file_path.relative_to(output_dir)
+                if fixed_date_time:
+                    from zipfile import ZipInfo
+
+                    info = ZipInfo(file_local.as_posix(), date_time=fixed_date_time)
+                    info.compress_type = zipf.compression
+                    zipf.writestr(info, file_path.read_bytes())
+                else:
+                    zipf.write(file_path, file_local)
+
+
+def compute_input_hash(input_dir: Path) -> str:
+    """Compute a stable SHA-256 hash over all input files (sorted by name)."""
+    sha = hashlib.sha256()
+    for path in sorted(input_dir.rglob("*")):
+        if path.is_file():
+            sha.update(path.name.encode("utf-8"))
+            sha.update(path.read_bytes())
+    return sha.hexdigest()
+
+
+# Characters unsafe on Windows (and : on macOS)
+_UNSAFE_CHARS = set('<>:"/\\|?*\0')
+# Windows reserved device names (case-insensitive)
+_RESERVED_NAMES = frozenset(
+    ["CON", "PRN", "AUX", "NUL"]
+    + [f"COM{i}" for i in range(1, 10)]
+    + [f"LPT{i}" for i in range(1, 10)]
+)
+
+
+def _validate_asset_name(name: str) -> None:
+    """Validate that an asset stem is safe as a directory name on all platforms.
+
+    Rules enforced (Windows + Linux + macOS compatible):
+    - Not empty
+    - No characters from: < > : " / \\ | ? * NUL
+    - Not a Windows reserved name (CON, PRN, NUL, COMx, LPTx)
+    - At most 255 characters (filesystem limit)
+    - Does not end with space or period (Windows strips them silently)
+    """
+    if not name:
+        raise ValueError("Asset filename stem is empty")
+
+    if len(name) > 255:
+        raise ValueError(
+            f"Asset name too long ({len(name)} chars, max 255): {name[:50]}..."
+        )
+
+    bad_chars = _UNSAFE_CHARS.intersection(name)
+    if bad_chars:
+        raise ValueError(
+            f"Asset name contains characters unsafe for cross-platform paths: "
+            f"{sorted(bad_chars)!r} in '{name}'"
+        )
+
+    if name.upper() in _RESERVED_NAMES or name.split(".")[0].upper() in _RESERVED_NAMES:
+        raise ValueError(f"Asset name is a Windows reserved device name: '{name}'")
+
+    if name[-1] in (" ", "."):
+        raise ValueError(
+            f"Asset name must not end with space or period (Windows incompatible): '{name}'"
+        )
+
+
+# get asset type extension
+def get_asset_type_extension(asset_file: Path) -> str:
+    asset_type = asset_file.suffix.lstrip(".")  # Get file extension without the dot
+    if asset_type == "zip" or asset_type == "7z":
+        asset_type = "3dmodel"
+    return asset_type
+
+
+# get asset type
+def get_asset_type(asset_type: Path) -> str:
+    if asset_type in asset_types:
+        return asset_types[asset_type]
+
+    raise FileNotFoundError(f"asset type not found {asset_type}")
+
+
+# Return the first filename where type == "Asset" or raise if not found
+def get_asset_filename(json_path: Path) -> Path:
+    data = load_input_file(json_path)
+
+    for entry in data:
+        if entry.get("type") == "Asset":
+            filename = entry.get("filename")
+            if not isinstance(filename, str) or not filename:
+                raise ValueError("Asset entry found but 'filename' is missing/invalid")
+            return Path(filename)
+
+    raise ValueError("No entry with type == 'Asset' found")
+
+
+# get asset file from frontend json
+def get_asset_file(uploadedFile: Path) -> Path:
+    # get from xml
+    asset_file = get_asset_filename(uploadedFile)
+
+    return download_or_get_file(asset_file, uploadedFile.parent)
+
+
+def main():
+    # parse arguments
+    parser = argparse.ArgumentParser(
+        prog="main.py",
+        description="extracted from asset and user infos all extractor/creator scripts are called to create an asset archive.",
+    )
+    parser.add_argument(
+        "filename",
+        type=str,
+        nargs="?",
+        default=None,
+        help="path to input_manifest.json",
+    )
+    parser.add_argument(
+        "-config", type=str, required=True, help="config path for sub tools."
+    )
+    parser.add_argument(
+        "-out", type=str, default=None, help="output path for asset archive."
+    )
+    parser.add_argument(
+        "-zip-dir",
+        type=str,
+        default="",
+        help="optional output directory for the generated archive",
+    )
+    parser.add_argument(
+        "-enable",
+        nargs="+",
+        default=None,
+        metavar="MODULE",
+        help="only run these modules (whitelist; overrides process.json)",
+    )
+    parser.add_argument(
+        "-disable",
+        nargs="+",
+        default=None,
+        metavar="MODULE",
+        help="skip these modules (blacklist; overrides process.json)",
+    )
+    parser.add_argument(
+        "-list-modules",
+        action="store_true",
+        default=False,
+        help="list available pipeline modules and exit",
+    )
+    args = parser.parse_args()
+
+    config_dir = Path(args.config) if args.config else Path("configs")
+    config_dir = config_dir.resolve()
+
+    # Handle --list-modules: print available modules and exit
+    if args.list_modules:
+        if not config_dir.is_dir():
+            raise FileNotFoundError(f"config path {config_dir} not exists")
+        modules = list_modules(config_dir)
+        print(f"{'MODULE ID':<45} {'ENABLED':<9} {'EXTENSIONS'}")
+        print("-" * 75)
+        for m in modules:
+            ext = ", ".join(m["extensions"]) if m["extensions"] else "all"
+            enabled_str = "yes" if m["enabled"] else "no"
+            print(f"{m['id']:<45} {enabled_str:<9} {ext}")
+        raise SystemExit(0)
+
+    if args.enable and args.disable:
+        parser.error("-enable and -disable are mutually exclusive")
+
+    if not args.filename:
+        parser.error("the following arguments are required: filename")
+    if not args.out:
+        parser.error("the following arguments are required: -out")
+
+    output_dir = Path(args.out)
+    output_dir = output_dir.resolve()
+    zip_dir = Path(args.zip_dir).resolve() if args.zip_dir else output_dir
+    zip_dir.mkdir(parents=True, exist_ok=True)
+
+    # determine asset type (e.g., ".xodr")
+    uploaded_file = Path(args.filename)
+    asset_file = get_asset_file(uploaded_file)
+    if not asset_file.exists():
+        raise FileNotFoundError(f"asset file {asset_file} not exists")
+
+    asset_type_ext = get_asset_type_extension(asset_file)
+    asset_type = get_asset_type(asset_type_ext)
+
+    # load all configs that are applicable to the asset type
+    if not config_dir.is_dir():
+        raise FileNotFoundError(f"config path {config_dir} not exists")
+    applicable_scripts, source_filenames = get_configs(
+        config_dir,
+        asset_file,
+        enable_modules=args.enable,
+        disable_modules=args.disable,
+    )
+
+    # create, cleanup output directory for the asset file
+    asset_name = asset_file.stem
+    _validate_asset_name(asset_name)
+
+    # Collision avoidance: if a different asset type already occupies this
+    # stem in the registry (e.g. hdmap "Foo.xodr" vs scenario "Foo.xosc"),
+    # disambiguate by appending the asset type.
+    if has_collision(output_dir, asset_name, asset_type):
+        output_sub_dir = output_dir / f"{asset_name}_{asset_type}"
+    else:
+        output_sub_dir = output_dir / asset_name
+    if output_sub_dir.exists():
+        shutil.rmtree(output_sub_dir)
+    output_sub_dir.mkdir(parents=True, exist_ok=True)
+
+    # Deterministic mode (opt-in): hash all input files so subprocesses
+    # derive reproducible UUIDs and use the source file's modification
+    # time instead of "now" for generated-file timestamps.
+    # Enable with SL58_DETERMINISTIC=1.
+    if os.environ.get("SL58_DETERMINISTIC") == "1":
+        input_hash = compute_input_hash(asset_file.parent)
+        source_mtime = str(int(asset_file.stat().st_mtime))
+        os.environ["SL58_INPUT_HASH"] = input_hash
+        os.environ["SL58_SOURCE_MTIME"] = source_mtime
+        logger.debug(
+            "Deterministic mode: input_hash=%s, source_mtime=%s",
+            input_hash,
+            source_mtime,
+        )
+    else:
+        os.environ.pop("SL58_INPUT_HASH", None)
+        os.environ.pop("SL58_SOURCE_MTIME", None)
+
+    project_root = Path(__file__).parent.parent
+    pipeline_reporter = PipelineReporter(
+        pipeline_name=get_pipeline_name(asset_file),
+        total_stages=len(applicable_scripts),
+        input_file=asset_file,
+        output_dir=output_sub_dir,
+        project_root=project_root,
+    )
+    pipeline_reporter.start_pipeline()
+
+    # execute each script and collect outputs
+    pipeline_started_at = perf_counter()
+    for stage_index, script_config in enumerate(applicable_scripts, start=1):
+        source_file = source_filenames.get(stage_index - 1, "")
+        stage_label = get_stage_label(script_config, source_file)
+        pipeline_reporter.start_stage(stage_index, stage_label)
+        stage_started_at = perf_counter()
+
+        try:
+            result = execute_script(script_config, asset_file, output_sub_dir)
+        except CommandError as exc:
+            summary = summarize_stage_failure(
+                script_config,
+                exc.cmd,
+                exc,
+                project_root=project_root,
+                source_filename=source_file,
+            )
+            pipeline_reporter.finish_stage(
+                stage_index,
+                stage_label,
+                perf_counter() - stage_started_at,
+                summary,
+            )
+            raise SystemExit(1) from None
+
+        summary = summarize_stage_success(
+            script_config,
+            result.cmd,
+            result,
+            project_root=project_root,
+            source_filename=source_file,
+        )
+        pipeline_reporter.finish_stage(
+            stage_index,
+            stage_label,
+            perf_counter() - stage_started_at,
+            summary,
+        )
+
+    # inject referenced artifacts from input manifest into output manifest
+    refs = load_referenced_artifacts(uploaded_file)
+    manifest_path = output_sub_dir / "manifest.json"
+
+    # Auto-discover file references from extractor JSON (for OpenSCENARIO
+    # files the extractor records map, catalog, scene-graph, and controller
+    # references).  These are merged with any user-provided references.
+    extractor_json = output_sub_dir / "temp" / f"{asset_name}_extractor.json"
+    if extractor_json.exists():
+        asset_role = _get_asset_access_role(uploaded_file)
+        auto_refs = _refs_from_extractor(extractor_json, asset_access_role=asset_role)
+        if auto_refs:
+            if refs is None:
+                refs = []
+            refs.extend(auto_refs)
+
+    if refs and manifest_path.exists():
+        # Resolve __*__ placeholders from the asset registry before writing
+        resolve_placeholders(refs, output_dir, current_stem=asset_name)
+        with manifest_path.open("r", encoding="utf-8") as f:
+            manifest = json.load(f)
+        manifest["hasReferencedArtifacts"] = [_format_reference(ref) for ref in refs]
+        write_json(manifest_path, manifest, indentValue=2, trailing_newline=True)
+        logger.info(f"Injected {len(refs)} referenced artifact(s) into manifest")
+
+    # remove temp folder before
+    temp_path = output_sub_dir / "temp"
+    if temp_path.exists():
+        shutil.rmtree(temp_path)
+
+    # create a temporary archive, compute its CID, then rename it
+    temp_zip_path = zip_dir / "asset.zip"
+    if temp_zip_path.exists():
+        temp_zip_path.unlink()
+    create_zip(output_sub_dir, temp_zip_path)
+    archive_cid = compute_file_cid(temp_zip_path)
+    zip_filename = zip_dir / f"{archive_cid}.zip"
+    if zip_filename.exists():
+        zip_filename.unlink()
+    temp_zip_path.replace(zip_filename)
+    archive_display = zip_filename
+    logger.info("[DONE ] Archive: %s", archive_display)
+
+    # Register the asset so later pipeline runs can resolve cross-references
+    sim_data_files = (
+        list((output_sub_dir / "simulation-data").glob("*"))
+        if (output_sub_dir / "simulation-data").is_dir()
+        else []
+    )
+    sim_data_path = (
+        f"simulation-data/{sim_data_files[0].name}" if sim_data_files else ""
+    )
+    register_asset(
+        output_dir,
+        stem=asset_name,
+        asset_type=asset_type,
+        cid=archive_cid,
+        manifest_path=str(manifest_path.relative_to(output_dir)),
+        sim_data_path=sim_data_path,
+    )
+
+    pipeline_reporter.finish_pipeline(perf_counter() - pipeline_started_at)
+
+
+if __name__ == "__main__":
+    main()

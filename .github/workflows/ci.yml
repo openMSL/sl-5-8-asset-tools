@@ -86,7 +86,7 @@ jobs:
         run: make setup
 
       - name: Generate with GeoJSON enabled
-        run: make generate opendrive PIPELINE_FLAGS="-enable vcs_odr-converter"
+        run: make generate opendrive PIPELINE_FLAGS="-enable preview_3d"
 
       - name: Verify GeoJSON output exists
         run: |

@@ -55,23 +55,23 @@ nav:
       - Quick Start: getting-started/quickstart.md
   - Pipeline Modules:
       - Overview: modules/index.md
-      - asset_extraction: modules/asset_extraction.md
-      - meta_data_extractor: modules/meta_data_extractor.md
-      - jsonLD_creator: modules/jsonLD_creator.md
-      - shacl_combiner: modules/shacl_combiner.md
-      - wizard_caller: modules/wizard_caller.md
-      - llm_enricher: modules/llm_enricher.md
-      - qualitychecker_caller: modules/qualitychecker_caller.md
-      - xodr_routing_creator: modules/xodr_routing_creator.md
-      - xodr_to_geojson_caller: modules/xodr_to_geojson_caller.md
-      - asset_reducer: modules/asset_reducer.md
-      - structure_creator: modules/structure_creator.md
-      - openlabel_creator: modules/openlabel_creator.md
+      - "📄 metadata_extractor": modules/metadata_extractor.md
+      - "🔗 jsonld_creator": modules/jsonld_creator.md
+      - "🔗 openlabel_creator": modules/openlabel_creator.md
+      - "🧩 shacl_combiner": modules/shacl_combiner.md
+      - "✨ metadata_enricher": modules/metadata_enricher.md
+      - "✨ wizard": modules/wizard.md
+      - "🔍 quality_checker": modules/quality_checker.md
+      - "🗺️ geojson_creator": modules/geojson_creator.md
+      - "🗺️ preview_3d": modules/preview_3d.md
+      - "📇 search_indexer": modules/search_indexer.md
+      - "📦 packager": modules/packager.md
+      - "⚙️ pipeline": modules/pipeline.md
   - Utilities:
       - utils: utilities/utils.md
       - xodr_calc_box: utilities/xodr_calc_box.md
       - xodr_trim_to_box: utilities/xodr_trim_to_box.md
-      - ontologie_creator: utilities/ontologie_creator.md
+      - ontology_generator: utilities/ontology_generator.md
   - Reference:
       - Input Manifest: reference/input-manifest.md
       - Output Structure: reference/output-structure.md

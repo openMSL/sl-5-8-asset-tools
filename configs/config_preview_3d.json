@@ -1,0 +1,13 @@
+{
+	"name": "preview_3d",
+	"environment type": "python",
+	"data folder": "media",
+	"params": {
+		"call": "preview_3d.main",
+		"output": {"-out": "{path}/{sub_path}/3d_preview/detailRoadNetwork.geojson"},
+		"additional": {
+			"-path": "{path}/temp",
+			"-compact": ""
+		}
+	}
+}

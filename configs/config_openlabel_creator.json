@@ -1,5 +1,5 @@
 {
-	"name" : "openlabel creator",
+	"name": "openlabel_creator",
 	"environment type" : "python",
 	"data folder" : "metadata",
 	"params" : {
