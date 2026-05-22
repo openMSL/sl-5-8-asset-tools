@@ -14,30 +14,34 @@ The tools are primarily used by the asset service pipeline in:
 - ASAM OpenSCENARIO XML (`.xosc`)
 - 3D environment model archives (`.zip`, `.7z`) with a companion `statistic_3dModel.json` metadata file in the same input folder
 
-## Pipeline Modules
+## What Happens When You Process an Asset
 
-The following modules are used in the asset archive pipeline.
+The pipeline transforms a raw simulation file into a packaged, described, and validated asset archive.
+Each step is handled by a dedicated module:
 
-- [asset_extraction](asset_extraction/README.md): Pipeline entrypoint and orchestrator.
-- [meta_data_extractor](meta_data_extractor/README.md): Extracts metadata from asset files.
-- [jsonLD_creator](jsonLD_creator/README.md): Creates JSON-LD from attribute JSON.
-- [openlabel_creator](openlabel_creator/README.md): Creates OpenLABEL JSON from scenario metadata.
-- [shacl_combiner](shacl_combiner/README.md): Combines required shacl shapes.
-- [llm_enricher](llm_enricher/README.md): Rule-based metadata enrichment for empty fields (disabled by default).
-- [wizard_caller](wizard_caller/README.md): SHACL-driven CLI wizard for enriching JSON-LD interactively (disabled via config by default).
-- [jsonLD_validator](jsonLD_validator/README.md): Legacy validator (replaced by ontology-management-base in pipeline).
-- [qualitychecker_caller](qualitychecker_caller/README.md): Runs ASAM/OpenMSL quality checkers.
-- [xodr_routing_creator](xodr_routing_creator/README.md): Generates route and bounding box GeoJSON for georeferenced OpenDRIVE files. Non-georeferenced files are skipped.
-- [xodr_to_geojson_caller](xodr_to_geojson_caller/README.md): Pure-Python OpenDRIVE to GeoJSON 3D preview converter (disabled by default; enable via `-enable vcs_odr-converter`).
-- [asset_reducer](asset_reducer/README.md): Reduces XML asset data for search indexing.
-- [structure_creator](structure_creator/README.md): Builds final archive structure and manifest input.
+| # | Phase | Module | What it does |
+|---|-------|--------|--------------|
+| 1 | 📄 Extract | [metadata_extractor](metadata_extractor/README.md) | Parse the asset file and pull out raw metadata attributes |
+| 2 | 🔗 Describe | [jsonld_creator](jsonld_creator/README.md) | Turn attributes into linked-data (JSON-LD) using SHACL ontologies |
+| 3 | 🔗 Describe | [openlabel_creator](openlabel_creator/README.md) | Transform OpenLABEL scenario tags into JSON-LD (xosc only) |
+| 4 | 🧩 Shape | [shacl_combiner](shacl_combiner/README.md) | Bundle all referenced SHACL shapes into one validation file |
+| 5 | ✨ Enrich | [metadata_enricher](metadata_enricher/README.md) | Fill empty metadata fields using rules (disabled by default) |
+| 6 | ✨ Enrich | [wizard](wizard/README.md) | Interactive SHACL-driven wizard for manual metadata entry |
+| 7 | ✅ Validate | OMB validation suite | Check metadata conforms to ontology constraints |
+| 8 | 🔍 Check | [quality_checker](quality_checker/README.md) | Run ASAM/OpenMSL standard compliance checkers |
+| 9 | 🗺️ Preview | [geojson_creator](geojson_creator/README.md) | Generate GeoJSON road network + bounding box |
+| 10 | 🗺️ Preview | [preview_3d](preview_3d/README.md) | Create 3D lane-level GeoJSON preview (disabled by default) |
+| 11 | 📇 Index | [search_indexer](search_indexer/README.md) | Build compact binary JSON for search/filtering |
+| 12 | 📦 Package | [packager](packager/README.md) | Assemble final folder structure, manifest, and asset.zip |
 
-## Additional Modules
+The [pipeline](pipeline/README.md) module orchestrates all steps based on [`configs/process.json`](configs/process.json).
 
-- [utils](utils/README.md): Shared helper modules.
-- [xodr_calc_box](xodr_calc_box/README.md): Bounding box calculation helper.
-- [xodr_trim_to_box](xodr_trim_to_box/README.md): Trim OpenDRIVE by bounding box.
-- [ontologie_creator](ontologie_creator/README.md): Generate ontology/shacl from Excel table.
+## Standalone Utilities
+
+- [utils](utils/README.md): Shared helper modules (logging, subprocess, JSON/RDF I/O, geometry).
+- [xodr_calc_box](xodr_calc_box/README.md): Bounding box calculation for OpenDRIVE files.
+- [xodr_trim_to_box](xodr_trim_to_box/README.md): Trim OpenDRIVE files to a geographic bounding box.
+- [ontology_generator](ontology_generator/README.md): Generate OWL ontologies + SHACL shapes from Excel tables.
 
 ## Process Diagram
 
@@ -45,61 +49,61 @@ The following modules are used in the asset archive pipeline.
 flowchart TD
     input["input_manifest.json<br/><i>.xodr / .xosc / .zip,.7z</i>"]
 
-    subgraph extract ["Metadata Extraction"]
-        mde["meta_data_extractor<br/><small>xodr, xosc</small>"]
-        mde_val["extractor JSON syntax validator<br/><small>(OMB)</small>"]
-        mde3d["3dmodel_meta_data_extractor<br/><small>3dmodel</small>"]
+    subgraph extract ["📄 Extract"]
+        mde["metadata_extractor<br/><small>xodr, xosc</small>"]
+        mde_val["syntax validator<br/><small>(OMB)</small>"]
+        mde3d["3dmodel metadata extractor<br/><small>3dmodel</small>"]
     end
 
-    subgraph jsonld ["JSON-LD Creation"]
-        jlc["jsonLD_creator<br/><small>xodr, xosc</small>"]
+    subgraph describe ["🔗 Describe"]
+        jlc["jsonld_creator<br/><small>xodr, xosc</small>"]
         olc["openlabel_creator<br/><small>xosc</small>"]
-        jlc3d["3dmodel_jsonLD_creator<br/><small>3dmodel</small>"]
+        jlc3d["3dmodel jsonld_creator<br/><small>3dmodel</small>"]
     end
 
-    sc["shacl_combiner"]
+    sc["🧩 shacl_combiner"]
 
-    subgraph enrich ["Metadata Enrichment"]
-        llm["llm_enricher ⚠️<br/><small>disabled by default</small>"]
-        wiz["wizard_caller<br/><small>interactive or copy</small>"]
+    subgraph enrich ["✨ Enrich"]
+        llm["metadata_enricher ⚠️<br/><small>disabled by default</small>"]
+        wiz["wizard<br/><small>interactive or copy</small>"]
     end
 
-    val1["jsonLD_validator<br/><small>(OMB)</small>"]
+    val1["✅ jsonld_validator<br/><small>(OMB)</small>"]
 
-    subgraph quality ["Quality Checks"]
-        qc_asam_xodr["qualitychecker ASAM<br/><small>xodr</small>"]
-        qc_asam_xosc["qualitychecker ASAM<br/><small>xosc</small>"]
-        qc_omsl["qualitychecker OpenMSL<br/><small>xodr</small>"]
+    subgraph quality ["🔍 Quality Check"]
+        qc_asam_xodr["quality_checker ASAM<br/><small>xodr</small>"]
+        qc_asam_xosc["quality_checker ASAM<br/><small>xosc</small>"]
+        qc_omsl["quality_checker OpenMSL<br/><small>xodr</small>"]
     end
 
-    subgraph geo ["Geospatial"]
-        route["xodr_routing_creator<br/><small>roadNetwork + bbox GeoJSON</small>"]
-        preview["xodr_to_geojson_caller ⚠️<br/><small>3D preview · disabled by default</small>"]
+    subgraph preview ["🗺️ Preview"]
+        route["geojson_creator<br/><small>roadNetwork + bbox</small>"]
+        p3d["preview_3d ⚠️<br/><small>3D lanes · disabled by default</small>"]
     end
 
-    reducer["asset_reducer<br/><small>XML → .bjson</small>"]
+    reducer["📇 search_indexer<br/><small>XML → .bjson</small>"]
 
-    subgraph finalize ["Finalize"]
-        struct["structure_creator<br/><small>folder layout + manifest input</small>"]
-        struct_val["structure JSON syntax validator<br/><small>(OMB)</small>"]
-        manifest_jlc["jsonLD_creator<br/><small>manifest.json</small>"]
-        manifest_val["jsonLD_validator<br/><small>(OMB)</small>"]
+    subgraph finalize ["📦 Package"]
+        struct["packager<br/><small>folder layout + manifest input</small>"]
+        struct_val["syntax validator<br/><small>(OMB)</small>"]
+        manifest_jlc["jsonld_creator<br/><small>manifest.json</small>"]
+        manifest_val["jsonld_validator<br/><small>(OMB)</small>"]
     end
 
     archive["asset.zip 📦"]
 
     input --> extract
-    extract --> jsonld
-    jsonld --> sc --> enrich --> val1
-    val1 --> quality --> geo --> reducer
+    extract --> describe
+    describe --> sc --> enrich --> val1
+    val1 --> quality --> preview --> reducer
     reducer --> finalize --> archive
 
-    wizard(["SD Creation Wizard 🌐<br/><small>browser UI · optional</small>"])
-    wiz -. "WIZARD=true" .-> wizard
+    wizard_ui(["SD Creation Wizard 🌐<br/><small>browser UI · optional</small>"])
+    wiz -. "WIZARD=true" .-> wizard_ui
 
     style llm fill:#fff3cd,stroke:#ffc107
-    style preview fill:#fff3cd,stroke:#ffc107
-    style wizard fill:#e8f4f8,stroke:#17a2b8
+    style p3d fill:#fff3cd,stroke:#ffc107
+    style wizard_ui fill:#e8f4f8,stroke:#17a2b8
     style archive fill:#d4edda,stroke:#28a745
     style input fill:#e2e3e5,stroke:#6c757d
 ```
@@ -118,7 +122,7 @@ There are two configuration types:
   - `filename`: module config filename
   - `extensions`: supported asset extensions
 
-1. Module-specific config (for example `config_meta_data_extractor.json`)
+1. Module-specific config (for example `config_metadata_extractor.json`)
 
 - Defines concrete call parameters for a module.
 - Core fields:
@@ -139,11 +143,11 @@ Example:
 
 ```json
 {
-  "name": "xodr_routing_creator",
+  "name": "geojson_creator",
   "environment type": "python",
   "data folder": "media",
   "params": {
-    "call": "xodr_routing_creator.main",
+    "call": "geojson_creator.main",
     "output": {
       "-out": "{path}/{sub_path}/roadNetwork.geojson"
     },
@@ -199,13 +203,13 @@ Individual pipeline modules can be enabled or disabled at runtime using the
 
 ```bash
 # Skip a specific module
-make generate opendrive PIPELINE_FLAGS="-disable xodr_routing_creator"
+make generate opendrive PIPELINE_FLAGS="-disable geojson_creator"
 
 # Run only specific modules (whitelist)
-make generate opendrive PIPELINE_FLAGS="-enable meta_data_extractor structure_creator"
+make generate opendrive PIPELINE_FLAGS="-enable metadata_extractor packager"
 
-# Enable GeoJSON 3D preview generation (disabled by default)
-make generate opendrive PIPELINE_FLAGS="-enable vcs_odr-converter"
+# Enable 3D preview generation (disabled by default)
+make generate opendrive PIPELINE_FLAGS="-enable preview_3d"
 
 # List available module IDs
 make generate opendrive PIPELINE_FLAGS="-list-modules"
@@ -214,8 +218,8 @@ make generate opendrive PIPELINE_FLAGS="-list-modules"
 When calling the pipeline directly:
 
 ```bash
-python -m asset_extraction.main input.json -config configs -out ./out -disable vcs_odr-converter
-python -m asset_extraction.main -config configs -list-modules
+python -m pipeline.main input.json -config configs -out ./out -disable preview_3d
+python -m pipeline.main -config configs -list-modules
 ```
 
 ### Run Pipeline for a Custom Input Directory
@@ -357,7 +361,7 @@ Without `WIZARD=true`, the wizard step simply copies JSON-LD unchanged
 (disabled by default in config). For terminal-based prompts:
 
 ```bash
-python -m wizard_caller.main metadata/hdmap.json -shacl temp/hdmap.ttl -enable true -out metadata/hdmap.json
+python -m wizard.main metadata/hdmap.json -shacl temp/hdmap.ttl -enable true -out metadata/hdmap.json
 ```
 
 ### Architecture
@@ -378,7 +382,7 @@ WIZARD_FRONTEND_PORT=5174
 
 Review existing generated assets interactively.  `make review` runs two phases:
 
-1. **Enrichment** — `llm_enricher` fills empty metadata fields using rule-based inference and records provenance (method + confidence) in `*_provenance.json` files.
+1. **Enrichment** — `metadata_enricher` fills empty metadata fields using rule-based inference and records provenance (method + confidence) in `*_provenance.json` files.
 2. **Wizard review** — Enriched assets are queued in the SD Creation Wizard for human verification. The wizard pre-fills forms from the existing JSON-LD and highlights inferred values.
 
 Re-zips any assets whose metadata changed after review:

@@ -15,23 +15,23 @@ logger = logging.getLogger(__name__)
 
 
 STAGE_LABELS = {
-    "config_meta_data_extractor.json": "Extract metadata",
+    "config_metadata_extractor.json": "Extract metadata",
     "config_extractor_json_syntax_validator_omb.json": "Check extracted metadata JSON syntax",
-    "config_asset_jsonLD_creator.json": "Create extracted metadata JSON-LD",
-    "config_3dmodel_jsonLD_creator.json": "Create 3D model JSON-LD",
+    "config_asset_jsonld_creator.json": "Create extracted metadata JSON-LD",
+    "config_3dmodel_jsonld_creator.json": "Create 3D model JSON-LD",
     "config_shacl_combiner.json": "Build SHACL bundle",
-    "config_wizard_caller.json": "Populate metadata",
-    "config_jsonLD_validator_omb.json": "Validate metadata",
+    "config_wizard.json": "Populate metadata",
+    "config_jsonld_validator_omb.json": "Validate metadata",
     "config_quality_checker_asam_xodr.json": "Run ASAM OpenDRIVE checks",
     "config_quality_checker_asam_xosc.json": "Run ASAM OpenSCENARIO checks",
     "config_quality_checker_openmsl_xodr.json": "Run OpenMSL OpenDRIVE checks",
-    "config_xodr_routing_creator.json": "Generate routing GeoJSON",
+    "config_geojson_creator.json": "Generate routing GeoJSON",
     "config_vcs_odr-converter.json": "Generate detailed preview GeoJSON",
-    "config_asset_reducer.json": "Create reduced simulation asset",
-    "config_structure_creator.json": "Build asset structure",
+    "config_search_indexer.json": "Create reduced simulation asset",
+    "config_packager.json": "Build asset structure",
     "config_structure_json_syntax_validator_omb.json": "Check structure JSON syntax",
-    "config_structure_jsonLD_creator.json": "Create final manifest JSON-LD",
-    "config_structure_jsonLD_validator_omb.json": "Validate final manifest",
+    "config_structure_jsonld_creator.json": "Create final manifest JSON-LD",
+    "config_structure_jsonld_validator_omb.json": "Validate final manifest",
 }
 
 
@@ -146,8 +146,8 @@ def summarize_stage_success(
         return _summarize_omb_syntax_check(cmd, result, project_root)
 
     if source_filename in {
-        "config_jsonLD_validator_omb.json",
-        "config_structure_jsonLD_validator_omb.json",
+        "config_jsonld_validator_omb.json",
+        "config_structure_jsonld_validator_omb.json",
     }:
         return _summarize_omb_validation(result, source_filename=source_filename)
 
@@ -199,8 +199,8 @@ def summarize_stage_failure(
         )
 
     if source_filename in {
-        "config_jsonLD_validator_omb.json",
-        "config_structure_jsonLD_validator_omb.json",
+        "config_jsonld_validator_omb.json",
+        "config_structure_jsonld_validator_omb.json",
     }:
         details.extend(
             _extract_validation_failure_details(
@@ -478,7 +478,7 @@ def _extract_validation_failure_details(
 def _filter_validation_warning_lines(
     warning_lines: list[str], *, source_filename: str
 ) -> list[str]:
-    if source_filename != "config_jsonLD_validator_omb.json":
+    if source_filename != "config_jsonld_validator_omb.json":
         return warning_lines
 
     filtered = []

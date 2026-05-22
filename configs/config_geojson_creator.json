@@ -1,0 +1,12 @@
+{
+	"name": "geojson_creator",
+	"environment type" : "python",
+	"data folder" : "media",
+	"params" : 	{
+		"call" : "geojson_creator.main",
+		"output" : {"-out" : "{path}/{sub_path}/roadNetwork.geojson"},
+		"additional" : {
+			"-box" : "{path}/{sub_path}/bbox.geojson"
+		}		
+	}
+}

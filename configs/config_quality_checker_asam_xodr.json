@@ -1,9 +1,9 @@
 {
-	"name" : "qualitychecker caller",
+	"name": "quality_checker",
 	"environment type" : "python",
 	"data folder" : "validation-reports",
 	"params" : 	{
-		"call" : "qualitychecker_caller.main",
+		"call" : "quality_checker.main",
 		"output" : {"-out" : "{path}/{sub_path}/{name}_asam_cb_xodr.xqar"},
         "additional" : {
             "-config" : "qc_config_xodr.xml",

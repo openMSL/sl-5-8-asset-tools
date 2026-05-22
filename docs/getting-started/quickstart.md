@@ -88,10 +88,10 @@ Skip or enable specific modules at runtime:
 
 ```bash
 # Skip a module
-make generate opendrive PIPELINE_FLAGS="-disable xodr_routing_creator"
+make generate opendrive PIPELINE_FLAGS="-disable geojson_creator"
 
 # Run only specific modules
-make generate opendrive PIPELINE_FLAGS="-enable meta_data_extractor structure_creator"
+make generate opendrive PIPELINE_FLAGS="-enable metadata_extractor packager"
 
 # Enable GeoJSON 3D preview (disabled by default)
 make generate opendrive PIPELINE_FLAGS="-enable vcs_odr-converter"

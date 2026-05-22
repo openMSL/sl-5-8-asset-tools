@@ -1,0 +1,10 @@
+{
+	"name": "search_indexer",
+	"environment type" : "python",
+	"data folder" : "simulation-data",
+	"params" : 	{
+		"call" : "search_indexer.main",
+		"output" : {"-out" : "{path}/{sub_path}/{name}.bjson"},
+		"output format" : "bjson"
+	}
+}

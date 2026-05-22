@@ -1,0 +1,14 @@
+{
+	"name" : "jsonLD creator",
+	"environment type" : "python",
+	"data folder" : "metadata",
+	"params" : {
+		"call" : "jsonld_creator.main",
+		"input" : {"" : "{path}/temp/{name}_extractor.json"},
+		"output" : {"-out" : "{path}/temp/{asset_type}.json"},
+		"additional" : {
+			"-ontology" : "https://raw.githubusercontent.com/GAIA-X4PLC-AAD/ontology-management-base/main",
+            "-removeShacl" : ""            
+		}		
+	}
+}

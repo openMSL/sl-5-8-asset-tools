@@ -1,0 +1,15 @@
+{
+	"name": "wizard",
+	"environment type" : "python",
+	"data folder" : "metadata",
+	"params" : 	{
+		"call" : "wizard.main",
+		"input" : {"" : "{path}/temp/{asset_type}.json"},
+		"output" : {"-out" : "{path}/{sub_path}/{asset_type}.json"},
+		"additional" : {			
+			"-shacl" : "{path}/temp/{asset_type}.ttl",
+			"-enable" : "false",
+			"-asset-name" : "{name}"
+		}	
+	}
+}

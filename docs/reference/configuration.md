@@ -11,7 +11,7 @@ and which file extensions they support:
 
 ```json
 {
-  "meta_data_extractor": {
+  "metadata_extractor": {
     "enable": true,
     "extensions": ["xodr", "xosc"]
   }
@@ -25,8 +25,8 @@ placeholders:
 
 ```json
 {
-  "name": "xodr_routing_creator",
-  "call": "xodr_routing_creator.main",
+  "name": "geojson_creator",
+  "call": "geojson_creator.main",
   "output": {
     "-out": "{path}/{sub_path}/roadNetwork.geojson"
   },
@@ -54,10 +54,10 @@ Module configs support these placeholders that are resolved at runtime:
 
 ```bash
 # Disable a module
-make generate opendrive PIPELINE_FLAGS="-disable xodr_routing_creator"
+make generate opendrive PIPELINE_FLAGS="-disable geojson_creator"
 
 # Enable only specific modules
-make generate opendrive PIPELINE_FLAGS="-enable meta_data_extractor structure_creator"
+make generate opendrive PIPELINE_FLAGS="-enable metadata_extractor packager"
 
 # List module IDs
 make generate opendrive PIPELINE_FLAGS="-list-modules"
